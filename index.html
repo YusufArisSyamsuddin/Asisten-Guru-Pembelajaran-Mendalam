@@ -75,10 +75,12 @@ const MultiSelectDropdown = ({ options, selectedOptions, toggleOption }) => {
   }, [dropdownRef]);
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div className="relative w-full" ref={dropdownRef}>
       <button type="button" onClick={() => setIsOpen(!isOpen)} className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 bg-white text-left flex justify-between items-center shadow-sm transition-colors hover:bg-slate-50">
-        <span className="truncate pr-4 text-slate-700 font-medium">{selectedOptions.length > 0 ? selectedOptions.join(', ') : '-- Klik untuk memilih Praktik Pedagogis (Bisa lebih dari 1) --'}</span>
-        <div className="flex items-center">
+        <div className="flex-1 min-w-0 pr-3">
+          <span className="block truncate text-slate-700 font-medium">{selectedOptions.length > 0 ? selectedOptions.join(', ') : '-- Klik untuk memilih Praktik Pedagogis (Bisa lebih dari 1) --'}</span>
+        </div>
+        <div className="flex items-center shrink-0">
           {selectedOptions.length > 0 && <span className="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-1 rounded-full mr-2">{selectedOptions.length} Dipilih</span>}
           <i className={`fas fa-chevron-${isOpen ? 'up' : 'down'} text-slate-500`}></i>
         </div>
@@ -260,11 +262,11 @@ function App() {
                     <div><LabelWithHint hint={<><b>Tips Menyusun Tujuan Pembelajaran (Rumus A-B-C-D):</b><br/><br/><b>A - Audience:</b> Siapa yang belajar? (Misal: <i>Peserta didik</i>)<br/><b>B - Behavior:</b> Perilaku terukur / KKO? (Misal: <i>dapat membedakan sel hewan dan tumbuhan</i>)<br/><b>C - Condition:</b> Kondisi belajarnya? (Misal: <i>Melalui pengamatan mikroskop...</i>)<br/><b>D - Degree:</b> Target minimal? (Misal: <i>...dengan minimal 3 perbedaan yang benar.</i>)<br/><br/><b>Contoh Gabungan:</b> <i>Melalui pengamatan mikroskop (C), peserta didik (A) dapat membedakan sel hewan dan tumbuhan (B) dengan minimal 3 perbedaan yang benar (D).</i></>}>Tujuan Pembelajaran</LabelWithHint><textarea name="tp" value={rppData.tp} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"></textarea></div>
                     <div className="p-5 bg-white rounded-lg border border-indigo-200 shadow-sm mt-4">
                       <h4 className="font-bold text-indigo-800 border-b pb-2 mb-4">Kerangka Pembelajaran</h4>
-                      <div className="grid md:grid-cols-2 gap-5">
-                        <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 col-span-1 md:col-span-2"><LabelWithHint className="font-bold text-indigo-900 mb-3 text-xs uppercase">Praktik Pedagogis (Multi-Select)</LabelWithHint><MultiSelectDropdown options={praktikOptions} selectedOptions={pArr} toggleOption={togglePraktikPedagogis} />{pArr.includes("Lainnya (Ketik Manual)") && <input type="text" placeholder="Ketik manual..." value={rppData.praktikLainnya||""} onChange={(e) => setRppData(p=>({...p, praktikLainnya: e.target.value}))} className="w-full mt-3 p-3 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white" />}</div>
-                        <div><LabelWithHint className="font-bold text-xs uppercase" hint="Kolaborasi siswa (misal: Tutor sebaya, Kelompok Heterogen, atau Pemateri Luar).">Kemitraan Pembelajaran</LabelWithHint><textarea name="kemitraanPembelajaran" value={rppData.kemitraanPembelajaran} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none"></textarea></div>
-                        <div><LabelWithHint className="font-bold text-xs uppercase" hint="Seting fisik/sosial kelas (misal: Formasi U, Lab IPA, Perpustakaan, Luar Kelas).">Lingkungan Pembelajaran</LabelWithHint><textarea name="lingkunganPembelajaran" value={rppData.lingkunganPembelajaran} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none"></textarea></div>
-                        <div className="md:col-span-2"><LabelWithHint className="font-bold text-xs uppercase" hint="Alat digital pendukung (misal: Quizizz, PhET, Canva, YouTube).">Pemanfaatan Digital</LabelWithHint><textarea name="pemanfaatanDigital" value={rppData.pemanfaatanDigital} onChange={handleInputChange} rows="2" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none"></textarea></div>
+                      <div className="grid md:grid-cols-2 gap-5 min-w-0">
+                        <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 col-span-1 md:col-span-2 min-w-0"><LabelWithHint className="font-bold text-indigo-900 mb-3 text-xs uppercase">Praktik Pedagogis (Multi-Select)</LabelWithHint><MultiSelectDropdown options={praktikOptions} selectedOptions={pArr} toggleOption={togglePraktikPedagogis} />{pArr.includes("Lainnya (Ketik Manual)") && <input type="text" placeholder="Ketik manual..." value={rppData.praktikLainnya||""} onChange={(e) => setRppData(p=>({...p, praktikLainnya: e.target.value}))} className="w-full mt-3 p-3 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white" />}</div>
+                        <div className="min-w-0"><LabelWithHint className="font-bold text-xs uppercase" hint="Kolaborasi siswa (misal: Tutor sebaya, Kelompok Heterogen, atau Pemateri Luar).">Kemitraan Pembelajaran</LabelWithHint><textarea name="kemitraanPembelajaran" value={rppData.kemitraanPembelajaran} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none"></textarea></div>
+                        <div className="min-w-0"><LabelWithHint className="font-bold text-xs uppercase" hint="Seting fisik/sosial kelas (misal: Formasi U, Lab IPA, Perpustakaan, Luar Kelas).">Lingkungan Pembelajaran</LabelWithHint><textarea name="lingkunganPembelajaran" value={rppData.lingkunganPembelajaran} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none"></textarea></div>
+                        <div className="md:col-span-2 min-w-0"><LabelWithHint className="font-bold text-xs uppercase" hint="Alat digital pendukung (misal: Quizizz, PhET, Canva, YouTube).">Pemanfaatan Digital</LabelWithHint><textarea name="pemanfaatanDigital" value={rppData.pemanfaatanDigital} onChange={handleInputChange} rows="2" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none"></textarea></div>
                       </div>
                     </div>
                   </div>
@@ -273,63 +275,9 @@ function App() {
                 <Card className="p-6 border-t-4 border-t-emerald-500 bg-emerald-50/30">
                   <div className="mb-5 border-b border-emerald-200 pb-3"><h3 className="font-bold text-emerald-900 text-lg"><span className="bg-emerald-600 text-white px-2 py-0.5 rounded text-sm mr-2">TAHAP 3 & 4</span> Input Pengalaman & Asesmen</h3></div>
                   <div className="space-y-6 text-sm">
-                    <div className="bg-white p-5 rounded-lg border border-emerald-200 shadow-sm">
-                      <h4 className="font-bold text-slate-800 mb-3">Bagian 1: Pendahuluan</h4>
-                      <div className="space-y-4">
-                        <div>
-                          <LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Sebutkan tindakan fisik yang dilakukan di pembukaan (Misal: Salam, Doa, Latihan STOP untuk KSE, dan Apersepsi/pemantik).">Aktivitas Kelas (Langkah Fisik)</LabelWithHint>
-                          <textarea name="kegiatanAwal" value={rppData.kegiatanAwal} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 bg-slate-50 outline-none"></textarea>
-                        </div>
-                        <div className="grid lg:grid-cols-2 gap-4">
-                          <div>
-                            <LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Pengalaman mengonstruksi pemahaman (Esensial, Aplikatif, Karakter).">Target Kognitif (Memahami)</LabelWithHint>
-                            <textarea name="pengalamanMemahami" value={rppData.pengalamanMemahami} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none"></textarea>
-                          </div>
-                          <div>
-                              <LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Pemetaan cepat kemampuan/kesiapan awal (Kuis Lisan/Diagnostik).">Asesmen Awal</LabelWithHint>
-                              <textarea name="asesmenAwal" value={rppData.asesmenAwal} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none"></textarea>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="bg-white p-5 rounded-lg border border-emerald-200 shadow-sm">
-                      <h4 className="font-bold text-slate-800 mb-3">Bagian 2: Inti</h4>
-                      <div className="space-y-4">
-                        <div>
-                          <LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Sebutkan alur kerja utama siswa dan metode pengajaran Bapak/Ibu (Kerja kelompok, Praktikum mikroskop, Presentasi, dll).">Aktivitas Kelas (Langkah Fisik)</LabelWithHint>
-                          <textarea name="kegiatanInti" value={rppData.kegiatanInti} onChange={handleInputChange} rows="5" className="w-full p-3 border border-slate-300 rounded focus:ring-2 bg-slate-50 outline-none"></textarea>
-                        </div>
-                        <div className="grid lg:grid-cols-2 gap-4">
-                          <div>
-                            <LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Penerapan konsep pada situasi nyata, eksperimen, diskusi, atau proyek.">Target Kognitif (Mengaplikasi)</LabelWithHint>
-                            <textarea name="pengalamanMengaplikasi" value={rppData.pengalamanMengaplikasi} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none"></textarea>
-                          </div>
-                          <div>
-                            <LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Observasi unjuk kerja atau kuis pemahaman selama kegiatan (Formatif).">Asesmen Proses</LabelWithHint>
-                            <textarea name="asesmenProses" value={rppData.asesmenProses} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none"></textarea>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="bg-white p-5 rounded-lg border border-emerald-200 shadow-sm">
-                      <h4 className="font-bold text-slate-800 mb-3">Bagian 3: Penutup</h4>
-                      <div className="space-y-4">
-                        <div>
-                          <LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Aktivitas di akhir pelajaran (Misal: Menyusun kesimpulan bersama, guru memberikan apresiasi dan tugas lanjutan, doa).">Aktivitas Kelas (Langkah Fisik)</LabelWithHint>
-                          <textarea name="kegiatanPenutup" value={rppData.kegiatanPenutup} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 bg-slate-50 outline-none"></textarea>
-                        </div>
-                        <div className="grid lg:grid-cols-2 gap-4">
-                          <div>
-                            <LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Kegiatan regulasi diri, evaluasi mandiri, dan apresiasi proses belajar.">Target Kognitif (Merefleksi)</LabelWithHint>
-                            <textarea name="pengalamanMerefleksi" value={rppData.pengalamanMerefleksi} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none"></textarea>
-                          </div>
-                          <div>
-                            <LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Bukti penguasaan materi (Exit Ticket, Tes Tertulis, atau Lembar Refleksi).">Asesmen Akhir</LabelWithHint>
-                            <textarea name="asesmenAkhir" value={rppData.asesmenAkhir} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none"></textarea>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    <div className="bg-white p-5 rounded-lg border border-emerald-200 shadow-sm"><h4 className="font-bold text-slate-800 mb-3">Bagian 1: Pendahuluan</h4><div className="space-y-4"><div><LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Sebutkan tindakan fisik yang dilakukan di pembukaan (Misal: Salam, Doa, Latihan STOP untuk KSE, dan Apersepsi/pemantik).">Aktivitas Kelas (Langkah Fisik)</LabelWithHint><textarea name="kegiatanAwal" value={rppData.kegiatanAwal} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 bg-slate-50 outline-none"></textarea></div><div className="grid lg:grid-cols-2 gap-4"><div><LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Pengalaman mengonstruksi pemahaman (Esensial, Aplikatif, Karakter).">Target Kognitif (Memahami)</LabelWithHint><textarea name="pengalamanMemahami" value={rppData.pengalamanMemahami} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none"></textarea></div><div><LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Pemetaan cepat kemampuan/kesiapan awal (Kuis Lisan/Diagnostik).">Asesmen Awal</LabelWithHint><textarea name="asesmenAwal" value={rppData.asesmenAwal} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none"></textarea></div></div></div></div>
+                    <div className="bg-white p-5 rounded-lg border border-emerald-200 shadow-sm"><h4 className="font-bold text-slate-800 mb-3">Bagian 2: Inti</h4><div className="space-y-4"><div><LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Sebutkan alur kerja utama siswa dan metode pengajaran Bapak/Ibu (Kerja kelompok, Praktikum mikroskop, Presentasi, dll).">Aktivitas Kelas (Langkah Fisik)</LabelWithHint><textarea name="kegiatanInti" value={rppData.kegiatanInti} onChange={handleInputChange} rows="5" className="w-full p-3 border border-slate-300 rounded focus:ring-2 bg-slate-50 outline-none"></textarea></div><div className="grid lg:grid-cols-2 gap-4"><div><LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Penerapan konsep pada situasi nyata, eksperimen, diskusi, atau proyek.">Target Kognitif (Mengaplikasi)</LabelWithHint><textarea name="pengalamanMengaplikasi" value={rppData.pengalamanMengaplikasi} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none"></textarea></div><div><LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Observasi unjuk kerja atau kuis pemahaman selama kegiatan (Formatif).">Asesmen Proses</LabelWithHint><textarea name="asesmenProses" value={rppData.asesmenProses} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none"></textarea></div></div></div></div>
+                    <div className="bg-white p-5 rounded-lg border border-emerald-200 shadow-sm"><h4 className="font-bold text-slate-800 mb-3">Bagian 3: Penutup</h4><div className="space-y-4"><div><LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Aktivitas di akhir pelajaran (Misal: Menyusun kesimpulan bersama, guru memberikan apresiasi dan tugas lanjutan, doa).">Aktivitas Kelas (Langkah Fisik)</LabelWithHint><textarea name="kegiatanPenutup" value={rppData.kegiatanPenutup} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 bg-slate-50 outline-none"></textarea></div><div className="grid lg:grid-cols-2 gap-4"><div><LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Kegiatan regulasi diri, evaluasi mandiri, dan apresiasi proses belajar.">Target Kognitif (Merefleksi)</LabelWithHint><textarea name="pengalamanMerefleksi" value={rppData.pengalamanMerefleksi} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none"></textarea></div><div><LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Bukti penguasaan materi (Exit Ticket, Tes Tertulis, atau Lembar Refleksi).">Asesmen Akhir</LabelWithHint><textarea name="asesmenAkhir" value={rppData.asesmenAkhir} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none"></textarea></div></div></div></div>
                   </div>
                 </Card>
 
