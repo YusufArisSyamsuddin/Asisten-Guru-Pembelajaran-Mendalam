@@ -1,1293 +1,443 @@
 <!DOCTYPE html>
 <html lang="id">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Asisten Guru SMPN 2 Secang - Pembelajaran Mendalam</title>
-    
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    
-    <!-- FontAwesome -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
-    <!-- React & ReactDOM -->
-    <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
-    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
-    
-    <!-- Babel -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-
-    <style>
-        .scrollbar-hide::-webkit-scrollbar { display: none; }
-        .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
-        
-        @keyframes pulse-blue {
-            0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); }
-            70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); }
-            100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); }
-        }
-        .btn-word {
-            animation: pulse-blue 2s infinite;
-        }
-        .btn-word:hover {
-            animation: none;
-        }
-
-        .table-input {
-            width: 100%;
-            background: transparent;
-            border: 1px solid transparent;
-            padding: 4px;
-            outline: none;
-            resize: vertical;
-        }
-        .table-input:focus {
-            border: 1px solid #3b82f6;
-            border-radius: 4px;
-            background: #fff;
-        }
-        
-        /* Animasi untuk dropdown */
-        @keyframes slideDown {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-        .dropdown-animate {
-            animation: slideDown 0.2s ease-out forwards;
-        }
-    </style>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Asisten Guru SMPN 2 Secang - Pembelajaran Mendalam</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/react-dom@18/umd/react-dom-server.browser.production.min.js" crossorigin></script>
+<script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<style>
+.scrollbar-hide::-webkit-scrollbar { display: none; }
+.scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+@keyframes pulse-blue { 0% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.7); } 70% { box-shadow: 0 0 0 10px rgba(37, 99, 235, 0); } 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0); } }
+.btn-word { animation: pulse-blue 2s infinite; }
+.btn-word:hover { animation: none; }
+.table-input { width: 100%; background: transparent; border: 1px solid transparent; padding: 4px; outline: none; resize: vertical; }
+.table-input:focus { border: 1px solid #3b82f6; border-radius: 4px; background: #fff; }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
+.dropdown-animate { animation: slideDown 0.2s ease-out forwards; }
+</style>
 </head>
 <body class="bg-slate-50 font-sans text-slate-800">
-    <div id="root"></div>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useEffect, useRef } = React;
 
-    <script type="text/babel">
-        const { useState, useEffect, useRef } = React;
+const Card = ({ children, className = "" }) => (<div className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden ${className}`}>{children}</div>);
 
-        const Card = ({ children, className = "" }) => (
-          <div className={`bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden ${className}`}>
-            {children}
+const Accordion = ({ title, icon, subtitle, children, defaultOpen = false, isCompleted, onToggleComplete, headerColorClass = "bg-blue-100 text-blue-700" }) => {
+  const [isOpen, setIsOpen] = useState(defaultOpen);
+  return (
+    <Card className={`mb-5 transition-all duration-300 ${isCompleted ? 'border-l-4 border-l-green-500 opacity-80 bg-slate-50' : 'border-l-4 border-l-blue-600'}`}>
+      <div className="flex items-center justify-between p-4 hover:bg-slate-50 cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
+        <div className="flex-1 flex items-center space-x-4 text-left">
+          <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-sm ${isCompleted ? 'bg-green-100 text-green-700' : headerColorClass}`}>
+            <i className={`${icon} text-xl`}></i>
           </div>
-        );
+          <div>
+            <h3 className={`font-bold text-lg ${isCompleted ? 'text-green-800 line-through decoration-green-400' : 'text-slate-800'}`}>{title}</h3>
+            {subtitle && <p className="text-sm font-medium text-slate-500 mt-0.5">{subtitle}</p>}
+          </div>
+        </div>
+        <div className="flex items-center space-x-3" onClick={(e) => e.stopPropagation()}>
+          <button onClick={onToggleComplete} className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors shadow-sm ${isCompleted ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300 bg-white text-transparent hover:border-green-400'}`} title="Tandai Selesai">✓</button>
+          <button onClick={() => setIsOpen(!isOpen)} className="p-2">{isOpen ? <i className="fas fa-chevron-up text-slate-500"></i> : <i className="fas fa-chevron-down text-slate-500"></i>}</button>
+        </div>
+      </div>
+      {isOpen && <div className="p-5 border-t border-slate-200 bg-white overflow-x-auto">{children}</div>}
+    </Card>
+  );
+};
 
-        const Accordion = ({ title, icon, subtitle, children, defaultOpen = false, isCompleted, onToggleComplete, headerColorClass = "bg-blue-100 text-blue-700" }) => {
-          const [isOpen, setIsOpen] = useState(defaultOpen);
-          
-          return (
-            <Card className={`mb-5 transition-all duration-300 ${isCompleted ? 'border-l-4 border-l-green-500 opacity-80 bg-slate-50' : 'border-l-4 border-l-blue-600'}`}>
-              <div className="flex items-center justify-between p-4 hover:bg-slate-50 cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
-                <div className="flex-1 flex items-center space-x-4 text-left">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center shadow-sm ${isCompleted ? 'bg-green-100 text-green-700' : headerColorClass}`}>
-                    <i className={`${icon} text-xl`}></i>
-                  </div>
-                  <div>
-                    <h3 className={`font-bold text-lg ${isCompleted ? 'text-green-800 line-through decoration-green-400' : 'text-slate-800'}`}>
-                      {title}
-                    </h3>
-                    {subtitle && <p className="text-sm font-medium text-slate-500 mt-0.5">{subtitle}</p>}
-                  </div>
-                </div>
-                <div className="flex items-center space-x-3" onClick={(e) => e.stopPropagation()}>
-                  <button 
-                    onClick={onToggleComplete}
-                    className={`w-8 h-8 rounded-full flex items-center justify-center border-2 transition-colors shadow-sm ${
-                      isCompleted ? 'bg-green-500 border-green-500 text-white' : 'border-slate-300 bg-white text-transparent hover:border-green-400'
-                    }`}
-                    title="Tandai Selesai"
-                  >
-                    ✓
-                  </button>
-                  <button onClick={() => setIsOpen(!isOpen)} className="p-2">
-                    {isOpen ? <i className="fas fa-chevron-up text-slate-500"></i> : <i className="fas fa-chevron-down text-slate-500"></i>}
-                  </button>
-                </div>
+const LabelWithHint = ({ children, hint, className="block text-slate-700 font-semibold mb-1" }) => {
+  const [showHint, setShowHint] = useState(false);
+  return (
+    <div className="mb-1 w-full">
+      <div className="flex items-center justify-between">
+        <label className={className}>{children}</label>
+        {hint && <button type="button" onClick={() => setShowHint(!showHint)} className={`ml-2 shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded transition-colors flex items-center shadow-sm ${showHint ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-white border border-slate-300 text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`} title="Klik untuk bantuan pengisian"><i className={`fas ${showHint ? 'fa-times' : 'fa-info-circle'} mr-1`}></i> {showHint ? 'Tutup' : 'Petunjuk'}</button>}
+      </div>
+      {showHint && <div className="mt-2 mb-3 p-3 bg-blue-50/80 border border-blue-200 text-blue-800 text-xs rounded-lg shadow-inner leading-relaxed"><i className="fas fa-lightbulb text-yellow-500 mr-2 text-sm"></i>{hint}</div>}
+    </div>
+  );
+};
+
+const MultiSelectDropdown = ({ options, selectedOptions, toggleOption }) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  useEffect(() => {
+    function handleClickOutside(event) { if (dropdownRef.current && !dropdownRef.current.contains(event.target)) setIsOpen(false); }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [dropdownRef]);
+
+  return (
+    <div className="relative" ref={dropdownRef}>
+      <button type="button" onClick={() => setIsOpen(!isOpen)} className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 bg-white text-left flex justify-between items-center shadow-sm transition-colors hover:bg-slate-50">
+        <span className="truncate pr-4 text-slate-700 font-medium">{selectedOptions.length > 0 ? selectedOptions.join(', ') : '-- Klik untuk memilih Praktik Pedagogis (Bisa lebih dari 1) --'}</span>
+        <div className="flex items-center">
+          {selectedOptions.length > 0 && <span className="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-1 rounded-full mr-2">{selectedOptions.length} Dipilih</span>}
+          <i className={`fas fa-chevron-${isOpen ? 'up' : 'down'} text-slate-500`}></i>
+        </div>
+      </button>
+      {isOpen && (
+        <div className="absolute z-50 mt-2 w-full bg-white border border-indigo-200 rounded-lg shadow-xl max-h-96 overflow-y-auto dropdown-animate">
+          <div className="p-2 bg-indigo-50 text-xs text-indigo-800 font-bold border-b border-indigo-100 sticky top-0 z-10"><i className="fas fa-check-square mr-1"></i> Centang model/strategi yang digunakan:</div>
+          {options.map((opt) => (
+            <div key={opt.id} className={`p-3 border-b border-slate-100 cursor-pointer flex items-start space-x-3 transition-colors ${selectedOptions.includes(opt.title) ? 'bg-indigo-50/50' : 'hover:bg-slate-50'}`} onClick={() => toggleOption(opt.title)}>
+              <input type="checkbox" className="mt-1 w-4 h-4 text-indigo-600 rounded cursor-pointer border-slate-300" checked={selectedOptions.includes(opt.title)} readOnly />
+              <div className="flex-1">
+                <div className={`text-sm font-bold ${selectedOptions.includes(opt.title) ? 'text-indigo-800' : 'text-slate-800'}`}>{opt.title}</div>
+                <div className="text-xs text-slate-500 mt-1 leading-snug">{opt.desc}</div>
               </div>
-              {isOpen && (
-                <div className="p-5 border-t border-slate-200 bg-white overflow-x-auto">
-                  {children}
-                </div>
-              )}
-            </Card>
-          );
-        };
-
-        const LabelWithHint = ({ children, hint, className="block text-slate-700 font-semibold mb-1" }) => {
-            const [showHint, setShowHint] = useState(false);
-            return (
-                <div className="mb-1 w-full">
-                    <div className="flex items-center justify-between">
-                        <label className={className}>{children}</label>
-                        {hint && (
-                            <button
-                                type="button"
-                                onClick={() => setShowHint(!showHint)}
-                                className={`ml-2 shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded transition-colors flex items-center shadow-sm ${showHint ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-white border border-slate-300 text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`}
-                                title="Klik untuk bantuan pengisian"
-                            >
-                                <i className={`fas ${showHint ? 'fa-times' : 'fa-info-circle'} mr-1`}></i> {showHint ? 'Tutup' : 'Petunjuk'}
-                            </button>
-                        )}
-                    </div>
-                    {showHint && (
-                        <div className="mt-2 mb-3 p-3 bg-blue-50/80 border border-blue-200 text-blue-800 text-xs rounded-lg shadow-inner leading-relaxed">
-                            <i className="fas fa-lightbulb text-yellow-500 mr-2 text-sm"></i>
-                            {hint}
-                        </div>
-                    )}
-                </div>
-            );
-        };
-
-        // KOMPONEN BARU: MULTI-SELECT DROPDOWN KUSTOM
-        const MultiSelectDropdown = ({ options, selectedOptions, toggleOption }) => {
-            const [isOpen, setIsOpen] = useState(false);
-            const dropdownRef = useRef(null);
-
-            useEffect(() => {
-                function handleClickOutside(event) {
-                    if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
-                        setIsOpen(false);
-                    }
-                }
-                document.addEventListener("mousedown", handleClickOutside);
-                return () => document.removeEventListener("mousedown", handleClickOutside);
-            }, [dropdownRef]);
-
-            return (
-                <div className="relative" ref={dropdownRef}>
-                    <button
-                        type="button"
-                        onClick={() => setIsOpen(!isOpen)}
-                        className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 bg-white text-left flex justify-between items-center shadow-sm transition-colors hover:bg-slate-50"
-                    >
-                        <span className="truncate pr-4 text-slate-700 font-medium">
-                            {selectedOptions.length > 0 
-                                ? selectedOptions.join(', ') 
-                                : '-- Klik untuk memilih Praktik Pedagogis (Bisa lebih dari 1) --'}
-                        </span>
-                        <div className="flex items-center">
-                            {selectedOptions.length > 0 && (
-                                <span className="bg-indigo-100 text-indigo-800 text-[10px] font-bold px-2 py-1 rounded-full mr-2">
-                                    {selectedOptions.length} Dipilih
-                                </span>
-                            )}
-                            <i className={`fas fa-chevron-${isOpen ? 'up' : 'down'} text-slate-500`}></i>
-                        </div>
-                    </button>
-
-                    {isOpen && (
-                        <div className="absolute z-50 mt-2 w-full bg-white border border-indigo-200 rounded-lg shadow-xl max-h-96 overflow-y-auto dropdown-animate">
-                            <div className="p-2 bg-indigo-50 text-xs text-indigo-800 font-bold border-b border-indigo-100 sticky top-0 z-10">
-                                <i className="fas fa-check-square mr-1"></i> Centang model/strategi yang digunakan:
-                            </div>
-                            {options.map((opt) => (
-                                <div 
-                                    key={opt.id} 
-                                    className={`p-3 border-b border-slate-100 cursor-pointer flex items-start space-x-3 transition-colors ${selectedOptions.includes(opt.title) ? 'bg-indigo-50/50' : 'hover:bg-slate-50'}`}
-                                    onClick={() => toggleOption(opt.title)}
-                                >
-                                    <input 
-                                        type="checkbox" 
-                                        className="mt-1 w-4 h-4 text-indigo-600 rounded cursor-pointer border-slate-300"
-                                        checked={selectedOptions.includes(opt.title)}
-                                        readOnly
-                                    />
-                                    <div className="flex-1">
-                                        <div className={`text-sm font-bold ${selectedOptions.includes(opt.title) ? 'text-indigo-800' : 'text-slate-800'}`}>
-                                            {opt.title}
-                                        </div>
-                                        <div className="text-xs text-slate-500 mt-1 leading-snug">
-                                            {opt.desc}
-                                        </div>
-                                    </div>
-                                </div>
-                            ))}
-                        </div>
-                    )}
-                </div>
-            );
-        };
-
-        function App() {
-          const [completedSteps, setCompletedSteps] = useState({});
-          const [isEditing, setIsEditing] = useState(false);
-          
-          const profilLabels = {
-            keimanan: "Keimanan dan Ketakwaan",
-            penalaran: "Penalaran Kritis",
-            kolaborasi: "Kolaborasi",
-            kesehatan: "Kesehatan",
-            kewargaan: "Kewargaan",
-            kreativitas: "Kreativitas",
-            kemandirian: "Kemandirian",
-            komunikasi: "Komunikasi"
-          };
-
-          const kseLabels = {
-            kesadaranDiri: "Kesadaran Diri",
-            manajemenDiri: "Manajemen Diri",
-            kesadaranSosial: "Kesadaran Sosial",
-            keterampilanBerelasi: "Keterampilan Berelasi",
-            keputusanBertanggungJawab: "Keputusan Bertanggung Jawab"
-          };
-
-          // DAFTAR PRAKTIK PEDAGOGIS LENGKAP (Sesuai Kurikulum Merdeka)
-          const praktikOptions = [
-            { id: 'ubd', title: "Understanding by Design (UbD)", desc: "Desain Mundur: Menentukan hasil akhir dan merancang asesmen terlebih dahulu sebelum menyusun aktivitas belajar." },
-            { id: 'tarl', title: "Teaching at the Right Level (TaRL) / Diferensiasi", desc: "Instruksi yang disesuaikan dengan tingkat capaian atau kemampuan awal peserta didik (bukan sekadar berdasarkan usia/kelas)." },
-            { id: 'crt', title: "Culturally Responsive Teaching (CRT)", desc: "Mengaitkan materi pelajaran dengan latar belakang budaya, kearifan lokal, dan lingkungan keseharian siswa." },
-            { id: 'pbl', title: "Problem Based Learning (PBL)", desc: "Siswa secara aktif memecahkan masalah kontekstual dunia nyata untuk membangun pengetahuan dan nalar kritis." },
-            { id: 'pjbl', title: "Project Based Learning (PjBL)", desc: "Siswa melakukan investigasi mendalam dan kolaboratif untuk menghasilkan sebuah produk atau karya nyata." },
-            { id: 'inquiry', title: "Inquiry Based Learning", desc: "Siswa didorong proaktif menyusun pertanyaan, meneliti, dan menemukan konsep/fakta secara mandiri dengan bimbingan guru." },
-            { id: 'discovery', title: "Discovery Learning", desc: "Proses pembelajaran di mana siswa menemukan sendiri pengetahuan baru melalui percobaan, pengamatan, dan inferensi." },
-            { id: 'experiential', title: "Experiential Learning", desc: "Belajar dari pengalaman: Siklus mengalami secara langsung, mengobservasi, membuat konsep, dan menguji coba." },
-            { id: 'cooperative', title: "Cooperative Learning", desc: "Belajar kolaboratif dalam kelompok kecil terstruktur di mana siswa saling membantu (Contoh: Jigsaw, STAD, TGT)." },
-            { id: 'flipped', title: "Flipped Classroom", desc: "Materi dasar dipelajari mandiri di rumah, sementara waktu kelas difokuskan penuh untuk diskusi, tanya jawab, dan praktik." },
-            { id: 'sel', title: "Pembelajaran Sosial Emosional (SEL)", desc: "Pengintegrasian keterampilan kesadaran diri, empati, relasi, dan regulasi emosi secara sengaja ke dalam mata pelajaran (CASEL)." },
-            { id: 'montessori', title: "Pendekatan Montessori", desc: "Pembelajaran berpusat pada anak yang membebaskan siswa memilih aktivitas belajarnya secara mandiri dengan alat peraga khusus." },
-            { id: 'lainnya', title: "Lainnya (Ketik Manual)", desc: "Pilih opsi ini jika Bapak/Ibu menggunakan model, metode, atau pendekatan spesifik lainnya." }
-          ];
-          
-          const [rppData, setRppData] = useState(() => {
-            const defaultData = {
-              namaSekolah: "SMP Negeri 2 Secang",
-              namaGuru: "YUSUF ARIS SYAMSUDDIN, S.Pd.",
-              nipGuru: "-",
-              namaKepsek: "NAMA KEPALA SEKOLAH, M.Pd.",
-              nipKepsek: "-",
-              tahunPelajaran: "2025/2026",
-              mapel: "Ilmu Pengetahuan Alam (IPA)",
-              kelas: "Fase D / Kelas VIII",
-              topik: "Pengenalan Sel",
-              waktu: "2 x 40 Menit",
-              jumlahPertemuan: "1 Pertemuan",
-              kompetensiAwal: "Peserta didik telah mempelajari Teori Sel secara dasar di kelas sebelumnya dan cukup familiar dalam menggunakan mikroskop.",
-              kesiapanSiswa: "Mayoritas siswa terbiasa dengan lingkungan agraris. Sebagian butuh bimbingan intensif memahami konsep abstrak mikroskopis.",
-              karakteristikMateri: "Materi bersifat abstrak. Memerlukan pendekatan kontekstual dan observasi langsung menggunakan mikroskop.",
-              profilLulusan: { keimanan: true, penalaran: true, kolaborasi: true, kesehatan: false, kewargaan: false, kreativitas: false, kemandirian: false, komunikasi: false },
-              kseLulusan: { kesadaranDiri: true, manajemenDiri: false, kesadaranSosial: true, keterampilanBerelasi: false, keputusanBertanggungJawab: false },
-              cp: "Peserta didik dapat mengidentifikasi pewarisan sifat dan penerapan bioteknologi dalam kehidupan sehari-hari serta sel sebagai unit terkecil makhluk hidup.",
-              lintasDisiplin: "Prakarya (merancang model sel tiga dimensi dari barang bekas).",
-              tp: "Melalui kegiatan eksperimen pengamatan mikroskop, peserta didik dapat membedakan minimal 3 struktur organel sel hewan dan tumbuhan beserta fungsinya secara tepat.",
-              praktikPedagogis: ["Understanding by Design (UbD)", "Teaching at the Right Level (TaRL) / Diferensiasi"],
-              praktikLainnya: "",
-              kemitraanPembelajaran: "Diskusi kolaboratif kelompok sebaya.",
-              lingkunganPembelajaran: "Laboratorium IPA dan area taman sekolah.",
-              pemanfaatanDigital: "Penggunaan LCD Proyektor untuk menampilkan video sel interaktif.",
-              kegiatanAwal: "1. Guru menyapa dan melakukan Check-in kesiapan emosional siswa (Teknik STOP).\n2. Apersepsi (CRT): Mengaitkan perbedaan struktur tanaman dengan hewan ternak yang ada di lingkungan desa setempat.",
-              kegiatanInti: "1. Stimulus: Siswa secara mandiri mengamati preparat sel daun dan epitel pipi di bawah mikroskop.\n2. Pembagian Kelompok (TaRL): Kelompok Bimbingan menggambar dan menjodohkan fungsi organel. Kelompok Mahir membuat analogi sistem sel menjadi sebuah 'pabrik/kota'.",
-              kegiatanPenutup: "1. Masing-masing perwakilan kelompok melakukan presentasi singkat hasil temuan mereka.\n2. Guru memuliakan proses belajar dengan memberikan pujian spesifik (Prinsip Menggembirakan).",
-              pengalamanMemahami: "Mengobservasi preparat sel menggunakan mikroskop secara langsung untuk menemukan pemahaman esensial bahwa sel hidup memiliki struktur khusus.",
-              pengalamanMengaplikasi: "Merancang ide analogi sel secara berkelompok (misal: Nukleus = Kepala Desa, Mitokondria = Pembangkit Listrik) dan mempresentasikan gagasan tersebut.",
-              pengalamanMerefleksi: "Menuliskan jurnal refleksi individu (Exit Ticket) terkait pemahaman materi apa yang sudah dikuasai dan bagian mana yang masih membingungkan.",
-              asesmenAwal: "Kuis Lisan Cepat: 'Sebutkan bagian terkecil penyusun tubuh yang kalian ketahui!'",
-              asesmenProses: "Observasi formatif selama diskusi kelompok berlangsung (Fokus Karakter Penilaian: Sikap Gotong Royong / Kolaborasi dan Keaktifan).",
-              asesmenAkhir: "Tes Tertulis (Uraian Singkat) terkait kemampuan menjelaskan 3 fungsi organel spesifik.",
-              kisiKisi: [ { id: 1, materi: "Pengenalan Sel", indikator: "Membedakan organel sel hewan dan tumbuhan", level: "C4", bentuk: "Uraian", nomor: "1" } ],
-              bankSoal: [ { id: 1, soal: "Sebutkan 3 perbedaan utama antara anatomi sel hewan dan sel tumbuhan beserta dampaknya pada struktur fisiknya!" } ],
-              rubrikPenilaian: [ { id: 1, skor: "Skor 4", kriteria: "Menyebutkan tepat 3 perbedaan struktural (seperti Dinding Sel, Vakuola, Kloroplas) dengan penjelasan logis dan runtut." } ],
-              catatanRefleksi: ""
-            };
-
-            const savedData = localStorage.getItem('asistenGuruData_v21');
-            if (savedData) {
-              try { 
-                let parsed = JSON.parse(savedData);
-                // Konversi format lama (string) ke array jika terdeteksi
-                if (typeof parsed.praktikPedagogis === 'string') {
-                    parsed.praktikPedagogis = [parsed.praktikPedagogis];
-                }
-                return { ...defaultData, ...parsed, kseLulusan: parsed.kseLulusan || defaultData.kseLulusan }; 
-              } catch (e) { console.error("Gagal memuat data", e); }
-            }
-            return defaultData;
-          });
-
-          useEffect(() => {
-            localStorage.setItem('asistenGuruData_v21', JSON.stringify(rppData));
-          }, [rppData]);
-
-          const toggleStep = (stepId) => setCompletedSteps(prev => ({ ...prev, [stepId]: !prev[stepId] }));
-
-          const handleInputChange = (e) => {
-            const { name, value } = e.target;
-            setRppData(prev => ({ ...prev, [name]: value }));
-          };
-
-          const handleProfilChange = (key) => {
-            setRppData(prev => ({ ...prev, profilLulusan: { ...prev.profilLulusan, [key]: !prev.profilLulusan[key] } }));
-          };
-
-          const handleKseChange = (key) => {
-            setRppData(prev => ({ ...prev, kseLulusan: { ...prev.kseLulusan, [key]: !prev.kseLulusan[key] } }));
-          };
-
-          const togglePraktikPedagogis = (model) => {
-            setRppData(prev => {
-                let current = Array.isArray(prev.praktikPedagogis) ? [...prev.praktikPedagogis] : [];
-                if (current.includes(model)) {
-                    current = current.filter(item => item !== model);
-                } else {
-                    current.push(model);
-                }
-                return { ...prev, praktikPedagogis: current };
-            });
-          };
-
-          const handleTableChange = (arrayName, index, field, value) => {
-            setRppData(prev => {
-              const newArray = [...prev[arrayName]];
-              newArray[index] = { ...newArray[index], [field]: value };
-              return { ...prev, [arrayName]: newArray };
-            });
-          };
-
-          const addTableRow = (arrayName, defaultObj) => {
-            setRppData(prev => ({ ...prev, [arrayName]: [...prev[arrayName], { id: Date.now(), ...defaultObj }] }));
-          };
-
-          const removeTableRow = (arrayName, id) => {
-            if(window.confirm("Hapus baris ini?")) {
-              setRppData(prev => ({ ...prev, [arrayName]: prev[arrayName].filter(item => item.id !== id) }));
-            }
-          };
-
-          const resetRppData = () => {
-            if(window.confirm("Kosongkan semua form dan mulai dari nol?")) {
-              const emptyData = {
-                namaSekolah: rppData.namaSekolah, namaGuru: rppData.namaGuru, nipGuru: rppData.nipGuru, namaKepsek: rppData.namaKepsek, nipKepsek: rppData.nipKepsek,
-                tahunPelajaran: "", mapel: "", kelas: "", topik: "", waktu: "", jumlahPertemuan: "", kompetensiAwal: "",
-                kesiapanSiswa: "", karakteristikMateri: "", 
-                profilLulusan: { keimanan: false, penalaran: false, kolaborasi: false, kesehatan: false, kewargaan: false, kreativitas: false, kemandirian: false, komunikasi: false },
-                kseLulusan: { kesadaranDiri: false, manajemenDiri: false, kesadaranSosial: false, keterampilanBerelasi: false, keputusanBertanggungJawab: false },
-                cp: "", lintasDisiplin: "", tp: "", 
-                praktikPedagogis: [], praktikLainnya: "", kemitraanPembelajaran: "", lingkunganPembelajaran: "", pemanfaatanDigital: "",
-                kegiatanAwal: "", kegiatanInti: "", kegiatanPenutup: "", pengalamanMemahami: "", pengalamanMengaplikasi: "", pengalamanMerefleksi: "",
-                asesmenAwal: "", asesmenProses: "", asesmenAkhir: "", catatanRefleksi: "",
-                kisiKisi: [], bankSoal: [], rubrikPenilaian: []
-              };
-              setRppData(emptyData);
-              setCompletedSteps({});
-              setIsEditing(true);
-            }
-          };
-
-          // Helper format enter \n ke <br/> untuk Word
-          const formatText = (txt) => txt ? txt.replace(/\n/g, '<br/>') : '';
-
-          // Ekstraksi string final praktik pedagogis untuk Word & View Mode
-          const getFinalPraktikString = () => {
-              let finalArr = Array.isArray(rppData.praktikPedagogis) ? [...rppData.praktikPedagogis] : [];
-              
-              // Hapus label "Lainnya (Ketik Manual)" dari array final jika ada
-              finalArr = finalArr.filter(item => item !== "Lainnya (Ketik Manual)");
-
-              if (rppData.praktikPedagogis.includes("Lainnya (Ketik Manual)") && rppData.praktikLainnya && rppData.praktikLainnya.trim() !== "") {
-                  finalArr.push(rppData.praktikLainnya);
-              }
-              return finalArr.length > 0 ? finalArr.join(', ') : '-';
-          };
-
-          const generateWordContent = () => {
-            const kisiKisiRows = rppData.kisiKisi.length > 0 ? rppData.kisiKisi.map((k, i) => `<tr><td style="text-align:center; border: 1px solid black; padding: 4px;">${i+1}</td><td style="border: 1px solid black; padding: 4px;">${formatText(k.materi)}</td><td style="border: 1px solid black; padding: 4px;">${formatText(k.indikator)}</td><td style="text-align:center; border: 1px solid black; padding: 4px;">${k.level}</td><td style="text-align:center; border: 1px solid black; padding: 4px;">${k.bentuk}</td><td style="text-align:center; border: 1px solid black; padding: 4px;">${k.nomor}</td></tr>`).join('') : `<tr><td colspan="6" style="text-align:center; border: 1px solid black; padding: 4px;">Tidak ada data</td></tr>`;
-            const bankSoalRows = rppData.bankSoal.length > 0 ? rppData.bankSoal.map((b, i) => `<tr><td style="text-align:center; border: 1px solid black; padding: 4px;">${i+1}</td><td style="border: 1px solid black; padding: 4px;">${formatText(b.soal)}</td></tr>`).join('') : `<tr><td colspan="2" style="text-align:center; border: 1px solid black; padding: 4px;">Tidak ada data</td></tr>`;
-            const rubrikRows = rppData.rubrikPenilaian.length > 0 ? rppData.rubrikPenilaian.map((r) => `<tr><td style="border: 1px solid black; padding: 4px; font-weight: bold; vertical-align: top;">${formatText(r.skor)}</td><td style="border: 1px solid black; padding: 4px;">${formatText(r.kriteria)}</td></tr>`).join('') : `<tr><td colspan="2" style="text-align:center; border: 1px solid black; padding: 4px;">Tidak ada data</td></tr>`;
-
-            const profilKeys = Object.keys(profilLabels);
-            let profilHtml = '<table style="width:100%; border:none; margin:0; padding:0;">';
-            for (let i = 0; i < profilKeys.length; i += 2) {
-                const key1 = profilKeys[i];
-                const key2 = profilKeys[i+1];
-                const check1 = rppData.profilLulusan[key1] ? '☑' : '☐';
-                const check2 = key2 ? (rppData.profilLulusan[key2] ? '☑' : '☐') : '';
-                const label2 = key2 ? profilLabels[key2] : '';
-                profilHtml += `<tr>
-                    <td style="border:none; padding:2px; width:50%; font-size:10pt;">${check1} ${profilLabels[key1]}</td>
-                    <td style="border:none; padding:2px; width:50%; font-size:10pt;">${check2 ? check2 + ' ' + label2 : ''}</td>
-                </tr>`;
-            }
-            profilHtml += '</table>';
-
-            const kseKeys = Object.keys(kseLabels);
-            let kseHtml = '<table style="width:100%; border:none; margin:0; padding:0;">';
-            for (let i = 0; i < kseKeys.length; i += 2) {
-                const key1 = kseKeys[i];
-                const key2 = kseKeys[i+1];
-                const check1 = rppData.kseLulusan[key1] ? '☑' : '☐';
-                const check2 = key2 ? (rppData.kseLulusan[key2] ? '☑' : '☐') : '';
-                const label2 = key2 ? kseLabels[key2] : '';
-                kseHtml += `<tr>
-                    <td style="border:none; padding:2px; width:50%; font-size:10pt; color:#1e40af;">${check1} ${kseLabels[key1]}</td>
-                    <td style="border:none; padding:2px; width:50%; font-size:10pt; color:#1e40af;">${check2 ? check2 + ' ' + label2 : ''}</td>
-                </tr>`;
-            }
-            kseHtml += '</table>';
-
-            const refleksiContent = rppData.catatanRefleksi && rppData.catatanRefleksi.trim() !== "" 
-                ? formatText(rppData.catatanRefleksi) 
-                : `<span style="color: #555; font-style: italic;">Tuliskan hasil refleksi Bapak/Ibu setelah mengajar: Apa yang sudah berjalan baik? Apa tantangan yang dihadapi siswa? Bagaimana perbaikan untuk pertemuan berikutnya? (Bisa ditulis tangan/diketik langsung di Word)</span>`;
-
-            return `
-              <html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'>
-              <head>
-                <meta charset='utf-8'>
-                <title>RPP Pembelajaran Mendalam</title>
-                <style>
-                  @page WordSection1 {
-                      size: 595.3pt 841.9pt; /* A4 */
-                      margin: 42.5pt 42.5pt 42.5pt 42.5pt; /* Margin 1.5 cm */
-                      mso-header-margin: 35.4pt;
-                      mso-footer-margin: 35.4pt;
-                      mso-paper-source: 0;
-                  }
-                  div.WordSection1 { page: WordSection1; }
-
-                  body { font-family: 'Times New Roman', Times, serif; font-size: 10pt; line-height: 1.15; color: #000; margin: 0; padding: 0; }
-                  p { margin-top: 2pt; margin-bottom: 2pt; }
-                  
-                  /* KOP SURAT */
-                  .kop { border-bottom: 3px solid black; padding-bottom: 5px; margin-bottom: 12pt; text-align: center; }
-                  .kop-line1 { font-size: 14pt; font-weight: bold; text-transform: uppercase; }
-                  .kop-line2 { font-size: 18pt; font-weight: bold; text-transform: uppercase; margin: 2pt 0; letter-spacing: 0.5pt;}
-                  .kop-line3 { font-size: 10pt; font-style: italic; }
-                  .kop-line4 { font-size: 10pt; }
-
-                  /* TABEL UTAMA - KIRI KANAN DAN MEMBENTANG */
-                  .t-table { width: 100%; border-collapse: collapse; margin-bottom: 10pt; page-break-inside: auto; }
-                  .t-table th { background-color: #dbeafe; padding: 5px; text-align: left; border: 1px solid black; font-size: 11pt; font-weight: bold; text-transform: uppercase; }
-                  .t-label { width: 16%; background-color: #f8fafc; border: 1px solid black; padding: 5px; font-weight: bold; vertical-align: top; font-size: 10pt; }
-                  .t-content { border: 1px solid black; padding: 5px; vertical-align: top; font-size: 10pt; }
-                  .t-content-half { width: 34%; border: 1px solid black; padding: 5px; vertical-align: top; font-size: 10pt; }
-                  
-                  /* TABEL KEGIATAN (TAHAP 3&4) */
-                  .t-header-sub { background-color: #e2e8f0; border: 1px solid black; padding: 4px; text-align: left; font-weight: bold; font-size: 10pt; }
-
-                  .sub-table th { background-color: #f1f5f9; padding: 4px; text-align: center; border: 1px solid black; font-weight: bold; font-size: 10pt; }
-                  .sub-table td { font-size: 10pt; }
-                </style>
-              </head>
-              <body>
-              <div class="WordSection1">
-                
-                <!-- KOP SURAT ASLI -->
-                <div class="kop">
-                  <div class="kop-line1">PEMERINTAH KABUPATEN MAGELANG<br/>DINAS PENDIDIKAN DAN KEBUDAYAAN</div>
-                  <div class="kop-line2">${rppData.namaSekolah}</div>
-                  <div class="kop-line3">Jalan Raya Secang, Kab. Magelang, Jawa Tengah 56195 | Telepon: (0293) 3195355</div>
-                </div>
-
-                <h3 style="text-align: center; text-decoration: underline; margin-bottom: 2pt; font-size: 12pt; font-weight:bold;">RANCANGAN PEMBELAJARAN MENDALAM</h3>
-                <p style="text-align: center; margin-bottom: 12pt; font-weight: bold; text-transform: uppercase;">TOPIK PEMBELAJARAN: ${rppData.topik || '........................'}</p>
-
-                <table class="t-table">
-                  <!-- INFORMASI UMUM -->
-                  <tr><th colspan="4">INFORMASI UMUM</th></tr>
-                  <tr>
-                    <td class="t-label">Nama Penyusun</td><td class="t-content-half">${rppData.namaGuru}</td>
-                    <td class="t-label">Topik Pemb.</td><td class="t-content-half">${rppData.topik}</td>
-                  </tr>
-                  <tr>
-                    <td class="t-label">Mata Pelajaran</td><td class="t-content-half">${rppData.mapel}</td>
-                    <td class="t-label">Kelas / Waktu</td><td class="t-content-half">${rppData.kelas} / ${rppData.waktu}</td>
-                  </tr>
-
-                  <!-- TAHAP 1 -->
-                  <tr><th colspan="4">1. IDENTIFIKASI</th></tr>
-                  <tr>
-                    <td class="t-label">Kesiapan Siswa</td>
-                    <td colspan="3" class="t-content">${formatText(rppData.kesiapanSiswa)}</td>
-                  </tr>
-                  <tr>
-                    <td class="t-label">Materi Pelajaran</td>
-                    <td colspan="3" class="t-content">${formatText(rppData.karakteristikMateri)}</td>
-                  </tr>
-                  <tr>
-                    <td class="t-label">Profil Lulusan</td>
-                    <td colspan="3" class="t-content" style="padding: 2px 5px;">${profilHtml}</td>
-                  </tr>
-                  <tr>
-                    <td class="t-label" style="color:#1e40af;">Kompetensi Sosial Emosional (CASEL)</td>
-                    <td colspan="3" class="t-content" style="padding: 2px 5px; background-color: #eff6ff;">${kseHtml}</td>
-                  </tr>
-
-                  <!-- TAHAP 2 -->
-                  <tr><th colspan="4">2. DESAIN PEMBELAJARAN</th></tr>
-                  <tr>
-                    <td class="t-label">Capaian Pemb.</td><td colspan="3" class="t-content">${formatText(rppData.cp)}</td>
-                  </tr>
-                  <tr>
-                    <td class="t-label">Tujuan Pemb.</td><td colspan="3" class="t-content">${formatText(rppData.tp)}</td>
-                  </tr>
-                  <tr>
-                    <td class="t-label">Pedagogis</td><td class="t-content-half">${formatText(getFinalPraktikString())}</td>
-                    <td class="t-label">Kemitraan</td><td class="t-content-half">${formatText(rppData.kemitraanPembelajaran)}</td>
-                  </tr>
-                  <tr>
-                    <td class="t-label">Lingkungan</td><td class="t-content-half">${formatText(rppData.lingkunganPembelajaran)}</td>
-                    <td class="t-label">Digital</td><td class="t-content-half">${formatText(rppData.pemanfaatanDigital)}</td>
-                  </tr>
-
-                  <!-- TAHAP 3 & 4 -->
-                  <tr><th colspan="4">3. PENGALAMAN BELAJAR & 4. ASESMEN PEMBELAJARAN</th></tr>
-                  <tr>
-                    <td colspan="4" class="t-header-sub">Rincian Langkah Pembelajaran, Pengalaman Kognitif, & Asesmen</td>
-                  </tr>
-                  
-                  <!-- FASE 1 -->
-                  <tr>
-                    <td class="t-label" rowspan="2" style="vertical-align: middle; text-align: center;">Fase 1:<br/>Pendahuluan</td>
-                    <td colspan="3" class="t-content" style="width: 84%; background:#fafafa;"><strong>Aktivitas Kelas (Langkah Fisik):</strong><br/>${formatText(rppData.kegiatanAwal)}</td>
-                  </tr>
-                  <tr>
-                    <td colspan="2" class="t-content" style="width: 42%;"><strong>🎯 Target: Memahami</strong><br/>${formatText(rppData.pengalamanMemahami)}</td>
-                    <td class="t-content" style="width: 42%; background:#f8fafc;"><strong>📝 Asesmen Awal:</strong><br/>${formatText(rppData.asesmenAwal)}</td>
-                  </tr>
-
-                  <!-- FASE 2 -->
-                  <tr>
-                    <td class="t-label" rowspan="2" style="vertical-align: middle; text-align: center;">Fase 2:<br/>Inti</td>
-                    <td colspan="3" class="t-content" style="width: 84%; background:#fafafa;"><strong>Aktivitas Kelas (Langkah Fisik):</strong><br/>${formatText(rppData.kegiatanInti)}</td>
-                  </tr>
-                  <tr>
-                    <td colspan="2" class="t-content" style="width: 42%;"><strong>🎯 Target: Mengaplikasi</strong><br/>${formatText(rppData.pengalamanMengaplikasi)}</td>
-                    <td class="t-content" style="width: 42%; background:#f8fafc;"><strong>📝 Asesmen Proses:</strong><br/>${formatText(rppData.asesmenProses)}</td>
-                  </tr>
-
-                  <!-- FASE 3 -->
-                  <tr>
-                    <td class="t-label" rowspan="2" style="vertical-align: middle; text-align: center;">Fase 3:<br/>Penutup</td>
-                    <td colspan="3" class="t-content" style="width: 84%; background:#fafafa;"><strong>Aktivitas Kelas (Langkah Fisik):</strong><br/>${formatText(rppData.kegiatanPenutup)}</td>
-                  </tr>
-                  <tr>
-                    <td colspan="2" class="t-content" style="width: 42%;"><strong>🎯 Target: Merefleksi</strong><br/>${formatText(rppData.pengalamanMerefleksi)}</td>
-                    <td class="t-content" style="width: 42%; background:#f8fafc;"><strong>📝 Asesmen Akhir:</strong><br/>${formatText(rppData.asesmenAkhir)}</td>
-                  </tr>
-                </table>
-
-                <h4 style="text-align: left; margin-top: 12pt; margin-bottom: 4pt; font-size: 11pt;">LAMPIRAN INSTRUMEN PENILAIAN</h4>
-                
-                <p style="margin-bottom: 2pt; font-size:10pt;"><strong>A. Kisi-kisi Soal</strong></p>
-                <table class="t-table sub-table">
-                  <tr><th width="5%">No</th><th width="20%">Materi Pokok</th><th width="35%">Indikator Soal</th><th width="10%">Level</th><th width="15%">Bentuk</th><th width="15%">No Soal</th></tr>
-                  ${kisiKisiRows}
-                </table>
-
-                <p style="margin-bottom: 2pt; font-size:10pt;"><strong>B. Bank Soal & Rubrik</strong></p>
-                <table class="t-table sub-table">
-                  <tr><th width="60%">Butir Soal</th><th width="40%">Kriteria Penilaian (Rubrik)</th></tr>
-                  <tr>
-                    <td style="border: 1px solid black; padding: 4px; vertical-align:top;">
-                       <ul style="margin:0; padding-left:15px;">
-                       ${rppData.bankSoal.map(b => `<li style="margin-bottom:4px;">${formatText(b.soal)}</li>`).join('')}
-                       </ul>
-                    </td>
-                    <td style="border: 1px solid black; padding: 4px; vertical-align:top;">
-                       <ul style="margin:0; padding-left:15px;">
-                       ${rppData.rubrikPenilaian.map(r => `<li style="margin-bottom:4px;"><strong>${formatText(r.skor)}:</strong> ${formatText(r.kriteria)}</li>`).join('')}
-                       </ul>
-                    </td>
-                  </tr>
-                </table>
-
-                <!-- TAHAP 5: REFLEKSI -->
-                <h4 style="text-align: left; margin-top: 15pt; margin-bottom: 4pt; font-size: 11pt; text-transform: uppercase;">CATATAN REFLEKSI GURU PASCA-PEMBELAJARAN</h4>
-                <table class="t-table">
-                  <tr>
-                     <td style="border: 1px solid black; padding: 15px; vertical-align:top; height: 100px;">
-                        ${refleksiContent}
-                     </td>
-                  </tr>
-                </table>
-
-                <p style="margin-top: 20pt;">&nbsp;</p>
-                <table style="width: 100%; border: none; page-break-inside: avoid; margin-bottom: 0;">
-                  <tr>
-                    <td style="width: 50%; text-align: center; border: none; padding: 4px; font-size:10pt;">
-                      Mengetahui,<br/>Kepala ${rppData.namaSekolah}<br/><br/><br/><br/><br/>
-                      <strong><u>${rppData.namaKepsek || '_______________________'}</u></strong><br/>
-                      NIP. ${rppData.nipKepsek || '_______________________'}
-                    </td>
-                    <td style="width: 50%; text-align: center; border: none; padding: 4px; font-size:10pt;">
-                      Secang, ........................ 2026<br/>Guru Mata Pelajaran<br/><br/><br/><br/><br/>
-                      <strong><u>${rppData.namaGuru || '_______________________'}</u></strong><br/>
-                      NIP. ${rppData.nipGuru || '_______________________'}
-                    </td>
-                  </tr>
-                </table>
-              </div>
-              </body>
-              </html>
-            `;
-          };
-
-          const handleDownloadWord = () => {
-            const sourceHTML = generateWordContent();
-            const blob = new Blob(['\ufeff', sourceHTML], { type: 'application/msword' });
-            const url = URL.createObjectURL(blob);
-            const fileDownload = document.createElement("a");
-            document.body.appendChild(fileDownload);
-            fileDownload.href = url;
-            const fileNameTopik = rppData.topik ? rppData.topik.replace(/[^a-z0-9]/gi, '_').toLowerCase() : 'modul';
-            fileDownload.download = `RPP_Mendalam_${fileNameTopik}.doc`;
-            fileDownload.click();
-            document.body.removeChild(fileDownload);
-            URL.revokeObjectURL(url);
-          };
-
-          const praktikArray = Array.isArray(rppData.praktikPedagogis) ? rppData.praktikPedagogis : [];
-
-          return (
-            <div className="pb-12 bg-slate-100 min-h-screen relative">
-              <header className="bg-gradient-to-r from-blue-900 to-indigo-800 text-white p-6 shadow-md border-b-4 border-yellow-400">
-                <div className="max-w-6xl mx-auto flex justify-between items-center">
-                  <div>
-                    <h1 className="text-2xl md:text-3xl font-bold mb-1 tracking-tight">Asisten Guru Secang</h1>
-                    <p className="text-blue-200 text-sm md:text-base font-medium">Modul Perencanaan Pembelajaran Mendalam & SEL</p>
-                  </div>
-                  <div className="hidden md:block bg-white/10 px-4 py-1.5 rounded-full text-xs font-semibold text-blue-50 border border-white/20">
-                    Versi 21.0 (Dropdown Multi-Select Cerdas)
-                  </div>
-                </div>
-              </header>
-
-              <main className="max-w-6xl mx-auto px-4 mt-8 flex flex-col md:flex-row gap-6 relative items-start">
-                
-                {/* KONTEN UTAMA (KIRI) */}
-                <div className="flex-1 w-full order-2 md:order-1">
-                  <div className="animate-in fade-in duration-500">
-                    {isEditing ? (
-                      /* ====== MODE EDIT ====== */
-                      <div className="space-y-6">
-                        
-                        <Card className="p-6 border-t-4 border-t-slate-800 shadow-md">
-                          <h3 className="font-bold text-slate-800 text-lg mb-4 border-b pb-2"><i className="fas fa-id-card mr-2 text-slate-600"></i> Informasi Umum & Pengesahan</h3>
-                          <div className="grid lg:grid-cols-2 gap-6 text-sm mb-6 bg-slate-50 p-5 rounded-lg border border-slate-200">
-                            <div>
-                              <LabelWithHint hint="Ketik nama lengkap sekolah tempat Bapak/Ibu mengajar secara resmi.">Nama Sekolah</LabelWithHint>
-                              <input type="text" name="namaSekolah" value={rppData.namaSekolah} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none" />
-                            </div>
-                            <div>
-                              <LabelWithHint hint="Contoh pengisian: 2025/2026 atau Ganjil - 2026/2027.">Tahun Pelajaran</LabelWithHint>
-                              <input type="text" name="tahunPelajaran" value={rppData.tahunPelajaran} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none" />
-                            </div>
-                            <div>
-                              <LabelWithHint hint="Ketik nama lengkap Kepala Sekolah beserta gelar. Jika ada NIP, letakkan di kolom bawahnya. Jika tidak ada, isi kolom NIP dengan strip (-).">Nama Kepala Sekolah</LabelWithHint>
-                              <input type="text" name="namaKepsek" value={rppData.namaKepsek} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none" placeholder="Nama Kepala Sekolah" />
-                              <input type="text" name="nipKepsek" value={rppData.nipKepsek} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none mt-2" placeholder="NIP Kepala Sekolah" />
-                            </div>
-                            <div>
-                              <LabelWithHint hint="Ketik nama lengkap Bapak/Ibu beserta gelar akademik. Jika ada NIP, letakkan di kolom bawahnya.">Nama Guru Penyusun</LabelWithHint>
-                              <input type="text" name="namaGuru" value={rppData.namaGuru} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none" placeholder="Nama Guru" />
-                              <input type="text" name="nipGuru" value={rppData.nipGuru} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none mt-2" placeholder="NIP Guru" />
-                            </div>
-                          </div>
-
-                          <div className="grid lg:grid-cols-2 gap-6 text-sm">
-                            <div>
-                              <LabelWithHint hint="Pilih Mata Pelajaran dari daftar yang tersedia.">Mata Pelajaran</LabelWithHint>
-                              <select name="mapel" value={rppData.mapel} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none bg-white cursor-pointer">
-                                  <option value="">-- Pilih Mata Pelajaran --</option>
-                                  <option value="Ilmu Pengetahuan Alam (IPA)">Ilmu Pengetahuan Alam (IPA)</option>
-                                  <option value="Informatika">Informatika</option>
-                                  <option value="Matematika">Matematika</option>
-                                  <option value="Bahasa Indonesia">Bahasa Indonesia</option>
-                                  <option value="Bahasa Inggris">Bahasa Inggris</option>
-                                  <option value="Ilmu Pengetahuan Sosial (IPS)">Ilmu Pengetahuan Sosial (IPS)</option>
-                                  <option value="Pendidikan Pancasila">Pendidikan Pancasila</option>
-                                  <option value="Pendidikan Agama dan Budi Pekerti">Pendidikan Agama dan Budi Pekerti</option>
-                                  <option value="PJOK">PJOK</option>
-                                  <option value="Seni Budaya">Seni Budaya</option>
-                                  <option value="Prakarya">Prakarya</option>
-                                  <option value="Bimbingan Konseling (BK)">Bimbingan Konseling (BK)</option>
-                                  <option value="Muatan Lokal / Lainnya">Muatan Lokal / Lainnya</option>
-                              </select>
-                            </div>
-                            <div>
-                              <LabelWithHint hint="Pilih fase dan rombel kelas yang diajar.">Fase / Kelas</LabelWithHint>
-                              <select name="kelas" value={rppData.kelas} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none bg-white cursor-pointer">
-                                  <option value="">-- Pilih Fase / Kelas --</option>
-                                  <option value="Fase D / Kelas VII">Fase D / Kelas VII</option>
-                                  <option value="Fase D / Kelas VIII">Fase D / Kelas VIII</option>
-                                  <option value="Fase D / Kelas IX">Fase D / Kelas IX</option>
-                              </select>
-                            </div>
-                            <div>
-                              <LabelWithHint hint="Sebutkan bab atau judul materi spesifik yang sedang dirancang. Contoh: Pengenalan Sel.">Topik Pembelajaran</LabelWithHint>
-                              <input type="text" name="topik" value={rppData.topik} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none font-semibold text-blue-900 bg-blue-50/50" />
-                            </div>
-                            <div className="flex gap-4">
-                              <div className="flex-1">
-                                <LabelWithHint hint="Contoh: 2 x 40 Menit (untuk 1 JP SMP).">Alokasi Waktu</LabelWithHint>
-                                <input type="text" name="waktu" value={rppData.waktu} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none" />
-                              </div>
-                              <div className="flex-1">
-                                <LabelWithHint hint="Sebutkan jumlah pertemuan untuk menuntaskan modul ini, misal: 1 Pertemuan.">Jml. Pertemuan</LabelWithHint>
-                                <input type="text" name="jumlahPertemuan" value={rppData.jumlahPertemuan} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none" />
-                              </div>
-                            </div>
-                            <div className="lg:col-span-2">
-                              <LabelWithHint hint="Sebutkan kemampuan dasar atau pengetahuan prasyarat yang harus sudah dikuasai siswa sebelum masuk ke topik ini.">Kompetensi Awal</LabelWithHint>
-                              <textarea name="kompetensiAwal" value={rppData.kompetensiAwal} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 outline-none leading-relaxed"></textarea>
-                            </div>
-                          </div>
-                        </Card>
-
-                        <Card className="p-6 border-t-4 border-t-blue-500 bg-blue-50/30">
-                          <h3 className="font-bold text-blue-900 text-lg mb-4 border-b border-blue-200 pb-2">
-                            <span className="bg-blue-600 text-white px-2 py-0.5 rounded text-sm mr-2">TAHAP 1</span> Identifikasi
-                          </h3>
-                          <div className="space-y-5 text-sm">
-                            <div>
-                              <LabelWithHint hint="Gambarkan profil dan kebutuhan siswa di kelas. Apakah mayoritas dari latar belakang pedesaan? Bagaimana kesiapan belajar mereka? (Ini menjadi dasar untuk Diferensiasi / TaRL).">Peserta Didik (opsional)</LabelWithHint>
-                              <textarea name="kesiapanSiswa" value={rppData.kesiapanSiswa} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none leading-relaxed"></textarea>
-                            </div>
-                            <div>
-                              <LabelWithHint hint="Jelaskan karakteristik materi pelajaran. Apakah bersifat konseptual, abstrak, atau butuh pengamatan langsung/praktikum?">Materi Pelajaran (opsional)</LabelWithHint>
-                              <textarea name="karakteristikMateri" value={rppData.karakteristikMateri} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none leading-relaxed"></textarea>
-                            </div>
-                            <div className="grid md:grid-cols-2 gap-4">
-                              <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-sm">
-                                <div className="border-b pb-1 mb-3">
-                                  <LabelWithHint className="block text-slate-800 font-bold" hint="Centang elemen Profil Pelajar Pancasila (P3) yang akan menjadi fokus utama untuk dilatih dalam pembelajaran ini.">Dimensi Profil Lulusan</LabelWithHint>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                                  {Object.keys(profilLabels).map((key) => (
-                                    <label key={key} className="flex items-start space-x-2 text-sm cursor-pointer hover:bg-blue-50 p-1.5 rounded border border-transparent hover:border-blue-100 transition-colors">
-                                      <input type="checkbox" checked={!!rppData.profilLulusan[key]} onChange={() => handleProfilChange(key)} className="mt-1 w-4 h-4 text-blue-600 shrink-0" />
-                                      <span className="text-slate-700 leading-snug">{profilLabels[key]}</span>
-                                    </label>
-                                  ))}
-                                </div>
-                              </div>
-                              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 shadow-sm">
-                                <div className="border-b border-blue-200 pb-1 mb-3 flex items-center">
-                                  <i className="fas fa-heart text-red-500 mr-2"></i>
-                                  <LabelWithHint className="block text-blue-900 font-bold" hint="Centang Kompetensi Sosial Emosional (CASEL) yang ingin dikembangkan. Misal: Kesadaran Sosial (untuk diskusi kelompok) atau Manajemen Diri (saat siswa diberi tugas mandiri).">Kompetensi Sosial Emosional (CASEL)</LabelWithHint>
-                                </div>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
-                                  {Object.keys(kseLabels).map((key) => (
-                                    <label key={`kse-${key}`} className="flex items-start space-x-2 text-sm cursor-pointer hover:bg-white p-1.5 rounded border border-transparent hover:border-blue-100 transition-colors">
-                                      <input type="checkbox" checked={!!rppData.kseLulusan[key]} onChange={() => handleKseChange(key)} className="mt-1 w-4 h-4 text-blue-600 shrink-0" />
-                                      <span className="text-blue-800 font-medium leading-snug">{kseLabels[key]}</span>
-                                    </label>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </Card>
-
-                        <Card className="p-6 border-t-4 border-t-indigo-500 bg-indigo-50/30">
-                          <h3 className="font-bold text-indigo-900 text-lg mb-4 border-b border-indigo-200 pb-2">
-                            <span className="bg-indigo-600 text-white px-2 py-0.5 rounded text-sm mr-2">TAHAP 2</span> Desain Pembelajaran
-                          </h3>
-                          <div className="space-y-5 text-sm">
-                            <div>
-                              <LabelWithHint hint="Salin redaksi Capaian Pembelajaran (CP) untuk fase terkait dari dokumen resmi Kemdikbud.">Capaian Pembelajaran (opsional)</LabelWithHint>
-                              <textarea name="cp" value={rppData.cp} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none leading-relaxed"></textarea>
-                            </div>
-                            <div>
-                              <LabelWithHint hint="Sebutkan jika ada keterkaitan dengan mata pelajaran lain (Contoh: Prakarya untuk pembuatan model sel, Matematika untuk menghitung besaran).">Lintas Disiplin Ilmu (opsional)</LabelWithHint>
-                              <input type="text" name="lintasDisiplin" value={rppData.lintasDisiplin} onChange={handleInputChange} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" />
-                            </div>
-                            <div>
-                              <LabelWithHint hint={<><b>Tips Menyusun Tujuan Pembelajaran (Rumus A-B-C-D):</b><br/><br/><b>A - Audience:</b> Siapa yang belajar? (Misal: <i>Peserta didik</i>)<br/><b>B - Behavior:</b> Perilaku terukur / KKO? (Misal: <i>dapat membedakan sel hewan dan tumbuhan</i>)<br/><b>C - Condition:</b> Kondisi belajarnya? (Misal: <i>Melalui pengamatan mikroskop...</i>)<br/><b>D - Degree:</b> Target minimal? (Misal: <i>...dengan minimal 3 perbedaan yang benar.</i>)<br/><br/><b>Contoh Gabungan:</b> <i>Melalui pengamatan mikroskop (C), peserta didik (A) dapat membedakan sel hewan dan tumbuhan (B) dengan minimal 3 perbedaan yang benar (D).</i></>}>Tujuan Pembelajaran</LabelWithHint>
-                              <textarea name="tp" value={rppData.tp} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none leading-relaxed"></textarea>
-                            </div>
-                            <div className="p-5 bg-white rounded-lg border border-indigo-200 shadow-sm mt-4">
-                              <h4 className="font-bold text-indigo-800 border-b pb-2 mb-4">Kerangka Pembelajaran</h4>
-                              <div className="grid md:grid-cols-2 gap-5">
-                                
-                                {/* DROPDOWN MULTI-SELECT KUSTOM DI SINI */}
-                                <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 col-span-1 md:col-span-2">
-                                  <LabelWithHint className="block text-indigo-900 font-bold mb-3 text-xs uppercase tracking-wider" hint="Pilih satu atau lebih model/pendekatan pengajaran yang akan digunakan. Boleh memilih banyak (Misal UbD digabung dengan PBL dan SEL).">Praktik Pedagogis (Multi-Select)</LabelWithHint>
-                                  
-                                  <MultiSelectDropdown 
-                                      options={praktikOptions} 
-                                      selectedOptions={praktikArray} 
-                                      toggleOption={togglePraktikPedagogis} 
-                                  />
-
-                                  {praktikArray.includes("Lainnya (Ketik Manual)") && (
-                                      <div className="mt-3 animate-in fade-in duration-300">
-                                         <input 
-                                           type="text" 
-                                           placeholder="Ketik manual nama model/pendekatan di sini..." 
-                                           value={rppData.praktikLainnya || ""} 
-                                           onChange={(e) => setRppData(prev => ({...prev, praktikLainnya: e.target.value}))} 
-                                           className="w-full p-3 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white shadow-inner" 
-                                         />
-                                      </div>
-                                  )}
-                                </div>
-
-                                <div>
-                                  <LabelWithHint className="block text-slate-700 font-bold mb-1 text-xs uppercase tracking-wider" hint="Siapa mitra belajarnya? (Contoh: Diskusi kelompok antar sebaya, mengundang tokoh masyarakat desa, pelibatan orang tua).">Kemitraan Pembelajaran (opsional)</LabelWithHint>
-                                  <textarea name="kemitraanPembelajaran" value={rppData.kemitraanPembelajaran} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none leading-relaxed"></textarea>
-                                </div>
-                                <div>
-                                  <LabelWithHint className="block text-slate-700 font-bold mb-1 text-xs uppercase tracking-wider" hint="Di mana kelas akan berlangsung? (Contoh: Ruang kelas, Laboratorium Komputer, atau Kebun/Taman sekolah).">Lingkungan Pembelajaran (opsional)</LabelWithHint>
-                                  <textarea name="lingkunganPembelajaran" value={rppData.lingkunganPembelajaran} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none leading-relaxed"></textarea>
-                                </div>
-                                <div className="md:col-span-2">
-                                  <LabelWithHint className="block text-slate-700 font-bold mb-1 text-xs uppercase tracking-wider" hint="Alat/media digital apa yang dimanfaatkan? (Contoh: LCD Proyektor, Simulasi PhET, Canva, atau Quizizz).">Pemanfaatan Digital (opsional)</LabelWithHint>
-                                  <textarea name="pemanfaatanDigital" value={rppData.pemanfaatanDigital} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none leading-relaxed"></textarea>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </Card>
-
-                        <Card className="p-6 border-t-4 border-t-emerald-500 bg-emerald-50/30">
-                          <div className="mb-5 border-b border-emerald-200 pb-3">
-                            <h3 className="font-bold text-emerald-900 text-lg">
-                              <span className="bg-emerald-600 text-white px-2 py-0.5 rounded text-sm mr-2">TAHAP 3 & 4</span> Input Pengalaman & Asesmen
-                            </h3>
-                          </div>
-                          
-                          <div className="space-y-6 text-sm">
-                            <div className="bg-white p-5 rounded-lg border border-emerald-200 shadow-sm">
-                              <h4 className="font-bold text-slate-800 mb-3 text-base">Bagian 1: Pendahuluan</h4>
-                              <div className="space-y-4">
-                                <div className="w-full">
-                                  <LabelWithHint className="block text-slate-600 font-bold mb-1 text-xs uppercase" hint="Sebutkan tindakan fisik yang dilakukan di pembukaan (Misal: Salam, Doa, Latihan STOP untuk KSE, dan Apersepsi/pemantik).">Kegiatan Fisik (Aktivitas Kelas)</LabelWithHint>
-                                  <textarea name="kegiatanAwal" value={rppData.kegiatanAwal} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 outline-none leading-relaxed bg-slate-50" placeholder="Ketik langkah-langkah kegiatan awal di sini..."></textarea>
-                                </div>
-                                <div className="grid lg:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-                                  <div>
-                                    <LabelWithHint className="block text-slate-600 font-bold mb-1 text-xs uppercase" hint="Pengalaman apa yang dilalui siswa untuk mulai 'memahami' topik di awal sesi ini?">Target Kognitif (Memahami)</LabelWithHint>
-                                    <textarea name="pengalamanMemahami" value={rppData.pengalamanMemahami} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 outline-none leading-relaxed" placeholder="Pengalaman memahami..."></textarea>
-                                  </div>
-                                  <div>
-                                    <LabelWithHint className="block text-slate-600 font-bold mb-1 text-xs uppercase" hint="Bagaimana cara mengecek kemampuan awal siswa? (Misal: Kuis lisan acak, pertanyaan pemantik, game pembuka).">Asesmen Awal</LabelWithHint>
-                                    <textarea name="asesmenAwal" value={rppData.asesmenAwal} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 outline-none leading-relaxed" placeholder="Alat/teknik asesmen awal..."></textarea>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="bg-white p-5 rounded-lg border border-emerald-200 shadow-sm">
-                              <h4 className="font-bold text-slate-800 mb-3 text-base">Bagian 2: Inti</h4>
-                              <div className="space-y-4">
-                                <div className="w-full">
-                                  <LabelWithHint className="block text-slate-600 font-bold mb-1 text-xs uppercase" hint="Sebutkan alur kerja utama siswa dan metode pengajaran Bapak/Ibu (Kerja kelompok, Praktikum mikroskop, Presentasi, dll).">Kegiatan Fisik (Aktivitas Kelas)</LabelWithHint>
-                                  <textarea name="kegiatanInti" value={rppData.kegiatanInti} onChange={handleInputChange} rows="6" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-emerald-500 outline-none leading-relaxed bg-slate-50" placeholder="Ketik langkah-langkah kegiatan inti di sini..."></textarea>
-                                </div>
-                                <div className="grid lg:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-                                  <div>
-                                    <LabelWithHint className="block text-slate-600 font-bold mb-1 text-xs uppercase" hint="Bagaimana wujud siswa mengaplikasikan pemahaman mereka saat kegiatan inti? (Misal: merangkai alat, memecahkan masalah kasus).">Target Kognitif (Mengaplikasi)</LabelWithHint>
-                                    <textarea name="pengalamanMengaplikasi" value={rppData.pengalamanMengaplikasi} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-emerald-500 outline-none leading-relaxed" placeholder="Pengalaman mengaplikasi..."></textarea>
-                                  </div>
-                                  <div>
-                                    <LabelWithHint className="block text-slate-600 font-bold mb-1 text-xs uppercase" hint="Instrumen untuk menilai saat pembelajaran berlangsung (Misal: Lembar observasi sikap gotong royong, monitoring lembar kerja kelompok).">Asesmen Proses</LabelWithHint>
-                                    <textarea name="asesmenProses" value={rppData.asesmenProses} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-emerald-500 outline-none leading-relaxed" placeholder="Alat/teknik asesmen proses..."></textarea>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-
-                            <div className="bg-white p-5 rounded-lg border border-emerald-200 shadow-sm">
-                              <h4 className="font-bold text-slate-800 mb-3 text-base">Bagian 3: Penutup</h4>
-                              <div className="space-y-4">
-                                <div className="w-full">
-                                  <LabelWithHint className="block text-slate-600 font-bold mb-1 text-xs uppercase" hint="Aktivitas di akhir pelajaran (Misal: Menyusun kesimpulan bersama, guru memberikan apresiasi dan tugas lanjutan, doa).">Kegiatan Fisik (Aktivitas Kelas)</LabelWithHint>
-                                  <textarea name="kegiatanPenutup" value={rppData.kegiatanPenutup} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-fuchsia-500 outline-none leading-relaxed bg-slate-50" placeholder="Ketik langkah-langkah kegiatan penutup di sini..."></textarea>
-                                </div>
-                                <div className="grid lg:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
-                                  <div>
-                                    <LabelWithHint className="block text-slate-600 font-bold mb-1 text-xs uppercase" hint="Cara siswa merenungkan hasil belajarnya hari ini (Merefleksi keberhasilan dan kesulitan yang masih dirasakan).">Target Kognitif (Merefleksi)</LabelWithHint>
-                                    <textarea name="pengalamanMerefleksi" value={rppData.pengalamanMerefleksi} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-fuchsia-500 outline-none leading-relaxed" placeholder="Pengalaman merefleksi..."></textarea>
-                                  </div>
-                                  <div>
-                                    <LabelWithHint className="block text-slate-600 font-bold mb-1 text-xs uppercase" hint="Penilaian akhir untuk mengukur capaian TP (Misal: Tes tulis singkat, pengumpulan proyek, atau Exit Ticket).">Asesmen Akhir</LabelWithHint>
-                                    <textarea name="asesmenAkhir" value={rppData.asesmenAkhir} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-fuchsia-500 outline-none leading-relaxed" placeholder="Alat/teknik asesmen akhir..."></textarea>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </Card>
-
-                        <Card className="p-6 border-t-4 border-t-orange-500 bg-orange-50/30">
-                          <h4 className="font-bold text-orange-900 text-lg mb-4">Lampiran Instrumen Penilaian</h4>
-                          
-                          <div className="mb-6 bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-                            <LabelWithHint className="block text-slate-800 font-bold mb-3 text-base" hint="Isikan pemetaan indikator soal, tingkatan Taksonomi Bloom (misal C4: Menganalisis), bentuk soal (PG/Uraian), dan urutan nomor soal agar asesmen terstruktur dengan baik.">1. Tabel Kisi-kisi Soal</LabelWithHint>
-                            <div className="overflow-x-auto border border-slate-300 rounded">
-                              <table className="w-full text-left text-sm border-collapse">
-                                <thead className="bg-slate-100 text-slate-700 border-b border-slate-300">
-                                  <tr>
-                                    <th className="p-2 border-r border-slate-300 w-12 text-center">No</th>
-                                    <th className="p-2 border-r border-slate-300 w-1/4">Materi Pokok</th>
-                                    <th className="p-2 border-r border-slate-300 w-1/3">Indikator Soal</th>
-                                    <th className="p-2 border-r border-slate-300 w-24 text-center">Level</th>
-                                    <th className="p-2 border-r border-slate-300 w-28 text-center">Bentuk</th>
-                                    <th className="p-2 border-r border-slate-300 w-24 text-center">No Soal</th>
-                                    <th className="p-2 w-12 text-center"></th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {rppData.kisiKisi.map((row, index) => (
-                                    <tr key={row.id} className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
-                                      <td className="p-1 border-r border-slate-200 text-center text-slate-500">{index + 1}</td>
-                                      <td className="p-1 border-r border-slate-200"><input type="text" className="table-input" value={row.materi} onChange={(e) => handleTableChange('kisiKisi', index, 'materi', e.target.value)} placeholder="Materi..." /></td>
-                                      <td className="p-1 border-r border-slate-200"><input type="text" className="table-input" value={row.indikator} onChange={(e) => handleTableChange('kisiKisi', index, 'indikator', e.target.value)} placeholder="Siswa dapat..." /></td>
-                                      <td className="p-1 border-r border-slate-200">
-                                        <select className="table-input text-center cursor-pointer" value={row.level} onChange={(e) => handleTableChange('kisiKisi', index, 'level', e.target.value)}>
-                                          <option value="">-Level-</option>
-                                          <option value="C1">C1</option>
-                                          <option value="C2">C2</option>
-                                          <option value="C3">C3</option>
-                                          <option value="C4">C4</option>
-                                          <option value="C5">C5</option>
-                                          <option value="C6">C6</option>
-                                        </select>
-                                      </td>
-                                      <td className="p-1 border-r border-slate-200">
-                                        <select className="table-input text-center cursor-pointer" value={row.bentuk} onChange={(e) => handleTableChange('kisiKisi', index, 'bentuk', e.target.value)}>
-                                          <option value="">-Bentuk-</option>
-                                          <option value="PG">PG</option>
-                                          <option value="PG Kompleks">PG Kompleks</option>
-                                          <option value="Menjodohkan">Menjodohkan</option>
-                                          <option value="Isian Singkat">Isian Singkat</option>
-                                          <option value="Uraian">Uraian</option>
-                                          <option value="Praktik">Praktik</option>
-                                          <option value="Portofolio">Portofolio</option>
-                                          <option value="Proyek">Proyek</option>
-                                        </select>
-                                      </td>
-                                      <td className="p-1 border-r border-slate-200"><input type="text" className="table-input text-center" value={row.nomor} onChange={(e) => handleTableChange('kisiKisi', index, 'nomor', e.target.value)} placeholder="1" /></td>
-                                      <td className="p-1 text-center">
-                                        <button onClick={() => removeTableRow('kisiKisi', row.id)} className="text-red-400 hover:text-red-600"><i className="fas fa-trash"></i></button>
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                            <button onClick={() => addTableRow('kisiKisi', { materi: "", indikator: "", level: "", bentuk: "", nomor: "" })} className="mt-3 px-4 py-2 bg-orange-50 text-sm font-bold text-orange-600 rounded-lg hover:bg-orange-100 transition flex items-center">
-                              <i className="fas fa-plus mr-2"></i> Tambah Baris
-                            </button>
-                          </div>
-
-                          <div className="grid lg:grid-cols-2 gap-6">
-                            <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-                              <LabelWithHint className="block text-slate-800 font-bold mb-3 text-base" hint="Ketik butir soal atau pertanyaan asesmen yang akan diberikan kepada siswa di sini.">2. Bank Soal</LabelWithHint>
-                              <div className="overflow-x-auto border border-slate-300 rounded">
-                                <table className="w-full text-left text-sm border-collapse">
-                                  <thead className="bg-slate-100 text-slate-700 border-b border-slate-300">
-                                    <tr>
-                                      <th className="p-2 border-r border-slate-300 w-12 text-center">No</th>
-                                      <th className="p-2 border-r border-slate-300">Butir Soal / Pertanyaan</th>
-                                      <th className="p-2 w-12 text-center"></th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {rppData.bankSoal.map((row, index) => (
-                                      <tr key={row.id} className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
-                                        <td className="p-2 border-r border-slate-200 text-center text-slate-500 align-top">{index + 1}</td>
-                                        <td className="p-1 border-r border-slate-200">
-                                          <textarea className="table-input resize-y min-h-[60px]" rows="3" value={row.soal} onChange={(e) => handleTableChange('bankSoal', index, 'soal', e.target.value)} placeholder="Tuliskan butir soal..."></textarea>
-                                        </td>
-                                        <td className="p-2 text-center align-top">
-                                          <button onClick={() => removeTableRow('bankSoal', row.id)} className="text-red-400 hover:text-red-600 mt-1"><i className="fas fa-trash"></i></button>
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                              <button onClick={() => addTableRow('bankSoal', { soal: "" })} className="mt-3 px-4 py-2 bg-orange-50 text-sm font-bold text-orange-600 rounded-lg hover:bg-orange-100 transition flex items-center">
-                                <i className="fas fa-plus mr-2"></i> Tambah Soal
-                              </button>
-                            </div>
-
-                            <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
-                              <LabelWithHint className="block text-slate-800 font-bold mb-3 text-base" hint="Kunci jawaban atau deskripsi ekspektasi jawaban untuk mendapatkan skor tertentu (Misal: 'Skor 4' = 'Jawaban lengkap, akurat, dan sesuai nalar').">3. Rubrik Penilaian</LabelWithHint>
-                              <div className="overflow-x-auto border border-slate-300 rounded">
-                                <table className="w-full text-left text-sm border-collapse">
-                                  <thead className="bg-slate-100 text-slate-700 border-b border-slate-300">
-                                    <tr>
-                                      <th className="p-2 border-r border-slate-300 w-1/3">Skor / Kriteria</th>
-                                      <th className="p-2 border-r border-slate-300">Deskripsi</th>
-                                      <th className="p-2 w-12 text-center"></th>
-                                    </tr>
-                                  </thead>
-                                  <tbody>
-                                    {rppData.rubrikPenilaian.map((row, index) => (
-                                      <tr key={row.id} className="border-b border-slate-200 hover:bg-slate-50 transition-colors">
-                                        <td className="p-1 border-r border-slate-200 align-top">
-                                          <input type="text" className="table-input font-bold" value={row.skor} onChange={(e) => handleTableChange('rubrikPenilaian', index, 'skor', e.target.value)} placeholder="Misal: Skor 4" />
-                                        </td>
-                                        <td className="p-1 border-r border-slate-200 align-top">
-                                          <textarea className="table-input resize-y min-h-[60px]" rows="3" value={row.kriteria} onChange={(e) => handleTableChange('rubrikPenilaian', index, 'kriteria', e.target.value)} placeholder="Deskripsi..."></textarea>
-                                        </td>
-                                        <td className="p-2 text-center align-top">
-                                          <button onClick={() => removeTableRow('rubrikPenilaian', row.id)} className="text-red-400 hover:text-red-600 mt-1"><i className="fas fa-trash"></i></button>
-                                        </td>
-                                      </tr>
-                                    ))}
-                                  </tbody>
-                                </table>
-                              </div>
-                              <button onClick={() => addTableRow('rubrikPenilaian', { skor: "", kriteria: "" })} className="mt-3 px-4 py-2 bg-orange-50 text-sm font-bold text-orange-600 rounded-lg hover:bg-orange-100 transition flex items-center">
-                                <i className="fas fa-plus mr-2"></i> Tambah Rubrik
-                              </button>
-                            </div>
-                          </div>
-                        </Card>
-
-                        {/* TAHAP 5 REFLEKSI */}
-                        <Card className="p-6 border-t-4 border-t-red-500 bg-red-50/30">
-                          <h3 className="font-bold text-red-900 text-lg mb-4 border-b border-red-200 pb-2">
-                            <span className="bg-red-600 text-white px-2 py-0.5 rounded text-sm mr-2">TAHAP 5</span> Refleksi Guru (Siklus Akhir)
-                          </h3>
-                          <div className="space-y-4">
-                             <LabelWithHint hint="Tuliskan evaluasi pribadi Bapak/Ibu setelah mengajar kelas ini. Apa yang sukses? Apa yang gagal? Bagaimana tindak lanjutnya? (Jika ingin ditulis tangan setelah dicetak ke dalam kertas, biarkan kotak ini kosong).">Catatan Refleksi Pasca-Pembelajaran</LabelWithHint>
-                             <textarea name="catatanRefleksi" value={rppData.catatanRefleksi} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-red-500 outline-none leading-relaxed bg-white shadow-sm" placeholder="Contoh: Pembelajaran berjalan lancar, namun pada kelompok Bimbingan masih banyak siswa yang kesulitan dalam memahami konsep abstrak tentang... Pertemuan depan perlu dipersiapkan alat peraga tambahan berupa..."></textarea>
-                          </div>
-                        </Card>
-
-                      </div>
-                    ) : (
-                      /* ====== MODE VIEW ====== */
-                      <div>
-                        <Card className="mb-6 border-t-4 border-t-slate-800">
-                          <div className="p-5 bg-white">
-                            <h3 className="font-bold text-slate-800 text-lg mb-4 border-b pb-2">Informasi Umum</h3>
-                            <div className="grid grid-cols-2 gap-6 text-base text-slate-700">
-                              <div className="col-span-2 md:col-span-1 border-l-4 border-blue-500 bg-blue-50 p-3 rounded-r-lg">
-                                 <strong className="block text-slate-500 text-sm uppercase tracking-wider mb-1">Mata Pelajaran</strong>
-                                 <span className="font-bold text-blue-900 text-lg">{rppData.mapel} <span className="text-sm font-medium text-blue-600">({rppData.kelas})</span></span>
-                              </div>
-                              <div className="col-span-2 md:col-span-1 border-l-4 border-indigo-500 bg-indigo-50 p-3 rounded-r-lg">
-                                 <strong className="block text-slate-500 text-sm uppercase tracking-wider mb-1">Topik Pembelajaran</strong>
-                                 <span className="font-bold text-indigo-900 text-lg">{rppData.topik}</span>
-                              </div>
-                              <div><strong className="block text-slate-500 text-sm uppercase tracking-wider mb-1">Penyusun</strong>{rppData.namaGuru}</div>
-                              <div><strong className="block text-slate-500 text-sm uppercase tracking-wider mb-1">Sekolah</strong>{rppData.namaSekolah}</div>
-                              <div><strong className="block text-slate-500 text-sm uppercase tracking-wider mb-1">Waktu / Pertemuan</strong>{rppData.waktu} / {rppData.jumlahPertemuan}</div>
-                              <div><strong className="block text-slate-500 text-sm uppercase tracking-wider mb-1">Tahun Pelajaran</strong>{rppData.tahunPelajaran}</div>
-                            </div>
-                          </div>
-                        </Card>
-
-                        <Accordion title="TAHAP 1: Identifikasi" icon="fas fa-search" defaultOpen={true} isCompleted={completedSteps['t1']} onToggleComplete={() => toggleStep('t1')} headerColorClass="bg-blue-100 text-blue-700">
-                          <div className="space-y-4 text-base text-slate-700">
-                            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                              <strong className="block text-blue-800 mb-2">Kesiapan Siswa</strong>
-                              <p className="whitespace-pre-wrap">{rppData.kesiapanSiswa || "-"}</p>
-                            </div>
-                            <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                              <strong className="block text-blue-800 mb-2">Materi Pelajaran</strong>
-                              <p className="whitespace-pre-wrap">{rppData.karakteristikMateri || "-"}</p>
-                            </div>
-                            
-                            <div className="grid lg:grid-cols-2 gap-4">
-                              <div className="bg-slate-50 p-4 rounded-lg border border-slate-200">
-                                <strong className="block text-blue-800 mb-3">Dimensi Profil Lulusan</strong>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                                  {Object.keys(profilLabels).map((key) => rppData.profilLulusan[key] && (
-                                    <div key={key} className="flex items-center text-blue-900 font-medium bg-white p-2 rounded border border-blue-100 shadow-sm">
-                                      <i className="fas fa-check-square text-blue-600 mr-2 text-lg"></i> {profilLabels[key]}
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                                <strong className="block text-blue-900 mb-3"><i className="fas fa-heart text-red-500 mr-2"></i>Kompetensi Sosial Emosional (CASEL)</strong>
-                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
-                                  {Object.keys(kseLabels).map((key) => rppData.kseLulusan[key] && (
-                                    <div key={`kseview-${key}`} className="flex items-center text-blue-900 font-bold bg-white p-2 rounded border border-blue-200 shadow-sm">
-                                      <i className="fas fa-star text-yellow-500 mr-2"></i> {kseLabels[key]}
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </Accordion>
-
-                        <Accordion title="TAHAP 2: Desain Pembelajaran" icon="fas fa-drafting-compass" isCompleted={completedSteps['t2']} onToggleComplete={() => toggleStep('t2')} headerColorClass="bg-indigo-100 text-indigo-700">
-                          <div className="space-y-6 text-base text-slate-700">
-                            <div className="grid lg:grid-cols-2 gap-6">
-                              <div className="p-4 border-l-4 border-indigo-400 bg-white shadow-sm rounded-r-lg">
-                                <strong className="block text-indigo-900 mb-2 text-lg">Capaian Pembelajaran</strong>
-                                <p className="whitespace-pre-wrap">{rppData.cp || "-"}</p>
-                              </div>
-                              <div className="p-4 border-l-4 border-indigo-500 bg-white shadow-sm rounded-r-lg">
-                                <strong className="block text-indigo-900 mb-2 text-lg">Tujuan Pembelajaran</strong>
-                                <p className="whitespace-pre-wrap font-medium">{rppData.tp || "-"}</p>
-                              </div>
-                            </div>
-                            
-                            <div className="bg-indigo-50/50 p-5 rounded-xl border border-indigo-100">
-                              <h4 className="font-bold text-indigo-900 border-b border-indigo-200 pb-2 mb-4 text-lg">Kerangka Pembelajaran</h4>
-                              <div className="grid md:grid-cols-2 gap-4">
-                                <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-100">
-                                  <strong className="block text-indigo-700 mb-2 text-xs uppercase tracking-wider">Praktik Pedagogis</strong>
-                                  <p className="whitespace-pre-wrap font-medium text-slate-800">{getFinalPraktikString()}</p>
-                                </div>
-                                <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-100">
-                                  <strong className="block text-indigo-700 mb-2 text-xs uppercase tracking-wider">Kemitraan Belajar</strong>
-                                  <p className="whitespace-pre-wrap text-slate-800">{rppData.kemitraanPembelajaran || "-"}</p>
-                                </div>
-                                <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-100">
-                                  <strong className="block text-indigo-700 mb-2 text-xs uppercase tracking-wider">Lingkungan Belajar</strong>
-                                  <p className="whitespace-pre-wrap text-slate-800">{rppData.lingkunganPembelajaran || "-"}</p>
-                                </div>
-                                <div className="bg-white p-4 rounded-lg shadow-sm border border-slate-100">
-                                  <strong className="block text-indigo-700 mb-2 text-xs uppercase tracking-wider">Pemanfaatan Digital</strong>
-                                  <p className="whitespace-pre-wrap text-slate-800">{rppData.pemanfaatanDigital || "-"}</p>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </Accordion>
-
-                        <Accordion title="TAHAP 3 & 4: Panduan Eksekusi Ruang Kelas" icon="fas fa-layer-group" isCompleted={completedSteps['t34']} onToggleComplete={() => toggleStep('t34')} headerColorClass="bg-emerald-100 text-emerald-800">
-                          <div className="space-y-8 text-base">
-                            
-                            <div className="border-2 border-blue-200 rounded-xl overflow-hidden bg-white shadow-sm">
-                              <div className="bg-gradient-to-r from-blue-100 to-blue-50 px-5 py-3 border-b-2 border-blue-200 flex items-center">
-                                <span className="bg-blue-600 text-white w-8 h-8 rounded-lg flex items-center justify-center font-bold text-lg mr-3 shadow-sm">1</span>
-                                <h4 className="font-black text-blue-900 text-lg">FASE AWAL <span className="font-normal text-blue-700 ml-2">| Pendahuluan & Eksplorasi</span></h4>
-                              </div>
-                              <div className="flex flex-col">
-                                 <div className="p-5 border-b border-slate-200 hover:bg-slate-50 transition-colors bg-slate-50/50">
-                                    <span className="inline-flex items-center px-2.5 py-1 rounded bg-slate-100 text-slate-700 text-xs font-bold uppercase tracking-wider border border-slate-200 mb-3">
-                                       <i className="fas fa-running mr-1.5 text-slate-500"></i> Aktivitas Kelas
-                                    </span>
-                                    <p className="text-slate-800 whitespace-pre-wrap leading-relaxed">{rppData.kegiatanAwal}</p>
-                                 </div>
-                                 <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-slate-200">
-                                     <div className="flex-1 p-5 hover:bg-blue-50 transition-colors">
-                                        <span className="inline-flex items-center px-2.5 py-1 rounded bg-blue-100 text-blue-800 text-xs font-bold uppercase tracking-wider border border-blue-200 mb-3">
-                                           <i className="fas fa-brain mr-1.5 text-blue-500"></i> Target: Memahami
-                                        </span>
-                                        <p className="text-blue-900 whitespace-pre-wrap leading-relaxed">{rppData.pengalamanMemahami}</p>
-                                     </div>
-                                     <div className="flex-1 p-5 hover:bg-orange-50 transition-colors bg-orange-50/30">
-                                        <span className="inline-flex items-center px-2.5 py-1 rounded bg-orange-100 text-orange-800 text-xs font-bold uppercase tracking-wider border border-orange-200 mb-3">
-                                           <i className="fas fa-clipboard-check mr-1.5 text-orange-500"></i> Asesmen Awal
-                                        </span>
-                                        <p className="text-orange-900 whitespace-pre-wrap leading-relaxed font-medium">{rppData.asesmenAwal}</p>
-                                     </div>
-                                 </div>
-                              </div>
-                            </div>
-
-                            <div className="border-2 border-emerald-200 rounded-xl overflow-hidden bg-white shadow-sm">
-                              <div className="bg-gradient-to-r from-emerald-100 to-emerald-50 px-5 py-3 border-b-2 border-emerald-200 flex items-center">
-                                <span className="bg-emerald-600 text-white w-8 h-8 rounded-lg flex items-center justify-center font-bold text-lg mr-3 shadow-sm">2</span>
-                                <h4 className="font-black text-emerald-900 text-lg">FASE INTI <span className="font-normal text-emerald-700 ml-2">| Elaborasi & Praktik</span></h4>
-                              </div>
-                              <div className="flex flex-col">
-                                 <div className="p-5 border-b border-slate-200 hover:bg-slate-50 transition-colors bg-slate-50/50">
-                                    <span className="inline-flex items-center px-2.5 py-1 rounded bg-slate-100 text-slate-700 text-xs font-bold uppercase tracking-wider border border-slate-200 mb-3">
-                                       <i className="fas fa-running mr-1.5 text-slate-500"></i> Aktivitas Kelas
-                                    </span>
-                                    <p className="text-slate-800 whitespace-pre-wrap leading-relaxed">{rppData.kegiatanInti}</p>
-                                 </div>
-                                 <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-slate-200">
-                                     <div className="flex-1 p-5 hover:bg-emerald-50 transition-colors">
-                                        <span className="inline-flex items-center px-2.5 py-1 rounded bg-emerald-100 text-emerald-800 text-xs font-bold uppercase tracking-wider border border-emerald-200 mb-3">
-                                           <i className="fas fa-cogs mr-1.5 text-emerald-500"></i> Target: Mengaplikasi
-                                        </span>
-                                        <p className="text-emerald-900 whitespace-pre-wrap leading-relaxed">{rppData.pengalamanMengaplikasi}</p>
-                                     </div>
-                                     <div className="flex-1 p-5 hover:bg-orange-50 transition-colors bg-orange-50/30">
-                                        <span className="inline-flex items-center px-2.5 py-1 rounded bg-orange-100 text-orange-800 text-xs font-bold uppercase tracking-wider border border-orange-200 mb-3">
-                                           <i className="fas fa-search mr-1.5 text-orange-500"></i> Asesmen Proses
-                                        </span>
-                                        <p className="text-orange-900 whitespace-pre-wrap leading-relaxed font-medium">{rppData.asesmenProses}</p>
-                                     </div>
-                                 </div>
-                              </div>
-                            </div>
-
-                            <div className="border-2 border-fuchsia-200 rounded-xl overflow-hidden bg-white shadow-sm">
-                              <div className="bg-gradient-to-r from-fuchsia-100 to-fuchsia-50 px-5 py-3 border-b-2 border-fuchsia-200 flex items-center">
-                                <span className="bg-fuchsia-600 text-white w-8 h-8 rounded-lg flex items-center justify-center font-bold text-lg mr-3 shadow-sm">3</span>
-                                <h4 className="font-black text-fuchsia-900 text-lg">FASE AKHIR <span className="font-normal text-fuchsia-700 ml-2">| Penutup & Evaluasi</span></h4>
-                              </div>
-                              <div className="flex flex-col">
-                                 <div className="p-5 border-b border-slate-200 hover:bg-slate-50 transition-colors bg-slate-50/50">
-                                    <span className="inline-flex items-center px-2.5 py-1 rounded bg-slate-100 text-slate-700 text-xs font-bold uppercase tracking-wider border border-slate-200 mb-3">
-                                       <i className="fas fa-running mr-1.5 text-slate-500"></i> Aktivitas Kelas
-                                    </span>
-                                    <p className="text-slate-800 whitespace-pre-wrap leading-relaxed">{rppData.kegiatanPenutup}</p>
-                                 </div>
-                                 <div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x divide-slate-200">
-                                     <div className="flex-1 p-5 hover:bg-fuchsia-50 transition-colors">
-                                        <span className="inline-flex items-center px-2.5 py-1 rounded bg-fuchsia-100 text-fuchsia-800 text-xs font-bold uppercase tracking-wider border border-fuchsia-200 mb-3">
-                                           <i className="fas fa-undo mr-1.5 text-fuchsia-500"></i> Target: Merefleksi
-                                        </span>
-                                        <p className="text-fuchsia-900 whitespace-pre-wrap leading-relaxed">{rppData.pengalamanMerefleksi}</p>
-                                     </div>
-                                     <div className="flex-1 p-5 hover:bg-red-50 transition-colors bg-red-50/30">
-                                        <span className="inline-flex items-center px-2.5 py-1 rounded bg-red-100 text-red-800 text-xs font-bold uppercase tracking-wider border border-red-200 mb-3">
-                                           <i className="fas fa-flag-checkered mr-1.5 text-red-500"></i> Asesmen Akhir
-                                        </span>
-                                        <p className="text-red-900 whitespace-pre-wrap leading-relaxed font-medium">{rppData.asesmenAkhir}</p>
-                                     </div>
-                                 </div>
-                              </div>
-                            </div>
-
-                          </div>
-                        </Accordion>
-                        
-                        {rppData.catatanRefleksi && (
-                          <Card className="mb-6 border-t-4 border-t-red-500">
-                            <div className="p-5 bg-white">
-                              <h3 className="font-bold text-red-800 text-lg mb-2"><i className="fas fa-pen-nib mr-2"></i>Catatan Refleksi Guru</h3>
-                              <p className="text-slate-700 whitespace-pre-wrap leading-relaxed p-4 bg-red-50 rounded-lg border border-red-100">{rppData.catatanRefleksi}</p>
-                            </div>
-                          </Card>
-                        )}
-
-                      </div>
-                    )}
-                  </div>
-                </div>
-
-                <div className="w-full md:w-72 shrink-0 order-1 md:order-2 relative md:sticky top-6 z-50">
-                  <div className="bg-white p-4 rounded-2xl shadow-lg border-2 border-blue-100 flex flex-col space-y-3">
-                    <div className="pb-3 mb-1 border-b border-slate-100">
-                      <h4 className="font-bold text-slate-800 flex items-center"><i className="fas fa-cog text-blue-500 mr-2"></i> Panel Kontrol</h4>
-                      <p className="text-xs text-slate-500 mt-1">Status: {isEditing ? <span className="text-orange-500 font-bold">Sedang Mengedit</span> : <span className="text-green-500 font-bold">Tersimpan</span>}</p>
-                    </div>
-
-                    {isEditing ? (
-                      <button onClick={() => setIsEditing(false)} className="px-5 py-3.5 bg-green-600 text-white rounded-xl text-sm font-bold hover:bg-green-700 transition shadow-md w-full flex justify-center items-center">
-                        <i className="fas fa-save mr-2 text-lg"></i> Simpan Modul
-                      </button>
-                    ) : (
-                      <>
-                        <div className="flex space-x-2 w-full">
-                          <button onClick={() => setIsEditing(true)} className="flex-1 px-4 py-3 bg-slate-100 text-slate-700 rounded-xl text-sm font-bold hover:bg-slate-200 transition border border-slate-300 shadow-sm flex justify-center items-center">
-                            <i className="fas fa-edit mr-2"></i> Edit
-                          </button>
-                          <button onClick={resetRppData} title="Hapus Semua Data" className="flex-1 px-4 py-3 bg-red-50 text-red-600 rounded-xl text-sm font-bold hover:bg-red-100 transition border border-red-200 shadow-sm flex justify-center items-center">
-                            <i className="fas fa-trash-alt mr-2"></i> Hapus
-                          </button>
-                        </div>
-                        <button onClick={handleDownloadWord} className="btn-word w-full px-5 py-3.5 bg-blue-600 text-white rounded-xl text-sm font-bold shadow-md hover:bg-blue-700 transition-all flex justify-center items-center">
-                          <i className="fas fa-file-word mr-2 text-xl"></i> Unduh Format Word
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-              </main>
             </div>
-          );
-        }
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
 
-        const root = ReactDOM.createRoot(document.getElementById('root'));
-        root.render(<App />);
-    </script>
+function App() {
+  const [completedSteps, setCompletedSteps] = useState({});
+  const [isEditing, setIsEditing] = useState(false);
+  const profilLabels = { keimanan: "Keimanan dan Ketakwaan", penalaran: "Penalaran Kritis", kolaborasi: "Kolaborasi", kesehatan: "Kesehatan", kewargaan: "Kewargaan", kreativitas: "Kreativitas", kemandirian: "Kemandirian", komunikasi: "Komunikasi" };
+  const kseLabels = { kesadaranDiri: "Kesadaran Diri", manajemenDiri: "Manajemen Diri", kesadaranSosial: "Kesadaran Sosial", keterampilanBerelasi: "Keterampilan Berelasi", keputusanBertanggungJawab: "Keputusan Bertanggung Jawab" };
+  const praktikOptions = [
+    { id: 'ubd', title: "Understanding by Design (UbD)", desc: "Desain Mundur: Menentukan hasil akhir dan merancang asesmen terlebih dahulu sebelum menyusun aktivitas belajar." },
+    { id: 'tarl', title: "Teaching at the Right Level (TaRL) / Diferensiasi", desc: "Instruksi yang disesuaikan dengan tingkat capaian atau kemampuan awal peserta didik." },
+    { id: 'crt', title: "Culturally Responsive Teaching (CRT)", desc: "Mengaitkan materi pelajaran dengan latar belakang budaya dan lingkungan keseharian siswa." },
+    { id: 'pbl', title: "Problem Based Learning (PBL)", desc: "Siswa memecahkan masalah kontekstual dunia nyata untuk membangun pengetahuan." },
+    { id: 'pjbl', title: "Project Based Learning (PjBL)", desc: "Siswa melakukan investigasi mendalam untuk menghasilkan karya nyata." },
+    { id: 'inquiry', title: "Inquiry Based Learning", desc: "Siswa proaktif menyusun pertanyaan, meneliti, dan menemukan konsep secara mandiri." },
+    { id: 'discovery', title: "Discovery Learning", desc: "Siswa menemukan pengetahuan baru melalui percobaan, pengamatan, dan inferensi." },
+    { id: 'experiential', title: "Experiential Learning", desc: "Siklus mengalami secara langsung, mengobservasi, membuat konsep, dan menguji coba." },
+    { id: 'cooperative', title: "Cooperative Learning", desc: "Belajar kolaboratif dalam kelompok kecil terstruktur (Contoh: Jigsaw, STAD, TGT)." },
+    { id: 'flipped', title: "Flipped Classroom", desc: "Materi dipelajari di rumah, kelas difokuskan untuk diskusi dan praktik." },
+    { id: 'sel', title: "Pembelajaran Sosial Emosional (SEL)", desc: "Pengintegrasian keterampilan kesadaran diri, empati, dan regulasi emosi (CASEL)." },
+    { id: 'montessori', title: "Pendekatan Montessori", desc: "Pembelajaran membebaskan siswa memilih aktivitas belajarnya secara mandiri." },
+    { id: 'lainnya', title: "Lainnya (Ketik Manual)", desc: "Pilih opsi ini jika menggunakan model/pendekatan lainnya." }
+  ];
+
+  const defaultDataObj = {
+    namaSekolah: "SMP Negeri 2 Secang", namaGuru: "YUSUF ARIS SYAMSUDDIN, S.Pd.", nipGuru: "0762773674130202", namaKepsek: "NAMA KEPALA SEKOLAH, M.Pd.", nipKepsek: "-",
+    tahunPelajaran: "2025/2026", mapel: "Ilmu Pengetahuan Alam (IPA)", kelas: "Fase D / Kelas VIII", topik: "Pengenalan Sel", waktu: "2 x 40 Menit", jumlahPertemuan: "1 Pertemuan",
+    kompetensiAwal: "Peserta didik telah mempelajari Teori Sel dan familiar dalam menggunakan mikroskop.", kesiapanSiswa: "Mayoritas siswa terbiasa dengan lingkungan agraris.",
+    karakteristikMateri: "Materi bersifat abstrak. Memerlukan pendekatan kontekstual dan observasi langsung.",
+    profilLulusan: { keimanan: true, penalaran: true, kolaborasi: true, kesehatan: false, kewargaan: false, kreativitas: false, kemandirian: false, komunikasi: false },
+    kseLulusan: { kesadaranDiri: true, manajemenDiri: false, kesadaranSosial: true, keterampilanBerelasi: false, keputusanBertanggungJawab: false },
+    cp: "Peserta didik dapat mengidentifikasi pewarisan sifat dan penerapan bioteknologi serta sel.", lintasDisiplin: "Prakarya (merancang model sel).",
+    tp: "Melalui kegiatan eksperimen, peserta didik dapat membedakan minimal 3 struktur organel sel secara tepat.", praktikPedagogis: ["Understanding by Design (UbD)", "Teaching at the Right Level (TaRL) / Diferensiasi"], praktikLainnya: "",
+    kemitraanPembelajaran: "Diskusi kolaboratif.", lingkunganPembelajaran: "Laboratorium IPA.", pemanfaatanDigital: "Penggunaan LCD Proyektor.",
+    kegiatanAwal: "1. Check-in kesiapan emosional siswa (Teknik STOP).\n2. Apersepsi: Mengaitkan materi dengan lingkungan.", kegiatanInti: "1. Siswa mengamati preparat sel.\n2. Pembagian Kelompok (TaRL) mengerjakan LKPD.", kegiatanPenutup: "1. Presentasi singkat.\n2. Exit ticket & pujian spesifik.",
+    pengalamanMemahami: "Mengobservasi preparat sel menggunakan mikroskop.", pengalamanMengaplikasi: "Merancang ide analogi sel secara berkelompok.", pengalamanMerefleksi: "Menuliskan jurnal refleksi individu.",
+    asesmenAwal: "Kuis Lisan Cepat.", asesmenProses: "Observasi formatif diskusi kelompok.", asesmenAkhir: "Tes Tertulis / Unjuk Kerja.", catatanRefleksi: "",
+    kisiKisi: [ { id: 1, materi: "Pengenalan Sel", indikator: "Membedakan organel", level: "C4", bentuk: "PG", nomor: "1" } ],
+    bankSoal: [ { id: 1, soal: "Organel sel yang berfungsi sebagai tempat respirasi sel untuk menghasilkan energi adalah...", opsi: "A. Nukleus\nB. Mitokondria\nC. Ribosom\nD. Badan Golgi", kunci: "B" } ],
+    rubrikPenilaian: [ { id: 1, skor: "Skor 1", kriteria: "Menjawab benar (PG/Isian)." } ]
+  };
+
+  const [rppData, setRppData] = useState(() => {
+    const saved = localStorage.getItem('asistenGuruData_v22');
+    if (saved) {
+      try {
+        let p = JSON.parse(saved);
+        if (typeof p.praktikPedagogis === 'string') p.praktikPedagogis = [p.praktikPedagogis];
+        if (p.bankSoal && p.bankSoal.length > 0 && p.bankSoal[0].opsi === undefined) { p.bankSoal = p.bankSoal.map(b => ({...b, opsi:"", kunci:""})); }
+        return { ...defaultDataObj, ...p };
+      } catch (e) {}
+    }
+    return defaultDataObj;
+  });
+
+  useEffect(() => { localStorage.setItem('asistenGuruData_v22', JSON.stringify(rppData)); }, [rppData]);
+
+  const toggleStep = (id) => setCompletedSteps(p => ({ ...p, [id]: !p[id] }));
+  const handleInputChange = (e) => setRppData(p => ({ ...p, [e.target.name]: e.target.value }));
+  const handleProfilChange = (k) => setRppData(p => ({ ...p, profilLulusan: { ...p.profilLulusan, [k]: !p.profilLulusan[k] } }));
+  const handleKseChange = (k) => setRppData(p => ({ ...p, kseLulusan: { ...p.kseLulusan, [k]: !p.kseLulusan[k] } }));
+  const togglePraktikPedagogis = (m) => setRppData(p => {
+    let c = Array.isArray(p.praktikPedagogis) ? [...p.praktikPedagogis] : [];
+    c.includes(m) ? c = c.filter(i => i !== m) : c.push(m);
+    return { ...p, praktikPedagogis: c };
+  });
+  const handleTableChange = (a, i, f, v) => setRppData(p => { const n = [...p[a]]; n[i] = { ...n[i], [f]: v }; return { ...p, [a]: n }; });
+  const addTableRow = (a, d) => setRppData(p => ({ ...p, [a]: [...p[a], { id: Date.now(), ...d }] }));
+  const removeTableRow = (a, id) => { if(window.confirm("Hapus baris ini?")) setRppData(p => ({ ...p, [a]: p[a].filter(i => i.id !== id) })); };
+  const resetRppData = () => {
+    if(window.confirm("Kosongkan semua form dan mulai dari nol?")) {
+      setRppData({...defaultDataObj, mapel:"", kelas:"", topik:"", waktu:"", jumlahPertemuan:"", kompetensiAwal:"", kesiapanSiswa:"", karakteristikMateri:"", cp:"", lintasDisiplin:"", tp:"", praktikPedagogis:[], praktikLainnya:"", kemitraanPembelajaran:"", lingkunganPembelajaran:"", pemanfaatanDigital:"", kegiatanAwal:"", kegiatanInti:"", kegiatanPenutup:"", pengalamanMemahami:"", pengalamanMengaplikasi:"", pengalamanMerefleksi:"", asesmenAwal:"", asesmenProses:"", asesmenAkhir:"", catatanRefleksi:"", kisiKisi:[], bankSoal:[], rubrikPenilaian:[]});
+      setCompletedSteps({}); setIsEditing(true);
+    }
+  };
+
+  const formatText = (txt) => txt ? txt.replace(/\n/g, '<br/>') : '';
+  const getFinalPraktikString = () => {
+    let a = Array.isArray(rppData.praktikPedagogis) ? [...rppData.praktikPedagogis] : [];
+    a = a.filter(i => i !== "Lainnya (Ketik Manual)");
+    if (rppData.praktikPedagogis.includes("Lainnya (Ketik Manual)") && rppData.praktikLainnya?.trim()) a.push(rppData.praktikLainnya);
+    return a.length > 0 ? a.join(', ') : '-';
+  };
+
+  const generateWordContent = () => {
+    const kRows = rppData.kisiKisi.length > 0 ? rppData.kisiKisi.map((k, i) => `<tr><td style="text-align:center;border:1px solid black;padding:4px">${i+1}</td><td style="border:1px solid black;padding:4px">${formatText(k.materi)}</td><td style="border:1px solid black;padding:4px">${formatText(k.indikator)}</td><td style="text-align:center;border:1px solid black;padding:4px">${k.level}</td><td style="text-align:center;border:1px solid black;padding:4px">${k.bentuk}</td><td style="text-align:center;border:1px solid black;padding:4px">${k.nomor}</td></tr>`).join('') : `<tr><td colspan="6" style="text-align:center;border:1px solid black;padding:4px">Tidak ada data</td></tr>`;
+    const bRows = rppData.bankSoal.length > 0 ? rppData.bankSoal.map((b, i) => `<tr><td style="border:1px solid black;padding:4px;vertical-align:top"><ul style="margin:0;padding-left:15px"><li style="margin-bottom:8px">${formatText(b.soal)}${b.opsi?`<br/>${formatText(b.opsi)}`:''}${b.kunci?`<br/><strong>Kunci:</strong> ${formatText(b.kunci)}`:''}</li></ul></td>`).join('') : '';
+    const rRows = rppData.rubrikPenilaian.length > 0 ? rppData.rubrikPenilaian.map(r => `<li style="margin-bottom:8px"><strong>${formatText(r.skor)}:</strong> ${formatText(r.kriteria)}</li>`).join('') : '';
+    let pKeys=Object.keys(profilLabels), profilHtml='<table style="width:100%;border:none;margin:0;padding:0">';
+    for(let i=0;i<pKeys.length;i+=2)profilHtml+=`<tr><td style="border:none;padding:2px;width:50%;font-size:10pt">${rppData.profilLulusan[pKeys[i]]?'☑':'☐'} ${profilLabels[pKeys[i]]}</td><td style="border:none;padding:2px;width:50%;font-size:10pt">${pKeys[i+1]?(rppData.profilLulusan[pKeys[i+1]]?'☑':'☐')+' '+profilLabels[pKeys[i+1]]:''}</td></tr>`;profilHtml+='</table>';
+    let kKeys=Object.keys(kseLabels), kseHtml='<table style="width:100%;border:none;margin:0;padding:0">';
+    for(let i=0;i<kKeys.length;i+=2)kseHtml+=`<tr><td style="border:none;padding:2px;width:50%;font-size:10pt;color:#1e40af">${rppData.kseLulusan[kKeys[i]]?'☑':'☐'} ${kseLabels[kKeys[i]]}</td><td style="border:none;padding:2px;width:50%;font-size:10pt;color:#1e40af">${kKeys[i+1]?(rppData.kseLulusan[kKeys[i+1]]?'☑':'☐')+' '+kseLabels[kKeys[i+1]]:''}</td></tr>`;kseHtml+='</table>';
+    const ref = rppData.catatanRefleksi?.trim() ? formatText(rppData.catatanRefleksi) : '<span style="color:#555;font-style:italic">Tuliskan hasil refleksi Bapak/Ibu setelah mengajar...</span>';
+
+    return `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>RPP</title><style>@page WordSection1{size:595.3pt 841.9pt;margin:42.5pt;mso-header-margin:35.4pt;mso-footer-margin:35.4pt;mso-paper-source:0;}div.WordSection1{page:WordSection1;}body{font-family:'Times New Roman',Times,serif;font-size:10pt;line-height:1.15;color:#000;margin:0;padding:0;}p{margin-top:2pt;margin-bottom:2pt;}.kop{border-bottom:3px solid black;padding-bottom:5px;margin-bottom:12pt;text-align:center;}.kop-line1{font-size:14pt;font-weight:bold;text-transform:uppercase;}.kop-line2{font-size:18pt;font-weight:bold;text-transform:uppercase;margin:2pt 0;letter-spacing:0.5pt;}.kop-line3{font-size:10pt;font-style:italic;}.t-table{width:100%;border-collapse:collapse;margin-bottom:10pt;page-break-inside:auto;}.t-table th{background-color:#dbeafe;padding:5px;text-align:left;border:1px solid black;font-size:11pt;font-weight:bold;text-transform:uppercase;}.t-label{width:16%;background-color:#f8fafc;border:1px solid black;padding:5px;font-weight:bold;vertical-align:top;font-size:10pt;}.t-content{border:1px solid black;padding:5px;vertical-align:top;font-size:10pt;}.t-content-half{width:34%;border:1px solid black;padding:5px;vertical-align:top;font-size:10pt;}.t-header-sub{background-color:#e2e8f0;border:1px solid black;padding:4px;text-align:left;font-weight:bold;font-size:10pt;}.sub-table th{background-color:#f1f5f9;padding:4px;text-align:center;border:1px solid black;font-weight:bold;font-size:10pt;}.sub-table td{font-size:10pt;}</style></head><body><div class="WordSection1"><div class="kop"><div class="kop-line1">PEMERINTAH KABUPATEN MAGELANG<br/>DINAS PENDIDIKAN DAN KEBUDAYAAN</div><div class="kop-line2">${rppData.namaSekolah}</div><div class="kop-line3">Jalan Raya Secang, Kab. Magelang, Jawa Tengah 56195 | Telepon: (0293) 3195355</div></div><h3 style="text-align:center;text-decoration:underline;margin-bottom:2pt;font-size:12pt;font-weight:bold">RANCANGAN PEMBELAJARAN MENDALAM</h3><p style="text-align:center;margin-bottom:12pt;font-weight:bold;text-transform:uppercase">TOPIK PEMBELAJARAN: ${rppData.topik||'........................'}</p><table class="t-table"><tr><th colspan="4">INFORMASI UMUM</th></tr><tr><td class="t-label">Nama Penyusun</td><td class="t-content-half">${rppData.namaGuru}</td><td class="t-label">Topik Pemb.</td><td class="t-content-half">${rppData.topik}</td></tr><tr><td class="t-label">Mata Pelajaran</td><td class="t-content-half">${rppData.mapel}</td><td class="t-label">Kelas / Waktu</td><td class="t-content-half">${rppData.kelas} / ${rppData.waktu}</td></tr><tr><th colspan="4">1. IDENTIFIKASI</th></tr><tr><td class="t-label">Kesiapan Siswa</td><td colspan="3" class="t-content">${formatText(rppData.kesiapanSiswa)}</td></tr><tr><td class="t-label">Materi Pelajaran</td><td colspan="3" class="t-content">${formatText(rppData.karakteristikMateri)}</td></tr><tr><td class="t-label">Profil Lulusan</td><td colspan="3" class="t-content" style="padding:2px 5px">${profilHtml}</td></tr><tr><td class="t-label" style="color:#1e40af">Kompetensi Sosial Emosional</td><td colspan="3" class="t-content" style="padding:2px 5px;background-color:#eff6ff">${kseHtml}</td></tr><tr><th colspan="4">2. DESAIN PEMBELAJARAN</th></tr><tr><td class="t-label">Capaian Pemb.</td><td colspan="3" class="t-content">${formatText(rppData.cp)}</td></tr><tr><td class="t-label">Tujuan Pemb.</td><td colspan="3" class="t-content">${formatText(rppData.tp)}</td></tr><tr><td class="t-label">Pedagogis</td><td class="t-content-half">${formatText(getFinalPraktikString())}</td><td class="t-label">Kemitraan</td><td class="t-content-half">${formatText(rppData.kemitraanPembelajaran)}</td></tr><tr><td class="t-label">Lingkungan</td><td class="t-content-half">${formatText(rppData.lingkunganPembelajaran)}</td><td class="t-label">Digital</td><td class="t-content-half">${formatText(rppData.pemanfaatanDigital)}</td></tr><tr><th colspan="4">3. PENGALAMAN BELAJAR & 4. ASESMEN PEMBELAJARAN</th></tr><tr><td colspan="4" class="t-header-sub">Rincian Langkah Pembelajaran, Pengalaman Kognitif, & Asesmen</td></tr><tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 1:<br/>Pendahuluan</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa"><strong>Aktivitas Kelas (Langkah Fisik):</strong><br/>${formatText(rppData.kegiatanAwal)}</td></tr><tr><td colspan="2" class="t-content" style="width:42%"><strong>🎯 Target: Memahami</strong><br/>${formatText(rppData.pengalamanMemahami)}</td><td class="t-content" style="width:42%;background:#f8fafc"><strong>📝 Asesmen Awal:</strong><br/>${formatText(rppData.asesmenAwal)}</td></tr><tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 2:<br/>Inti</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa"><strong>Aktivitas Kelas (Langkah Fisik):</strong><br/>${formatText(rppData.kegiatanInti)}</td></tr><tr><td colspan="2" class="t-content" style="width:42%"><strong>🎯 Target: Mengaplikasi</strong><br/>${formatText(rppData.pengalamanMengaplikasi)}</td><td class="t-content" style="width:42%;background:#f8fafc"><strong>📝 Asesmen Proses:</strong><br/>${formatText(rppData.asesmenProses)}</td></tr><tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 3:<br/>Penutup</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa"><strong>Aktivitas Kelas (Langkah Fisik):</strong><br/>${formatText(rppData.kegiatanPenutup)}</td></tr><tr><td colspan="2" class="t-content" style="width:42%"><strong>🎯 Target: Merefleksi</strong><br/>${formatText(rppData.pengalamanMerefleksi)}</td><td class="t-content" style="width:42%;background:#f8fafc"><strong>📝 Asesmen Akhir:</strong><br/>${formatText(rppData.asesmenAkhir)}</td></tr></table><h4 style="text-align:left;margin-top:12pt;margin-bottom:4pt;font-size:11pt">LAMPIRAN INSTRUMEN PENILAIAN</h4><p style="margin-bottom:2pt;font-size:10pt"><strong>A. Kisi-kisi Soal</strong></p><table class="t-table sub-table"><tr><th width="5%">No</th><th width="20%">Materi Pokok</th><th width="35%">Indikator Soal</th><th width="10%">Level</th><th width="15%">Bentuk</th><th width="15%">No Soal</th></tr>${kRows}</table><p style="margin-bottom:2pt;font-size:10pt"><strong>B. Bank Soal & Rubrik</strong></p><table class="t-table sub-table"><tr><th width="60%">Butir Soal & Pilihan</th><th width="40%">Kriteria Penilaian (Rubrik)</th></tr><tr>${rppData.bankSoal.length?bRows:'<td style="border:1px solid black;padding:4px;text-align:center">Tidak ada soal</td>'}<td style="border:1px solid black;padding:4px;vertical-align:top"><ul style="margin:0;padding-left:15px">${rRows||'<li>Tidak ada rubrik</li>'}</ul></td></tr></table><h4 style="text-align:left;margin-top:15pt;margin-bottom:4pt;font-size:11pt;text-transform:uppercase">CATATAN REFLEKSI GURU</h4><table class="t-table"><tr><td style="border:1px solid black;padding:15px;vertical-align:top;height:100px">${ref}</td></tr></table><p style="margin-top:20pt">&nbsp;</p><table style="width:100%;border:none;page-break-inside:avoid;margin-bottom:0"><tr><td style="width:50%;text-align:center;border:none;padding:4px;font-size:10pt">Mengetahui,<br/>Kepala ${rppData.namaSekolah}<br/><br/><br/><br/><br/><strong><u>${rppData.namaKepsek||'_______________________'}</u></strong><br/>NIP. ${rppData.nipKepsek||'_______________________'}</td><td style="width:50%;text-align:center;border:none;padding:4px;font-size:10pt">Secang, ........................ 2026<br/>Guru Mata Pelajaran<br/><br/><br/><br/><br/><strong><u>${rppData.namaGuru||'_______________________'}</u></strong><br/>NIP. ${rppData.nipGuru||'_______________________'}</td></tr></table></div></body></html>`;
+  };
+
+  const handleDownloadWord = () => {
+    const blob = new Blob(['\ufeff', generateWordContent()], { type: 'application/msword' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `RPP_Mendalam_${rppData.topik?.replace(/[^a-z0-9]/gi, '_').toLowerCase()||'modul'}.doc`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  };
+
+  const pArr = Array.isArray(rppData.praktikPedagogis) ? rppData.praktikPedagogis : [];
+
+  return (
+    <div className="pb-8 bg-slate-100 min-h-screen relative flex flex-col">
+      <header className="bg-gradient-to-r from-blue-900 to-indigo-800 text-white p-6 shadow-md border-b-4 border-yellow-400 shrink-0">
+        <div className="max-w-6xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl md:text-3xl font-bold mb-1 tracking-tight">Asisten Guru Secang</h1>
+            <p className="text-blue-200 text-sm md:text-base font-medium">Modul Perencanaan Pembelajaran Mendalam & SEL</p>
+          </div>
+          <div className="hidden md:block bg-white/10 px-4 py-1.5 rounded-full text-xs font-semibold text-blue-50 border border-white/20">Versi 22.0 (Super Ringkas & Bank Soal Pro)</div>
+        </div>
+      </header>
+
+      <main className="max-w-6xl mx-auto px-4 mt-8 flex flex-col md:flex-row gap-6 relative items-start flex-1 w-full">
+        <div className="flex-1 w-full order-2 md:order-1">
+          <div className="animate-in fade-in duration-500">
+            {isEditing ? (
+              <div className="space-y-6">
+                <Card className="p-6 border-t-4 border-t-slate-800 shadow-md">
+                  <h3 className="font-bold text-slate-800 text-lg mb-4 border-b pb-2"><i className="fas fa-id-card mr-2 text-slate-600"></i> Informasi Umum & Pengesahan</h3>
+                  <div className="grid lg:grid-cols-2 gap-6 text-sm mb-6 bg-slate-50 p-5 rounded-lg border border-slate-200">
+                    <div><LabelWithHint>Nama Sekolah</LabelWithHint><input type="text" name="namaSekolah" value={rppData.namaSekolah} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none" /></div>
+                    <div><LabelWithHint>Tahun Pelajaran</LabelWithHint><input type="text" name="tahunPelajaran" value={rppData.tahunPelajaran} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none" /></div>
+                    <div><LabelWithHint>Nama Kepala Sekolah</LabelWithHint><input type="text" name="namaKepsek" value={rppData.namaKepsek} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none" placeholder="Nama Kepala Sekolah" /><input type="text" name="nipKepsek" value={rppData.nipKepsek} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none mt-2" placeholder="NIP Kepala Sekolah" /></div>
+                    <div><LabelWithHint>Nama Guru Penyusun</LabelWithHint><input type="text" name="namaGuru" value={rppData.namaGuru} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none" placeholder="Nama Guru" /><input type="text" name="nipGuru" value={rppData.nipGuru} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none mt-2" placeholder="NIP Guru" /></div>
+                  </div>
+                  <div className="grid lg:grid-cols-2 gap-6 text-sm">
+                    <div><LabelWithHint>Mata Pelajaran</LabelWithHint><select name="mapel" value={rppData.mapel} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none bg-white"><option value="">-- Pilih --</option><option value="Ilmu Pengetahuan Alam (IPA)">Ilmu Pengetahuan Alam (IPA)</option><option value="Informatika">Informatika</option><option value="Matematika">Matematika</option><option value="Bahasa Indonesia">Bahasa Indonesia</option><option value="Bahasa Inggris">Bahasa Inggris</option><option value="IPS">IPS</option><option value="Pendidikan Pancasila">Pendidikan Pancasila</option><option value="PAI">PAI</option><option value="PJOK">PJOK</option><option value="Seni Budaya">Seni Budaya</option><option value="Prakarya">Prakarya</option><option value="Lainnya">Lainnya</option></select></div>
+                    <div><LabelWithHint>Fase / Kelas</LabelWithHint><select name="kelas" value={rppData.kelas} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none bg-white"><option value="">-- Pilih --</option><option value="Fase D / Kelas VII">Fase D / Kelas VII</option><option value="Fase D / Kelas VIII">Fase D / Kelas VIII</option><option value="Fase D / Kelas IX">Fase D / Kelas IX</option></select></div>
+                    <div><LabelWithHint>Topik Pembelajaran</LabelWithHint><input type="text" name="topik" value={rppData.topik} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none font-semibold text-blue-900 bg-blue-50" /></div>
+                    <div className="flex gap-4"><div className="flex-1"><LabelWithHint>Alokasi Waktu</LabelWithHint><input type="text" name="waktu" value={rppData.waktu} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none" /></div><div className="flex-1"><LabelWithHint>Jml. Pertemuan</LabelWithHint><input type="text" name="jumlahPertemuan" value={rppData.jumlahPertemuan} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none" /></div></div>
+                    <div className="lg:col-span-2"><LabelWithHint hint="Kemampuan prasyarat yang sudah harus dimiliki siswa sebelum materi ini.">Kompetensi Awal</LabelWithHint><textarea name="kompetensiAwal" value={rppData.kompetensiAwal} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-slate-500 outline-none"></textarea></div>
+                  </div>
+                </Card>
+
+                <Card className="p-6 border-t-4 border-t-blue-500 bg-blue-50/30">
+                  <h3 className="font-bold text-blue-900 text-lg mb-4 border-b border-blue-200 pb-2"><span className="bg-blue-600 text-white px-2 py-0.5 rounded text-sm mr-2">TAHAP 1</span> Identifikasi</h3>
+                  <div className="space-y-5 text-sm">
+                    <div><LabelWithHint hint="Identifikasi kesiapan: pengetahuan awal, minat, gaya belajar, atau latar belakang sosial budaya.">Peserta Didik (opsional)</LabelWithHint><textarea name="kesiapanSiswa" value={rppData.kesiapanSiswa} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"></textarea></div>
+                    <div><LabelWithHint hint="Relevansi materi dengan kehidupan nyata siswa, tingkat kesulitan, atau integrasi nilai/karakter.">Materi Pelajaran (opsional)</LabelWithHint><textarea name="karakteristikMateri" value={rppData.karakteristikMateri} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none"></textarea></div>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div className="bg-white p-4 rounded-lg border border-slate-300 shadow-sm"><LabelWithHint className="font-bold mb-3">Dimensi Profil Lulusan</LabelWithHint><div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">{Object.keys(profilLabels).map(k => <label key={k} className="flex items-start space-x-2 text-sm cursor-pointer hover:bg-blue-50 p-1.5"><input type="checkbox" checked={!!rppData.profilLulusan[k]} onChange={() => handleProfilChange(k)} className="mt-1 w-4 h-4 text-blue-600 shrink-0" /><span>{profilLabels[k]}</span></label>)}</div></div>
+                      <div className="bg-blue-50 p-4 rounded-lg border border-blue-200 shadow-sm"><LabelWithHint className="font-bold text-blue-900 mb-3"><i className="fas fa-heart text-red-500 mr-2"></i>Kompetensi Sosial Emosional</LabelWithHint><div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">{Object.keys(kseLabels).map(k => <label key={`kse-${k}`} className="flex items-start space-x-2 text-sm cursor-pointer hover:bg-white p-1.5"><input type="checkbox" checked={!!rppData.kseLulusan[k]} onChange={() => handleKseChange(k)} className="mt-1 w-4 h-4 text-blue-600 shrink-0" /><span className="text-blue-800 font-medium">{kseLabels[k]}</span></label>)}</div></div>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-6 border-t-4 border-t-indigo-500 bg-indigo-50/30 !overflow-visible">
+                  <h3 className="font-bold text-indigo-900 text-lg mb-4 border-b border-indigo-200 pb-2"><span className="bg-indigo-600 text-white px-2 py-0.5 rounded text-sm mr-2">TAHAP 2</span> Desain Pembelajaran</h3>
+                  <div className="space-y-5 text-sm">
+                    <div><LabelWithHint hint="Tuliskan elemen dan capaian pembelajaran sesuai fase secara ringkas.">Capaian Pembelajaran</LabelWithHint><textarea name="cp" value={rppData.cp} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"></textarea></div>
+                    <div><LabelWithHint hint="Misal: Prakarya (untuk merancang model) atau Matematika (untuk perhitungan).">Lintas Disiplin Ilmu</LabelWithHint><input type="text" name="lintasDisiplin" value={rppData.lintasDisiplin} onChange={handleInputChange} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
+                    <div><LabelWithHint hint={<><b>Tips Menyusun Tujuan Pembelajaran (Rumus A-B-C-D):</b><br/><br/><b>A - Audience:</b> Siapa yang belajar? (Misal: <i>Peserta didik</i>)<br/><b>B - Behavior:</b> Perilaku terukur / KKO? (Misal: <i>dapat membedakan sel hewan dan tumbuhan</i>)<br/><b>C - Condition:</b> Kondisi belajarnya? (Misal: <i>Melalui pengamatan mikroskop...</i>)<br/><b>D - Degree:</b> Target minimal? (Misal: <i>...dengan minimal 3 perbedaan yang benar.</i>)<br/><br/><b>Contoh Gabungan:</b> <i>Melalui pengamatan mikroskop (C), peserta didik (A) dapat membedakan sel hewan dan tumbuhan (B) dengan minimal 3 perbedaan yang benar (D).</i></>}>Tujuan Pembelajaran</LabelWithHint><textarea name="tp" value={rppData.tp} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"></textarea></div>
+                    <div className="p-5 bg-white rounded-lg border border-indigo-200 shadow-sm mt-4">
+                      <h4 className="font-bold text-indigo-800 border-b pb-2 mb-4">Kerangka Pembelajaran</h4>
+                      <div className="grid md:grid-cols-2 gap-5">
+                        <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 col-span-1 md:col-span-2"><LabelWithHint className="font-bold text-indigo-900 mb-3 text-xs uppercase">Praktik Pedagogis (Multi-Select)</LabelWithHint><MultiSelectDropdown options={praktikOptions} selectedOptions={pArr} toggleOption={togglePraktikPedagogis} />{pArr.includes("Lainnya (Ketik Manual)") && <input type="text" placeholder="Ketik manual..." value={rppData.praktikLainnya||""} onChange={(e) => setRppData(p=>({...p, praktikLainnya: e.target.value}))} className="w-full mt-3 p-3 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white" />}</div>
+                        <div><LabelWithHint className="font-bold text-xs uppercase" hint="Kolaborasi siswa (misal: Tutor sebaya, Kelompok Heterogen, atau Pemateri Luar).">Kemitraan Pembelajaran</LabelWithHint><textarea name="kemitraanPembelajaran" value={rppData.kemitraanPembelajaran} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none"></textarea></div>
+                        <div><LabelWithHint className="font-bold text-xs uppercase" hint="Seting fisik/sosial kelas (misal: Formasi U, Lab IPA, Perpustakaan, Luar Kelas).">Lingkungan Pembelajaran</LabelWithHint><textarea name="lingkunganPembelajaran" value={rppData.lingkunganPembelajaran} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none"></textarea></div>
+                        <div className="md:col-span-2"><LabelWithHint className="font-bold text-xs uppercase" hint="Alat digital pendukung (misal: Quizizz, PhET, Canva, YouTube).">Pemanfaatan Digital</LabelWithHint><textarea name="pemanfaatanDigital" value={rppData.pemanfaatanDigital} onChange={handleInputChange} rows="2" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none"></textarea></div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-6 border-t-4 border-t-emerald-500 bg-emerald-50/30">
+                  <div className="mb-5 border-b border-emerald-200 pb-3"><h3 className="font-bold text-emerald-900 text-lg"><span className="bg-emerald-600 text-white px-2 py-0.5 rounded text-sm mr-2">TAHAP 3 & 4</span> Input Pengalaman & Asesmen</h3></div>
+                  <div className="space-y-6 text-sm">
+                    <div className="bg-white p-5 rounded-lg border border-emerald-200 shadow-sm">
+                      <h4 className="font-bold text-slate-800 mb-3">Bagian 1: Pendahuluan</h4>
+                      <div className="space-y-4">
+                        <div>
+                          <LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Sebutkan tindakan fisik yang dilakukan di pembukaan (Misal: Salam, Doa, Latihan STOP untuk KSE, dan Apersepsi/pemantik).">Aktivitas Kelas (Langkah Fisik)</LabelWithHint>
+                          <textarea name="kegiatanAwal" value={rppData.kegiatanAwal} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 bg-slate-50 outline-none"></textarea>
+                        </div>
+                        <div className="grid lg:grid-cols-2 gap-4">
+                          <div>
+                            <LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Pengalaman mengonstruksi pemahaman (Esensial, Aplikatif, Karakter).">Target Kognitif (Memahami)</LabelWithHint>
+                            <textarea name="pengalamanMemahami" value={rppData.pengalamanMemahami} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none"></textarea>
+                          </div>
+                          <div>
+                              <LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Pemetaan cepat kemampuan/kesiapan awal (Kuis Lisan/Diagnostik).">Asesmen Awal</LabelWithHint>
+                              <textarea name="asesmenAwal" value={rppData.asesmenAwal} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none"></textarea>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-white p-5 rounded-lg border border-emerald-200 shadow-sm">
+                      <h4 className="font-bold text-slate-800 mb-3">Bagian 2: Inti</h4>
+                      <div className="space-y-4">
+                        <div>
+                          <LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Sebutkan alur kerja utama siswa dan metode pengajaran Bapak/Ibu (Kerja kelompok, Praktikum mikroskop, Presentasi, dll).">Aktivitas Kelas (Langkah Fisik)</LabelWithHint>
+                          <textarea name="kegiatanInti" value={rppData.kegiatanInti} onChange={handleInputChange} rows="5" className="w-full p-3 border border-slate-300 rounded focus:ring-2 bg-slate-50 outline-none"></textarea>
+                        </div>
+                        <div className="grid lg:grid-cols-2 gap-4">
+                          <div>
+                            <LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Penerapan konsep pada situasi nyata, eksperimen, diskusi, atau proyek.">Target Kognitif (Mengaplikasi)</LabelWithHint>
+                            <textarea name="pengalamanMengaplikasi" value={rppData.pengalamanMengaplikasi} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none"></textarea>
+                          </div>
+                          <div>
+                            <LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Observasi unjuk kerja atau kuis pemahaman selama kegiatan (Formatif).">Asesmen Proses</LabelWithHint>
+                            <textarea name="asesmenProses" value={rppData.asesmenProses} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none"></textarea>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-white p-5 rounded-lg border border-emerald-200 shadow-sm">
+                      <h4 className="font-bold text-slate-800 mb-3">Bagian 3: Penutup</h4>
+                      <div className="space-y-4">
+                        <div>
+                          <LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Aktivitas di akhir pelajaran (Misal: Menyusun kesimpulan bersama, guru memberikan apresiasi dan tugas lanjutan, doa).">Aktivitas Kelas (Langkah Fisik)</LabelWithHint>
+                          <textarea name="kegiatanPenutup" value={rppData.kegiatanPenutup} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 bg-slate-50 outline-none"></textarea>
+                        </div>
+                        <div className="grid lg:grid-cols-2 gap-4">
+                          <div>
+                            <LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Kegiatan regulasi diri, evaluasi mandiri, dan apresiasi proses belajar.">Target Kognitif (Merefleksi)</LabelWithHint>
+                            <textarea name="pengalamanMerefleksi" value={rppData.pengalamanMerefleksi} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none"></textarea>
+                          </div>
+                          <div>
+                            <LabelWithHint className="font-bold text-xs uppercase text-slate-600" hint="Bukti penguasaan materi (Exit Ticket, Tes Tertulis, atau Lembar Refleksi).">Asesmen Akhir</LabelWithHint>
+                            <textarea name="asesmenAkhir" value={rppData.asesmenAkhir} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none"></textarea>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+
+                <Card className="p-6 border-t-4 border-t-orange-500 bg-orange-50/30">
+                  <h4 className="font-bold text-orange-900 text-lg mb-4">Lampiran Instrumen Penilaian</h4>
+                  <div className="mb-6 bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                    <LabelWithHint className="font-bold text-slate-800 text-base mb-2">1. Tabel Kisi-kisi Soal</LabelWithHint>
+                    <div className="overflow-x-auto border border-slate-300 rounded"><table className="w-full text-left text-sm border-collapse"><thead className="bg-slate-100 text-slate-700 border-b border-slate-300"><tr><th className="p-2 border-r w-12 text-center">No</th><th className="p-2 border-r w-1/4">Materi Pokok</th><th className="p-2 border-r w-1/3">Indikator Soal</th><th className="p-2 border-r w-24 text-center">Level</th><th className="p-2 border-r w-28 text-center">Bentuk</th><th className="p-2 border-r w-24 text-center">No Soal</th><th className="p-2 w-12"></th></tr></thead><tbody>{rppData.kisiKisi.map((row, index) => (<tr key={row.id} className="border-b hover:bg-slate-50"><td className="p-1 border-r text-center text-slate-500">{index + 1}</td><td className="p-1 border-r"><input type="text" className="table-input" value={row.materi} onChange={(e) => handleTableChange('kisiKisi', index, 'materi', e.target.value)} placeholder="Materi..." /></td><td className="p-1 border-r"><input type="text" className="table-input" value={row.indikator} onChange={(e) => handleTableChange('kisiKisi', index, 'indikator', e.target.value)} placeholder="Siswa dapat..." /></td><td className="p-1 border-r"><select className="table-input text-center" value={row.level} onChange={(e) => handleTableChange('kisiKisi', index, 'level', e.target.value)}><option value="">-Level-</option><option value="C1">C1</option><option value="C2">C2</option><option value="C3">C3</option><option value="C4">C4</option><option value="C5">C5</option><option value="C6">C6</option></select></td><td className="p-1 border-r"><select className="table-input text-center" value={row.bentuk} onChange={(e) => handleTableChange('kisiKisi', index, 'bentuk', e.target.value)}><option value="">-Bentuk-</option><option value="PG">PG</option><option value="PG Kompleks">PG Kompleks</option><option value="Menjodohkan">Menjodohkan</option><option value="Isian Singkat">Isian Singkat</option><option value="Uraian">Uraian</option><option value="Praktik">Praktik</option><option value="Proyek">Proyek</option></select></td><td className="p-1 border-r"><input type="text" className="table-input text-center" value={row.nomor} onChange={(e) => handleTableChange('kisiKisi', index, 'nomor', e.target.value)} placeholder="1" /></td><td className="p-1 text-center"><button onClick={() => removeTableRow('kisiKisi', row.id)} className="text-red-400 hover:text-red-600"><i className="fas fa-trash"></i></button></td></tr>))}</tbody></table></div>
+                    <button onClick={() => addTableRow('kisiKisi', { materi: "", indikator: "", level: "", bentuk: "", nomor: "" })} className="mt-3 px-4 py-2 bg-orange-50 text-sm font-bold text-orange-600 rounded-lg hover:bg-orange-100 flex items-center"><i className="fas fa-plus mr-2"></i> Tambah Baris</button>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm mb-6">
+                    <LabelWithHint className="font-bold text-slate-800 text-base mb-2" hint="Ketik opsi jawaban di kolom pilihan (A, B, C, D atau pernyataan jodoh) untuk soal PG, PG Kompleks, dan Menjodohkan. Kosongkan untuk soal Uraian.">2. Bank Soal (Mendukung PG & Menjodohkan)</LabelWithHint>
+                    <div className="overflow-x-auto border border-slate-300 rounded"><table className="w-full text-left text-sm border-collapse"><thead className="bg-slate-100 text-slate-700 border-b border-slate-300"><tr><th className="p-2 border-r w-10 text-center">No</th><th className="p-2 border-r w-[40%]">Butir Soal / Pertanyaan</th><th className="p-2 border-r w-[35%]">Pilihan Jawaban / Pernyataan</th><th className="p-2 border-r w-24 text-center">Kunci</th><th className="p-2 w-10"></th></tr></thead><tbody>{rppData.bankSoal.map((row, index) => (<tr key={row.id} className="border-b hover:bg-slate-50"><td className="p-2 border-r text-center text-slate-500 align-top">{index + 1}</td><td className="p-1 border-r align-top"><textarea className="table-input resize-y min-h-[70px]" rows="3" value={row.soal} onChange={(e) => handleTableChange('bankSoal', index, 'soal', e.target.value)} placeholder="Tuliskan soal..."></textarea></td><td className="p-1 border-r align-top"><textarea className="table-input resize-y min-h-[70px]" rows="3" value={row.opsi} onChange={(e) => handleTableChange('bankSoal', index, 'opsi', e.target.value)} placeholder="A. ...&#10;B. ...&#10;C. ...&#10;(Kosongkan jika uraian)"></textarea></td><td className="p-1 border-r align-top"><input type="text" className="table-input font-bold text-center mt-1" value={row.kunci} onChange={(e) => handleTableChange('bankSoal', index, 'kunci', e.target.value)} placeholder="Kunci" /></td><td className="p-2 text-center align-top"><button onClick={() => removeTableRow('bankSoal', row.id)} className="text-red-400 hover:text-red-600 mt-2"><i className="fas fa-trash"></i></button></td></tr>))}</tbody></table></div>
+                    <button onClick={() => addTableRow('bankSoal', { soal: "", opsi: "", kunci: "" })} className="mt-3 px-4 py-2 bg-orange-50 text-sm font-bold text-orange-600 rounded-lg hover:bg-orange-100 flex items-center"><i className="fas fa-plus mr-2"></i> Tambah Soal</button>
+                  </div>
+
+                  <div className="bg-white p-4 rounded-lg border border-slate-200 shadow-sm">
+                    <LabelWithHint className="font-bold text-slate-800 text-base mb-2">3. Rubrik Penilaian</LabelWithHint>
+                    <div className="overflow-x-auto border border-slate-300 rounded"><table className="w-full text-left text-sm border-collapse"><thead className="bg-slate-100 text-slate-700 border-b border-slate-300"><tr><th className="p-2 border-r w-1/3">Skor / Kriteria</th><th className="p-2 border-r">Deskripsi</th><th className="p-2 w-12 text-center"></th></tr></thead><tbody>{rppData.rubrikPenilaian.map((row, index) => (<tr key={row.id} className="border-b hover:bg-slate-50"><td className="p-1 border-r align-top"><input type="text" className="table-input font-bold" value={row.skor} onChange={(e) => handleTableChange('rubrikPenilaian', index, 'skor', e.target.value)} placeholder="Skor..." /></td><td className="p-1 border-r align-top"><textarea className="table-input resize-y min-h-[50px]" rows="2" value={row.kriteria} onChange={(e) => handleTableChange('rubrikPenilaian', index, 'kriteria', e.target.value)} placeholder="Deskripsi..."></textarea></td><td className="p-2 text-center align-top"><button onClick={() => removeTableRow('rubrikPenilaian', row.id)} className="text-red-400 hover:text-red-600 mt-1"><i className="fas fa-trash"></i></button></td></tr>))}</tbody></table></div>
+                    <button onClick={() => addTableRow('rubrikPenilaian', { skor: "", kriteria: "" })} className="mt-3 px-4 py-2 bg-orange-50 text-sm font-bold text-orange-600 rounded-lg hover:bg-orange-100 flex items-center"><i className="fas fa-plus mr-2"></i> Tambah Rubrik</button>
+                  </div>
+                </Card>
+
+                <Card className="p-6 border-t-4 border-t-red-500 bg-red-50/30">
+                  <h3 className="font-bold text-red-900 text-lg mb-4 border-b border-red-200 pb-2"><span className="bg-red-600 text-white px-2 py-0.5 rounded text-sm mr-2">TAHAP 5</span> Refleksi Guru (Siklus Akhir)</h3>
+                  <textarea name="catatanRefleksi" value={rppData.catatanRefleksi} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded focus:ring-2 focus:ring-red-500 outline-none bg-white shadow-sm" placeholder="Tuliskan evaluasi pribadi Bapak/Ibu setelah mengajar kelas ini..."></textarea>
+                </Card>
+              </div>
+            ) : (
+              <div>
+                <Card className="mb-6 border-t-4 border-t-slate-800">
+                  <div className="p-5 bg-white">
+                    <h3 className="font-bold text-slate-800 text-lg mb-4 border-b pb-2">Informasi Umum</h3>
+                    <div className="grid grid-cols-2 gap-6 text-base text-slate-700">
+                      <div className="col-span-2 md:col-span-1 border-l-4 border-blue-500 bg-blue-50 p-3 rounded-r-lg"><strong className="block text-slate-500 text-sm uppercase mb-1">Mata Pelajaran</strong><span className="font-bold text-blue-900 text-lg">{rppData.mapel} <span className="text-sm text-blue-600">({rppData.kelas})</span></span></div>
+                      <div className="col-span-2 md:col-span-1 border-l-4 border-indigo-500 bg-indigo-50 p-3 rounded-r-lg"><strong className="block text-slate-500 text-sm uppercase mb-1">Topik Pembelajaran</strong><span className="font-bold text-indigo-900 text-lg">{rppData.topik}</span></div>
+                      <div><strong className="block text-slate-500 text-sm uppercase mb-1">Penyusun</strong>{rppData.namaGuru}</div><div><strong className="block text-slate-500 text-sm uppercase mb-1">Sekolah</strong>{rppData.namaSekolah}</div>
+                      <div><strong className="block text-slate-500 text-sm uppercase mb-1">Waktu / Pertemuan</strong>{rppData.waktu} / {rppData.jumlahPertemuan}</div><div><strong className="block text-slate-500 text-sm uppercase mb-1">Tahun Pelajaran</strong>{rppData.tahunPelajaran}</div>
+                    </div>
+                  </div>
+                </Card>
+
+                <Accordion title="TAHAP 1: Identifikasi" icon="fas fa-search" defaultOpen={true} isCompleted={completedSteps['t1']} onToggleComplete={() => toggleStep('t1')} headerColorClass="bg-blue-100 text-blue-700">
+                  <div className="space-y-4 text-base text-slate-700">
+                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200"><strong className="block text-blue-800 mb-2">Kesiapan Siswa</strong><p className="whitespace-pre-wrap">{rppData.kesiapanSiswa||"-"}</p></div>
+                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-200"><strong className="block text-blue-800 mb-2">Materi Pelajaran</strong><p className="whitespace-pre-wrap">{rppData.karakteristikMateri||"-"}</p></div>
+                    <div className="grid lg:grid-cols-2 gap-4">
+                      <div className="bg-slate-50 p-4 rounded-lg border"><strong className="block text-blue-800 mb-3">Profil Lulusan</strong><div className="grid grid-cols-2 gap-2 text-sm">{Object.keys(profilLabels).map(k=>rppData.profilLulusan[k]&&<div key={k} className="flex items-center text-blue-900 font-medium bg-white p-2 rounded border"><i className="fas fa-check-square text-blue-600 mr-2"></i>{profilLabels[k]}</div>)}</div></div>
+                      <div className="bg-blue-50 p-4 rounded-lg border"><strong className="block text-blue-900 mb-3"><i className="fas fa-heart text-red-500 mr-2"></i>CASEL</strong><div className="grid grid-cols-2 gap-2 text-sm">{Object.keys(kseLabels).map(k=>rppData.kseLulusan[k]&&<div key={`v-${k}`} className="flex items-center text-blue-900 font-bold bg-white p-2 rounded border"><i className="fas fa-star text-yellow-500 mr-2"></i>{kseLabels[k]}</div>)}</div></div>
+                    </div>
+                  </div>
+                </Accordion>
+
+                <Accordion title="TAHAP 2: Desain Pembelajaran" icon="fas fa-drafting-compass" isCompleted={completedSteps['t2']} onToggleComplete={() => toggleStep('t2')} headerColorClass="bg-indigo-100 text-indigo-700">
+                  <div className="space-y-6 text-base text-slate-700">
+                    <div className="grid lg:grid-cols-2 gap-6"><div className="p-4 border-l-4 border-indigo-400 bg-white shadow-sm"><strong className="block text-indigo-900 mb-2">Capaian Pembelajaran</strong><p className="whitespace-pre-wrap">{rppData.cp||"-"}</p></div><div className="p-4 border-l-4 border-indigo-500 bg-white shadow-sm"><strong className="block text-indigo-900 mb-2">Tujuan Pembelajaran</strong><p className="whitespace-pre-wrap font-medium">{rppData.tp||"-"}</p></div></div>
+                    <div className="bg-indigo-50/50 p-5 rounded-xl border border-indigo-100"><h4 className="font-bold text-indigo-900 border-b pb-2 mb-4">Kerangka Pembelajaran</h4><div className="grid md:grid-cols-2 gap-4"><div className="bg-white p-4 rounded-lg border"><strong className="block text-indigo-700 mb-1 text-xs">Praktik Pedagogis</strong><p className="font-medium">{getFinalPraktikString()}</p></div><div className="bg-white p-4 rounded-lg border"><strong className="block text-indigo-700 mb-1 text-xs">Kemitraan Belajar</strong><p>{rppData.kemitraanPembelajaran||"-"}</p></div><div className="bg-white p-4 rounded-lg border"><strong className="block text-indigo-700 mb-1 text-xs">Lingkungan Belajar</strong><p>{rppData.lingkunganPembelajaran||"-"}</p></div><div className="bg-white p-4 rounded-lg border"><strong className="block text-indigo-700 mb-1 text-xs">Pemanfaatan Digital</strong><p>{rppData.pemanfaatanDigital||"-"}</p></div></div></div>
+                  </div>
+                </Accordion>
+
+                <Accordion title="TAHAP 3 & 4: Panduan Eksekusi Kelas" icon="fas fa-layer-group" isCompleted={completedSteps['t34']} onToggleComplete={() => toggleStep('t34')} headerColorClass="bg-emerald-100 text-emerald-800">
+                  <div className="space-y-8 text-base">
+                    {[{t:"AWAL",sub:"Pendahuluan",c:"blue",ak:rppData.kegiatanAwal,tk:rppData.pengalamanMemahami,as:rppData.asesmenAwal,ic:"brain"},{t:"INTI",sub:"Elaborasi",c:"emerald",ak:rppData.kegiatanInti,tk:rppData.pengalamanMengaplikasi,as:rppData.asesmenProses,ic:"cogs"},{t:"AKHIR",sub:"Penutup",c:"fuchsia",ak:rppData.kegiatanPenutup,tk:rppData.pengalamanMerefleksi,as:rppData.asesmenAkhir,ic:"undo"}].map((f,i)=>(
+                      <div key={i} className={`border-2 border-${f.c}-200 rounded-xl overflow-hidden bg-white`}><div className={`bg-${f.c}-50 px-5 py-3 border-b-2 border-${f.c}-200 flex items-center`}><span className={`bg-${f.c}-600 text-white w-8 h-8 rounded-lg flex items-center justify-center font-bold mr-3`}>{i+1}</span><h4 className={`font-black text-${f.c}-900`}>FASE {f.t} <span className="font-normal opacity-75">| {f.sub}</span></h4></div><div><div className="p-5 border-b bg-slate-50"><span className="inline-flex px-2 py-1 rounded bg-slate-200 text-xs font-bold mb-3"><i className="fas fa-running mr-1"></i> Aktivitas</span><p className="whitespace-pre-wrap">{f.ak}</p></div><div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x"><div className={`flex-1 p-5 bg-${f.c}-50/30`}><span className={`inline-flex px-2 py-1 rounded bg-${f.c}-200 text-xs font-bold mb-3`}><i className={`fas fa-${f.ic} mr-1`}></i> Target</span><p className="whitespace-pre-wrap">{f.tk}</p></div><div className="flex-1 p-5 bg-orange-50/30"><span className="inline-flex px-2 py-1 rounded bg-orange-200 text-xs font-bold mb-3"><i className="fas fa-check mr-1"></i> Asesmen</span><p className="whitespace-pre-wrap font-medium">{f.as}</p></div></div></div></div>
+                    ))}
+                  </div>
+                </Accordion>
+
+                <Card className="mb-6 border-t-4 border-t-orange-500">
+                  <div className="p-5 bg-white">
+                    <h3 className="font-bold text-orange-800 text-lg mb-4 border-b pb-2">Instrumen Penilaian (Bank Soal)</h3>
+                    <div className="overflow-x-auto border border-slate-300 rounded">
+                      <table className="w-full text-left text-sm border-collapse">
+                        <thead className="bg-slate-100 text-slate-700 border-b border-slate-300"><tr><th className="p-2 border-r w-10 text-center">No</th><th className="p-2 border-r">Butir Soal & Pilihan / Pernyataan</th><th className="p-2 w-32 text-center">Kunci</th></tr></thead>
+                        <tbody>{rppData.bankSoal.map((r, i) => (<tr key={r.id} className="border-b"><td className="p-2 border-r text-center align-top">{i+1}</td><td className="p-3 border-r align-top"><div className="whitespace-pre-wrap font-medium">{r.soal}</div>{r.opsi && <div className="mt-2 text-slate-600 bg-slate-50 p-2 rounded border text-xs whitespace-pre-wrap leading-relaxed">{r.opsi}</div>}</td><td className="p-2 text-center align-top font-bold text-blue-700 bg-blue-50/30">{r.kunci||'-'}</td></tr>))}</tbody>
+                      </table>
+                    </div>
+                  </div>
+                </Card>
+
+                {rppData.catatanRefleksi && <Card className="mb-6 border-t-4 border-t-red-500"><div className="p-5 bg-white"><h3 className="font-bold text-red-800 text-lg mb-2"><i className="fas fa-pen-nib mr-2"></i>Catatan Refleksi</h3><p className="whitespace-pre-wrap p-4 bg-red-50 rounded-lg border">{rppData.catatanRefleksi}</p></div></Card>}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="w-full md:w-72 shrink-0 order-1 md:order-2 relative md:sticky top-6 z-50">
+          <div className="bg-white p-4 rounded-2xl shadow-lg border-2 border-blue-100 flex flex-col space-y-3">
+            <div className="pb-3 border-b"><h4 className="font-bold flex items-center"><i className="fas fa-cog text-blue-500 mr-2"></i> Kontrol</h4><p className="text-xs mt-1">Status: {isEditing ? <span className="text-orange-500 font-bold">Mengedit</span> : <span className="text-green-500 font-bold">Tersimpan</span>}</p></div>
+            {isEditing ? <button onClick={() => setIsEditing(false)} className="py-3 bg-green-600 text-white rounded-xl text-sm font-bold w-full"><i className="fas fa-save mr-2"></i> Simpan Modul</button> : <><div className="flex space-x-2 w-full"><button onClick={() => setIsEditing(true)} className="flex-1 py-3 bg-slate-100 rounded-xl text-sm font-bold border"><i className="fas fa-edit"></i> Edit</button><button onClick={resetRppData} className="flex-1 py-3 bg-red-50 text-red-600 rounded-xl text-sm font-bold border"><i className="fas fa-trash-alt"></i> Hapus</button></div><button onClick={handleDownloadWord} className="btn-word py-3 bg-blue-600 text-white rounded-xl text-sm font-bold w-full"><i className="fas fa-file-word mr-2"></i> Unduh Word</button></>}
+          </div>
+        </div>
+      </main>
+
+      {/* FOOTER KHUSUS APLIKASI WEB */}
+      <footer className="max-w-6xl mx-auto px-4 mt-12 pb-6 text-center text-slate-500 text-sm w-full">
+        <div className="border-t border-slate-300 pt-6">
+           <p className="font-bold text-slate-600 text-base mb-1">Dikembangkan oleh: YUSUF ARIS SYAMSUDDIN</p>
+           <p className="font-medium">ID: 0762773674130202 | Guru IPA & Informatika - SMPN 2 Secang</p>
+        </div>
+      </footer>
+    </div>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById('root'));
+root.render(<App />);
+</script>
 </body>
 </html>
