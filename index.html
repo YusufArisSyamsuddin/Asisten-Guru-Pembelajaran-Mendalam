@@ -5,10 +5,13 @@
 <title>Asisten Guru SMPN 2 Secang - Pembelajaran Mendalam</title>
 <script src="https://cdn.tailwindcss.com"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<!-- React & ReactDOM -->
 <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/react-dom@18/umd/react-dom-server.browser.production.min.js" crossorigin></script>
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+<!-- SheetJS untuk Export Excel -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 .scrollbar-hide::-webkit-scrollbar { display: none; }
 .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
@@ -143,7 +146,7 @@ function App() {
   };
 
   const [rppData, setRppData] = useState(() => {
-    const saved = localStorage.getItem('asistenGuruData_v22');
+    const saved = localStorage.getItem('asistenGuruData_v24');
     if (saved) {
       try {
         let p = JSON.parse(saved);
@@ -155,7 +158,7 @@ function App() {
     return defaultDataObj;
   });
 
-  useEffect(() => { localStorage.setItem('asistenGuruData_v22', JSON.stringify(rppData)); }, [rppData]);
+  useEffect(() => { localStorage.setItem('asistenGuruData_v24', JSON.stringify(rppData)); }, [rppData]);
 
   const toggleStep = (id) => setCompletedSteps(p => ({ ...p, [id]: !p[id] }));
   const handleInputChange = (e) => setRppData(p => ({ ...p, [e.target.name]: e.target.value }));
@@ -197,13 +200,93 @@ function App() {
     return `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>RPP</title><style>@page WordSection1{size:595.3pt 841.9pt;margin:42.5pt;mso-header-margin:35.4pt;mso-footer-margin:35.4pt;mso-paper-source:0;}div.WordSection1{page:WordSection1;}body{font-family:'Times New Roman',Times,serif;font-size:10pt;line-height:1.15;color:#000;margin:0;padding:0;}p{margin-top:2pt;margin-bottom:2pt;}.kop{border-bottom:3px solid black;padding-bottom:5px;margin-bottom:12pt;text-align:center;}.kop-line1{font-size:14pt;font-weight:bold;text-transform:uppercase;}.kop-line2{font-size:18pt;font-weight:bold;text-transform:uppercase;margin:2pt 0;letter-spacing:0.5pt;}.kop-line3{font-size:10pt;font-style:italic;}.t-table{width:100%;border-collapse:collapse;margin-bottom:10pt;page-break-inside:auto;}.t-table th{background-color:#dbeafe;padding:5px;text-align:left;border:1px solid black;font-size:11pt;font-weight:bold;text-transform:uppercase;}.t-label{width:16%;background-color:#f8fafc;border:1px solid black;padding:5px;font-weight:bold;vertical-align:top;font-size:10pt;}.t-content{border:1px solid black;padding:5px;vertical-align:top;font-size:10pt;}.t-content-half{width:34%;border:1px solid black;padding:5px;vertical-align:top;font-size:10pt;}.t-header-sub{background-color:#e2e8f0;border:1px solid black;padding:4px;text-align:left;font-weight:bold;font-size:10pt;}.sub-table th{background-color:#f1f5f9;padding:4px;text-align:center;border:1px solid black;font-weight:bold;font-size:10pt;}.sub-table td{font-size:10pt;}</style></head><body><div class="WordSection1"><div class="kop"><div class="kop-line1">PEMERINTAH KABUPATEN MAGELANG<br/>DINAS PENDIDIKAN DAN KEBUDAYAAN</div><div class="kop-line2">${rppData.namaSekolah}</div><div class="kop-line3">Jalan Raya Secang, Kab. Magelang, Jawa Tengah 56195 | Telepon: (0293) 3195355</div></div><h3 style="text-align:center;text-decoration:underline;margin-bottom:2pt;font-size:12pt;font-weight:bold">RANCANGAN PEMBELAJARAN MENDALAM</h3><p style="text-align:center;margin-bottom:12pt;font-weight:bold;text-transform:uppercase">TOPIK PEMBELAJARAN: ${rppData.topik||'........................'}</p><table class="t-table"><tr><th colspan="4">INFORMASI UMUM</th></tr><tr><td class="t-label">Nama Penyusun</td><td class="t-content-half">${rppData.namaGuru}</td><td class="t-label">Topik Pemb.</td><td class="t-content-half">${rppData.topik}</td></tr><tr><td class="t-label">Mata Pelajaran</td><td class="t-content-half">${rppData.mapel}</td><td class="t-label">Kelas / Waktu</td><td class="t-content-half">${rppData.kelas} / ${rppData.waktu}</td></tr><tr><th colspan="4">1. IDENTIFIKASI</th></tr><tr><td class="t-label">Kesiapan Siswa</td><td colspan="3" class="t-content">${formatText(rppData.kesiapanSiswa)}</td></tr><tr><td class="t-label">Materi Pelajaran</td><td colspan="3" class="t-content">${formatText(rppData.karakteristikMateri)}</td></tr><tr><td class="t-label">Profil Lulusan</td><td colspan="3" class="t-content" style="padding:2px 5px">${profilHtml}</td></tr><tr><td class="t-label" style="color:#1e40af">Kompetensi Sosial Emosional</td><td colspan="3" class="t-content" style="padding:2px 5px;background-color:#eff6ff">${kseHtml}</td></tr><tr><th colspan="4">2. DESAIN PEMBELAJARAN</th></tr><tr><td class="t-label">Capaian Pemb.</td><td colspan="3" class="t-content">${formatText(rppData.cp)}</td></tr><tr><td class="t-label">Tujuan Pemb.</td><td colspan="3" class="t-content">${formatText(rppData.tp)}</td></tr><tr><td class="t-label">Pedagogis</td><td class="t-content-half">${formatText(getFinalPraktikString())}</td><td class="t-label">Kemitraan</td><td class="t-content-half">${formatText(rppData.kemitraanPembelajaran)}</td></tr><tr><td class="t-label">Lingkungan</td><td class="t-content-half">${formatText(rppData.lingkunganPembelajaran)}</td><td class="t-label">Digital</td><td class="t-content-half">${formatText(rppData.pemanfaatanDigital)}</td></tr><tr><th colspan="4">3. PENGALAMAN BELAJAR & 4. ASESMEN PEMBELAJARAN</th></tr><tr><td colspan="4" class="t-header-sub">Rincian Langkah Pembelajaran, Pengalaman Kognitif, & Asesmen</td></tr><tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 1:<br/>Pendahuluan</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa"><strong>Aktivitas Kelas (Langkah Fisik):</strong><br/>${formatText(rppData.kegiatanAwal)}</td></tr><tr><td colspan="2" class="t-content" style="width:42%"><strong>🎯 Target: Memahami</strong><br/>${formatText(rppData.pengalamanMemahami)}</td><td class="t-content" style="width:42%;background:#f8fafc"><strong>📝 Asesmen Awal:</strong><br/>${formatText(rppData.asesmenAwal)}</td></tr><tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 2:<br/>Inti</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa"><strong>Aktivitas Kelas (Langkah Fisik):</strong><br/>${formatText(rppData.kegiatanInti)}</td></tr><tr><td colspan="2" class="t-content" style="width:42%"><strong>🎯 Target: Mengaplikasi</strong><br/>${formatText(rppData.pengalamanMengaplikasi)}</td><td class="t-content" style="width:42%;background:#f8fafc"><strong>📝 Asesmen Proses:</strong><br/>${formatText(rppData.asesmenProses)}</td></tr><tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 3:<br/>Penutup</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa"><strong>Aktivitas Kelas (Langkah Fisik):</strong><br/>${formatText(rppData.kegiatanPenutup)}</td></tr><tr><td colspan="2" class="t-content" style="width:42%"><strong>🎯 Target: Merefleksi</strong><br/>${formatText(rppData.pengalamanMerefleksi)}</td><td class="t-content" style="width:42%;background:#f8fafc"><strong>📝 Asesmen Akhir:</strong><br/>${formatText(rppData.asesmenAkhir)}</td></tr></table><h4 style="text-align:left;margin-top:12pt;margin-bottom:4pt;font-size:11pt">LAMPIRAN INSTRUMEN PENILAIAN</h4><p style="margin-bottom:2pt;font-size:10pt"><strong>A. Kisi-kisi Soal</strong></p><table class="t-table sub-table"><tr><th width="5%">No</th><th width="20%">Materi Pokok</th><th width="35%">Indikator Soal</th><th width="10%">Level</th><th width="15%">Bentuk</th><th width="15%">No Soal</th></tr>${kRows}</table><p style="margin-bottom:2pt;font-size:10pt"><strong>B. Bank Soal & Rubrik</strong></p><table class="t-table sub-table"><tr><th width="60%">Butir Soal & Pilihan</th><th width="40%">Kriteria Penilaian (Rubrik)</th></tr><tr>${rppData.bankSoal.length?bRows:'<td style="border:1px solid black;padding:4px;text-align:center">Tidak ada soal</td>'}<td style="border:1px solid black;padding:4px;vertical-align:top"><ul style="margin:0;padding-left:15px">${rRows||'<li>Tidak ada rubrik</li>'}</ul></td></tr></table><h4 style="text-align:left;margin-top:15pt;margin-bottom:4pt;font-size:11pt;text-transform:uppercase">CATATAN REFLEKSI GURU</h4><table class="t-table"><tr><td style="border:1px solid black;padding:15px;vertical-align:top;height:100px">${ref}</td></tr></table><p style="margin-top:20pt">&nbsp;</p><table style="width:100%;border:none;page-break-inside:avoid;margin-bottom:0"><tr><td style="width:50%;text-align:center;border:none;padding:4px;font-size:10pt">Mengetahui,<br/>Kepala ${rppData.namaSekolah}<br/><br/><br/><br/><br/><strong><u>${rppData.namaKepsek||'_______________________'}</u></strong><br/>NIP. ${rppData.nipKepsek||'_______________________'}</td><td style="width:50%;text-align:center;border:none;padding:4px;font-size:10pt">Secang, ........................ 2026<br/>Guru Mata Pelajaran<br/><br/><br/><br/><br/><strong><u>${rppData.namaGuru||'_______________________'}</u></strong><br/>NIP. ${rppData.nipGuru||'_______________________'}</td></tr></table></div></body></html>`;
   };
 
+  const getCustomFileName = (prefix) => {
+    const topik = rppData.topik ? rppData.topik.trim() : 'Topik';
+    const mapel = rppData.mapel ? rppData.mapel.trim() : 'Mapel';
+    const kelas = rppData.kelas ? rppData.kelas.trim() : 'Kelas';
+    const namaGuru = rppData.namaGuru ? rppData.namaGuru.trim().split(',')[0] : 'Guru'; // Mengambil nama sebelum koma (gelar)
+    
+    // Format: "Prefix_Topik Mata Pelajaran Kelas Penyusun"
+    const fileName = `${prefix}_${topik} ${mapel} ${kelas} ${namaGuru}`;
+    // Membersihkan karakter yang tidak valid untuk nama file Windows/Mac
+    return fileName.replace(/[\\/:*?"<>|]/g, '_');
+  };
+
   const handleDownloadWord = () => {
     const blob = new Blob(['\ufeff', generateWordContent()], { type: 'application/msword' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `RPP_Mendalam_${rppData.topik?.replace(/[^a-z0-9]/gi, '_').toLowerCase()||'modul'}.doc`;
+    a.download = `${getCustomFileName('RPP')}.doc`;
     document.body.appendChild(a); a.click(); document.body.removeChild(a); URL.revokeObjectURL(url);
+  };
+
+  const handleDownloadExcel = () => {
+    if (!window.XLSX) {
+      alert("Library Excel belum dimuat. Mohon tunggu sebentar lalu coba lagi.");
+      return;
+    }
+
+    // Sheet 1: Kisi-kisi Soal
+    const dataKisi = rppData.kisiKisi.map((k, i) => ({
+      "No": i + 1,
+      "Materi Pokok": k.materi,
+      "Indikator Soal": k.indikator,
+      "Level Kognitif": k.level,
+      "Bentuk Soal": k.bentuk,
+      "Nomor Soal": k.nomor
+    }));
+
+    // Sheet 2: Bank Soal (Format Administrasi Standar Penilaian)
+    const dataBankSoal = rppData.bankSoal.map((b, i) => ({
+      "No": i + 1,
+      "Butir Soal / Pertanyaan": b.soal,
+      "Pilihan Jawaban / Pernyataan": b.opsi || "-",
+      "Kunci Jawaban": b.kunci || "-"
+    }));
+
+    // Sheet 3: Rubrik Penilaian
+    const dataRubrik = rppData.rubrikPenilaian.map((r, i) => ({
+      "No": i + 1,
+      "Skor / Kriteria": r.skor,
+      "Deskripsi Indikator Penilaian": r.kriteria
+    }));
+
+    // Membuat Buku Kerja (Workbook)
+    const wb = XLSX.utils.book_new();
+
+    // Memasukkan Data ke Sheet 1
+    if (dataKisi.length > 0) {
+      const ws1 = XLSX.utils.json_to_sheet(dataKisi);
+      ws1['!cols'] = [{wch: 5}, {wch: 25}, {wch: 45}, {wch: 15}, {wch: 15}, {wch: 12}];
+      XLSX.utils.book_append_sheet(wb, ws1, "Kisi-kisi Soal");
+    } else {
+      const ws1 = XLSX.utils.json_to_sheet([{"Informasi": "Tidak ada data Kisi-kisi Soal"}]);
+      XLSX.utils.book_append_sheet(wb, ws1, "Kisi-kisi Soal");
+    }
+
+    // Memasukkan Data ke Sheet 2
+    if (dataBankSoal.length > 0) {
+      const ws2 = XLSX.utils.json_to_sheet(dataBankSoal);
+      ws2['!cols'] = [{wch: 5}, {wch: 50}, {wch: 40}, {wch: 15}];
+      XLSX.utils.book_append_sheet(wb, ws2, "Bank Soal");
+    } else {
+      const ws2 = XLSX.utils.json_to_sheet([{"Informasi": "Tidak ada data Bank Soal"}]);
+      XLSX.utils.book_append_sheet(wb, ws2, "Bank Soal");
+    }
+
+    // Memasukkan Data ke Sheet 3
+    if (dataRubrik.length > 0) {
+      const ws3 = XLSX.utils.json_to_sheet(dataRubrik);
+      ws3['!cols'] = [{wch: 5}, {wch: 20}, {wch: 60}];
+      XLSX.utils.book_append_sheet(wb, ws3, "Rubrik Penilaian");
+    } else {
+      const ws3 = XLSX.utils.json_to_sheet([{"Informasi": "Tidak ada data Rubrik Penilaian"}]);
+      XLSX.utils.book_append_sheet(wb, ws3, "Rubrik Penilaian");
+    }
+
+    // Mengunduh File
+    XLSX.writeFile(wb, `${getCustomFileName('Instrumen Penilaian')}.xlsx`);
   };
 
   const pArr = Array.isArray(rppData.praktikPedagogis) ? rppData.praktikPedagogis : [];
@@ -216,12 +299,12 @@ function App() {
             <h1 className="text-2xl md:text-3xl font-bold mb-1 tracking-tight">Asisten Guru Secang</h1>
             <p className="text-blue-200 text-sm md:text-base font-medium">Modul Perencanaan Pembelajaran Mendalam & SEL</p>
           </div>
-          <div className="hidden md:block bg-white/10 px-4 py-1.5 rounded-full text-xs font-semibold text-blue-50 border border-white/20">Versi 22.0 (Super Ringkas & Bank Soal Pro)</div>
+          <div className="hidden md:block bg-white/10 px-4 py-1.5 rounded-full text-xs font-semibold text-blue-50 border border-white/20">Versi 24.0 (Custom File Name)</div>
         </div>
       </header>
 
-      <main className="max-w-6xl mx-auto px-4 mt-8 flex flex-col md:flex-row gap-6 relative items-start flex-1 w-full">
-        <div className="flex-1 w-full order-2 md:order-1">
+      <main className="max-w-6xl mx-auto px-4 mt-8 flex flex-col md:flex-row gap-6 relative items-start flex-1 w-full min-w-0">
+        <div className="flex-1 w-full order-2 md:order-1 min-w-0">
           <div className="animate-in fade-in duration-500">
             {isEditing ? (
               <div className="space-y-6">
@@ -260,7 +343,7 @@ function App() {
                     <div><LabelWithHint hint="Tuliskan elemen dan capaian pembelajaran sesuai fase secara ringkas.">Capaian Pembelajaran</LabelWithHint><textarea name="cp" value={rppData.cp} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"></textarea></div>
                     <div><LabelWithHint hint="Misal: Prakarya (untuk merancang model) atau Matematika (untuk perhitungan).">Lintas Disiplin Ilmu</LabelWithHint><input type="text" name="lintasDisiplin" value={rppData.lintasDisiplin} onChange={handleInputChange} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none" /></div>
                     <div><LabelWithHint hint={<><b>Tips Menyusun Tujuan Pembelajaran (Rumus A-B-C-D):</b><br/><br/><b>A - Audience:</b> Siapa yang belajar? (Misal: <i>Peserta didik</i>)<br/><b>B - Behavior:</b> Perilaku terukur / KKO? (Misal: <i>dapat membedakan sel hewan dan tumbuhan</i>)<br/><b>C - Condition:</b> Kondisi belajarnya? (Misal: <i>Melalui pengamatan mikroskop...</i>)<br/><b>D - Degree:</b> Target minimal? (Misal: <i>...dengan minimal 3 perbedaan yang benar.</i>)<br/><br/><b>Contoh Gabungan:</b> <i>Melalui pengamatan mikroskop (C), peserta didik (A) dapat membedakan sel hewan dan tumbuhan (B) dengan minimal 3 perbedaan yang benar (D).</i></>}>Tujuan Pembelajaran</LabelWithHint><textarea name="tp" value={rppData.tp} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none"></textarea></div>
-                    <div className="p-5 bg-white rounded-lg border border-indigo-200 shadow-sm mt-4">
+                    <div className="p-5 bg-white rounded-lg border border-indigo-200 shadow-sm mt-4 min-w-0">
                       <h4 className="font-bold text-indigo-800 border-b pb-2 mb-4">Kerangka Pembelajaran</h4>
                       <div className="grid md:grid-cols-2 gap-5 min-w-0">
                         <div className="bg-indigo-50 p-4 rounded-lg border border-indigo-100 col-span-1 md:col-span-2 min-w-0"><LabelWithHint className="font-bold text-indigo-900 mb-3 text-xs uppercase">Praktik Pedagogis (Multi-Select)</LabelWithHint><MultiSelectDropdown options={praktikOptions} selectedOptions={pArr} toggleOption={togglePraktikPedagogis} />{pArr.includes("Lainnya (Ketik Manual)") && <input type="text" placeholder="Ketik manual..." value={rppData.praktikLainnya||""} onChange={(e) => setRppData(p=>({...p, praktikLainnya: e.target.value}))} className="w-full mt-3 p-3 border border-indigo-300 rounded focus:ring-2 focus:ring-indigo-500 outline-none text-sm bg-white" />}</div>
@@ -312,9 +395,9 @@ function App() {
                 <Card className="mb-6 border-t-4 border-t-slate-800">
                   <div className="p-5 bg-white">
                     <h3 className="font-bold text-slate-800 text-lg mb-4 border-b pb-2">Informasi Umum</h3>
-                    <div className="grid grid-cols-2 gap-6 text-base text-slate-700">
-                      <div className="col-span-2 md:col-span-1 border-l-4 border-blue-500 bg-blue-50 p-3 rounded-r-lg"><strong className="block text-slate-500 text-sm uppercase mb-1">Mata Pelajaran</strong><span className="font-bold text-blue-900 text-lg">{rppData.mapel} <span className="text-sm text-blue-600">({rppData.kelas})</span></span></div>
-                      <div className="col-span-2 md:col-span-1 border-l-4 border-indigo-500 bg-indigo-50 p-3 rounded-r-lg"><strong className="block text-slate-500 text-sm uppercase mb-1">Topik Pembelajaran</strong><span className="font-bold text-indigo-900 text-lg">{rppData.topik}</span></div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 text-base text-slate-700">
+                      <div className="col-span-1 sm:col-span-2 md:col-span-1 border-l-4 border-blue-500 bg-blue-50 p-3 rounded-r-lg"><strong className="block text-slate-500 text-sm uppercase mb-1">Mata Pelajaran</strong><span className="font-bold text-blue-900 text-lg">{rppData.mapel} <span className="text-sm text-blue-600">({rppData.kelas})</span></span></div>
+                      <div className="col-span-1 sm:col-span-2 md:col-span-1 border-l-4 border-indigo-500 bg-indigo-50 p-3 rounded-r-lg"><strong className="block text-slate-500 text-sm uppercase mb-1">Topik Pembelajaran</strong><span className="font-bold text-indigo-900 text-lg">{rppData.topik}</span></div>
                       <div><strong className="block text-slate-500 text-sm uppercase mb-1">Penyusun</strong>{rppData.namaGuru}</div><div><strong className="block text-slate-500 text-sm uppercase mb-1">Sekolah</strong>{rppData.namaSekolah}</div>
                       <div><strong className="block text-slate-500 text-sm uppercase mb-1">Waktu / Pertemuan</strong>{rppData.waktu} / {rppData.jumlahPertemuan}</div><div><strong className="block text-slate-500 text-sm uppercase mb-1">Tahun Pelajaran</strong>{rppData.tahunPelajaran}</div>
                     </div>
@@ -326,8 +409,8 @@ function App() {
                     <div className="bg-slate-50 p-4 rounded-lg border border-slate-200"><strong className="block text-blue-800 mb-2">Kesiapan Siswa</strong><p className="whitespace-pre-wrap">{rppData.kesiapanSiswa||"-"}</p></div>
                     <div className="bg-slate-50 p-4 rounded-lg border border-slate-200"><strong className="block text-blue-800 mb-2">Materi Pelajaran</strong><p className="whitespace-pre-wrap">{rppData.karakteristikMateri||"-"}</p></div>
                     <div className="grid lg:grid-cols-2 gap-4">
-                      <div className="bg-slate-50 p-4 rounded-lg border"><strong className="block text-blue-800 mb-3">Profil Lulusan</strong><div className="grid grid-cols-2 gap-2 text-sm">{Object.keys(profilLabels).map(k=>rppData.profilLulusan[k]&&<div key={k} className="flex items-center text-blue-900 font-medium bg-white p-2 rounded border"><i className="fas fa-check-square text-blue-600 mr-2"></i>{profilLabels[k]}</div>)}</div></div>
-                      <div className="bg-blue-50 p-4 rounded-lg border"><strong className="block text-blue-900 mb-3"><i className="fas fa-heart text-red-500 mr-2"></i>CASEL</strong><div className="grid grid-cols-2 gap-2 text-sm">{Object.keys(kseLabels).map(k=>rppData.kseLulusan[k]&&<div key={`v-${k}`} className="flex items-center text-blue-900 font-bold bg-white p-2 rounded border"><i className="fas fa-star text-yellow-500 mr-2"></i>{kseLabels[k]}</div>)}</div></div>
+                      <div className="bg-slate-50 p-4 rounded-lg border"><strong className="block text-blue-800 mb-3">Profil Lulusan</strong><div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">{Object.keys(profilLabels).map(k=>rppData.profilLulusan[k]&&<div key={k} className="flex items-center text-blue-900 font-medium bg-white p-2 rounded border"><i className="fas fa-check-square text-blue-600 mr-2"></i>{profilLabels[k]}</div>)}</div></div>
+                      <div className="bg-blue-50 p-4 rounded-lg border"><strong className="block text-blue-900 mb-3"><i className="fas fa-heart text-red-500 mr-2"></i>CASEL</strong><div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm">{Object.keys(kseLabels).map(k=>rppData.kseLulusan[k]&&<div key={`v-${k}`} className="flex items-center text-blue-900 font-bold bg-white p-2 rounded border"><i className="fas fa-star text-yellow-500 mr-2"></i>{kseLabels[k]}</div>)}</div></div>
                     </div>
                   </div>
                 </Accordion>
@@ -335,7 +418,7 @@ function App() {
                 <Accordion title="TAHAP 2: Desain Pembelajaran" icon="fas fa-drafting-compass" isCompleted={completedSteps['t2']} onToggleComplete={() => toggleStep('t2')} headerColorClass="bg-indigo-100 text-indigo-700">
                   <div className="space-y-6 text-base text-slate-700">
                     <div className="grid lg:grid-cols-2 gap-6"><div className="p-4 border-l-4 border-indigo-400 bg-white shadow-sm"><strong className="block text-indigo-900 mb-2">Capaian Pembelajaran</strong><p className="whitespace-pre-wrap">{rppData.cp||"-"}</p></div><div className="p-4 border-l-4 border-indigo-500 bg-white shadow-sm"><strong className="block text-indigo-900 mb-2">Tujuan Pembelajaran</strong><p className="whitespace-pre-wrap font-medium">{rppData.tp||"-"}</p></div></div>
-                    <div className="bg-indigo-50/50 p-5 rounded-xl border border-indigo-100"><h4 className="font-bold text-indigo-900 border-b pb-2 mb-4">Kerangka Pembelajaran</h4><div className="grid md:grid-cols-2 gap-4"><div className="bg-white p-4 rounded-lg border"><strong className="block text-indigo-700 mb-1 text-xs">Praktik Pedagogis</strong><p className="font-medium">{getFinalPraktikString()}</p></div><div className="bg-white p-4 rounded-lg border"><strong className="block text-indigo-700 mb-1 text-xs">Kemitraan Belajar</strong><p>{rppData.kemitraanPembelajaran||"-"}</p></div><div className="bg-white p-4 rounded-lg border"><strong className="block text-indigo-700 mb-1 text-xs">Lingkungan Belajar</strong><p>{rppData.lingkunganPembelajaran||"-"}</p></div><div className="bg-white p-4 rounded-lg border"><strong className="block text-indigo-700 mb-1 text-xs">Pemanfaatan Digital</strong><p>{rppData.pemanfaatanDigital||"-"}</p></div></div></div>
+                    <div className="bg-indigo-50/50 p-5 rounded-xl border border-indigo-100 min-w-0"><h4 className="font-bold text-indigo-900 border-b pb-2 mb-4">Kerangka Pembelajaran</h4><div className="grid md:grid-cols-2 gap-4 min-w-0"><div className="bg-white p-4 rounded-lg border min-w-0"><strong className="block text-indigo-700 mb-1 text-xs">Praktik Pedagogis</strong><p className="font-medium whitespace-pre-wrap break-words">{getFinalPraktikString()}</p></div><div className="bg-white p-4 rounded-lg border min-w-0"><strong className="block text-indigo-700 mb-1 text-xs">Kemitraan Belajar</strong><p className="whitespace-pre-wrap break-words">{rppData.kemitraanPembelajaran||"-"}</p></div><div className="bg-white p-4 rounded-lg border min-w-0"><strong className="block text-indigo-700 mb-1 text-xs">Lingkungan Belajar</strong><p className="whitespace-pre-wrap break-words">{rppData.lingkunganPembelajaran||"-"}</p></div><div className="bg-white p-4 rounded-lg border min-w-0"><strong className="block text-indigo-700 mb-1 text-xs">Pemanfaatan Digital</strong><p className="whitespace-pre-wrap break-words">{rppData.pemanfaatanDigital||"-"}</p></div></div></div>
                   </div>
                 </Accordion>
 
@@ -351,7 +434,7 @@ function App() {
                   <div className="p-5 bg-white">
                     <h3 className="font-bold text-orange-800 text-lg mb-4 border-b pb-2">Instrumen Penilaian (Bank Soal)</h3>
                     <div className="overflow-x-auto border border-slate-300 rounded">
-                      <table className="w-full text-left text-sm border-collapse">
+                      <table className="w-full text-left text-sm border-collapse min-w-[600px]">
                         <thead className="bg-slate-100 text-slate-700 border-b border-slate-300"><tr><th className="p-2 border-r w-10 text-center">No</th><th className="p-2 border-r">Butir Soal & Pilihan / Pernyataan</th><th className="p-2 w-32 text-center">Kunci</th></tr></thead>
                         <tbody>{rppData.bankSoal.map((r, i) => (<tr key={r.id} className="border-b"><td className="p-2 border-r text-center align-top">{i+1}</td><td className="p-3 border-r align-top"><div className="whitespace-pre-wrap font-medium">{r.soal}</div>{r.opsi && <div className="mt-2 text-slate-600 bg-slate-50 p-2 rounded border text-xs whitespace-pre-wrap leading-relaxed">{r.opsi}</div>}</td><td className="p-2 text-center align-top font-bold text-blue-700 bg-blue-50/30">{r.kunci||'-'}</td></tr>))}</tbody>
                       </table>
@@ -368,7 +451,18 @@ function App() {
         <div className="w-full md:w-72 shrink-0 order-1 md:order-2 relative md:sticky top-6 z-50">
           <div className="bg-white p-4 rounded-2xl shadow-lg border-2 border-blue-100 flex flex-col space-y-3">
             <div className="pb-3 border-b"><h4 className="font-bold flex items-center"><i className="fas fa-cog text-blue-500 mr-2"></i> Kontrol</h4><p className="text-xs mt-1">Status: {isEditing ? <span className="text-orange-500 font-bold">Mengedit</span> : <span className="text-green-500 font-bold">Tersimpan</span>}</p></div>
-            {isEditing ? <button onClick={() => setIsEditing(false)} className="py-3 bg-green-600 text-white rounded-xl text-sm font-bold w-full"><i className="fas fa-save mr-2"></i> Simpan Modul</button> : <><div className="flex space-x-2 w-full"><button onClick={() => setIsEditing(true)} className="flex-1 py-3 bg-slate-100 rounded-xl text-sm font-bold border"><i className="fas fa-edit"></i> Edit</button><button onClick={resetRppData} className="flex-1 py-3 bg-red-50 text-red-600 rounded-xl text-sm font-bold border"><i className="fas fa-trash-alt"></i> Hapus</button></div><button onClick={handleDownloadWord} className="btn-word py-3 bg-blue-600 text-white rounded-xl text-sm font-bold w-full"><i className="fas fa-file-word mr-2"></i> Unduh Word</button></>}
+            {isEditing ? (
+                <button onClick={() => setIsEditing(false)} className="py-3 bg-green-600 text-white rounded-xl text-sm font-bold w-full hover:bg-green-700 transition"><i className="fas fa-save mr-2"></i> Simpan Modul</button>
+            ) : (
+                <>
+                <div className="flex space-x-2 w-full mb-2">
+                    <button onClick={() => setIsEditing(true)} className="flex-1 py-3 bg-slate-100 rounded-xl text-sm font-bold border hover:bg-slate-200 transition"><i className="fas fa-edit"></i> Edit</button>
+                    <button onClick={resetRppData} className="flex-1 py-3 bg-red-50 text-red-600 rounded-xl text-sm font-bold border hover:bg-red-100 transition"><i className="fas fa-trash-alt"></i> Hapus</button>
+                </div>
+                <button onClick={handleDownloadWord} className="btn-word py-3 bg-blue-600 text-white rounded-xl text-sm font-bold w-full hover:bg-blue-700 transition"><i className="fas fa-file-word mr-2"></i> Unduh Word (Modul)</button>
+                <button onClick={handleDownloadExcel} className="py-3 bg-emerald-600 text-white rounded-xl text-sm font-bold w-full hover:bg-emerald-700 transition shadow-md mt-2 border border-emerald-700"><i className="fas fa-file-excel mr-2"></i> Unduh Excel (Penilaian)</button>
+                </>
+            )}
           </div>
         </div>
       </main>
