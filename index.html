@@ -127,6 +127,20 @@ function App() {
   const [individualLoading, setIndividualLoading] = useState({});
   const [instruksiKhusus, setInstruksiKhusus] = useState(""); 
   
+  // State Baru untuk Pengaturan API Key
+  const [showApiModal, setShowApiModal] = useState(false);
+  const [geminiApiKey, setGeminiApiKey] = useState(() => {
+    return localStorage.getItem('gemini_api_key_v31') || "";
+  });
+  const [tempApiKey, setTempApiKey] = useState("");
+
+  const saveApiKey = () => {
+    localStorage.setItem('gemini_api_key_v31', tempApiKey);
+    setGeminiApiKey(tempApiKey);
+    setShowApiModal(false);
+    alert("API Key berhasil disimpan di browser Anda!");
+  };
+
   // 8 Dimensi Lulusan Sesuai Kebijakan Pembelajaran Mendalam (Deep Learning) 2025
   const profilLabels = { 
     keimanan: "Keimanan dan Ketakwaan terhadap Tuhan YME", 
@@ -214,13 +228,18 @@ function App() {
   const formatNewline = (str) => str ? str.replace(/\\n/g, '\n') : "";
 
   const handleGenerateAI = async () => {
+    if (!geminiApiKey) {
+      setTempApiKey("");
+      setShowApiModal(true);
+      return;
+    }
+
     if (!rppData.topik || !rppData.mapel || !rppData.kelas) {
       alert("Mohon isi Mata Pelajaran, Kelas/Fase, dan Topik Pembelajaran terlebih dahulu agar AI dapat menyusun modul dengan akurat.");
       return;
     }
     setIsGenerating(true);
-    const apiKey = ""; // API Key disediakan via runtime env
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
 
     const prompt = `Anda adalah Ahli Kurikulum Nasional, Pakar Pembelajaran Mendalam (Deep Learning), dan Guru Penggerak di Indonesia. Buat rancangan Modul Ajar/RPP yang SANGAT DETAIL, aplikatif, dan langsung bisa dieksekusi di kelas berdasarkan Naskah Akademik Pembelajaran Mendalam Kemdikdasmen RI 2025.
 
@@ -311,13 +330,18 @@ HASILKAN OUTPUT MURNI JSON SESUAI SKEMA BERIKUT:`;
   };
 
   const handleRegenerateSpecific = async (fieldKey, fieldTitle, type = 'string') => {
+    if (!geminiApiKey) {
+      setTempApiKey("");
+      setShowApiModal(true);
+      return;
+    }
+
     if (!rppData.topik || !rppData.mapel || !rppData.kelas) {
       alert("Mohon isi Mata Pelajaran, Kelas/Fase, dan Topik terlebih dahulu.");
       return;
     }
     setIndividualLoading(prev => ({...prev, [fieldKey]: true}));
-    const apiKey = "";
-    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-09-2025:generateContent?key=${apiKey}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
 
     let prompt = `Anda adalah Pakar Kurikulum Nasional dan Pembelajaran Mendalam (Deep Learning). Tugas Anda merevisi/membuat SATU BAGIAN SAJA dari RPP berdasarkan data:
     - Mapel: ${rppData.mapel} (Kelas ${rppData.kelas})
@@ -792,6 +816,13 @@ HASILKAN OUTPUT MURNI JSON SESUAI SKEMA BERIKUT:`;
         <div className="w-full md:w-72 shrink-0 order-1 md:order-2 relative md:sticky top-6 z-50">
           <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-lg border-2 border-blue-100 flex flex-col space-y-3">
             <div className="pb-3 border-b"><h4 className="font-bold flex items-center text-sm sm:text-base"><i className="fas fa-cog text-blue-500 mr-2"></i> Kontrol Form</h4><p className="text-xs sm:text-sm mt-1 text-slate-500">Status: {isEditing ? <span className="text-orange-500 font-bold">Mengedit</span> : <span className="text-green-500 font-bold">Tersimpan</span>}</p></div>
+            
+            {/* Tombol Pengaturan API Key */}
+            <button onClick={() => { setTempApiKey(geminiApiKey); setShowApiModal(true); }} className={`py-2 px-3 rounded-lg text-xs font-bold text-left flex items-center justify-between border transition-colors ${geminiApiKey ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100' : 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'}`}>
+              <span className="flex items-center"><i className={`fas ${geminiApiKey ? 'fa-check-circle' : 'fa-exclamation-triangle'} mr-2`}></i> Koneksi AI {geminiApiKey ? 'Aktif' : 'Terputus'}</span>
+              <i className="fas fa-key"></i>
+            </button>
+
             {isEditing ? (
                 <button onClick={() => setIsEditing(false)} className="py-3 bg-green-600 text-white rounded-xl text-sm font-bold w-full hover:bg-green-700 transition"><i className="fas fa-save mr-2"></i> Simpan Modul</button>
             ) : (
@@ -807,6 +838,42 @@ HASILKAN OUTPUT MURNI JSON SESUAI SKEMA BERIKUT:`;
           </div>
         </div>
       </main>
+
+      {/* Modal Konfigurasi API Key */}
+      {showApiModal && (
+        <div className="fixed inset-0 bg-slate-900/70 z-[100] flex items-center justify-center p-4 backdrop-blur-sm">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200">
+            <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-4 sm:p-5 text-white flex justify-between items-center">
+              <h3 className="font-bold text-lg"><i className="fas fa-key mr-2 text-yellow-300"></i> Konfigurasi AI Gemini</h3>
+              <button onClick={() => setShowApiModal(false)} className="text-blue-100 hover:text-white"><i className="fas fa-times text-xl"></i></button>
+            </div>
+            <div className="p-5 sm:p-6 text-sm text-slate-700">
+              <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg mb-4 text-xs sm:text-sm leading-relaxed">
+                <p>Untuk menggunakan fitur AI secara gratis dan aman di GitHub Anda, masukkan <strong>Gemini API Key</strong> milik Anda.</p>
+                <ol className="list-decimal ml-5 mt-2 space-y-1 font-medium">
+                  <li>Buka <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-blue-600 underline hover:text-blue-800">Google AI Studio</a> (Login dengan akun Google).</li>
+                  <li>Klik tombol biru <strong>"Create API key"</strong>.</li>
+                  <li>Copy kunci rahasia yang muncul dan paste di bawah ini.</li>
+                </ol>
+              </div>
+              <label className="block font-bold text-slate-800 mb-2">Gemini API Key Anda:</label>
+              <input 
+                type="password" 
+                value={tempApiKey} 
+                onChange={(e) => setTempApiKey(e.target.value)} 
+                placeholder="AIzaSy..." 
+                className="w-full p-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none font-mono tracking-widest text-slate-800 mb-1"
+              />
+              <p className="text-[10px] text-slate-500 mb-6"><i className="fas fa-shield-alt mr-1"></i>Kunci hanya disimpan di browser perangkat Bapak/Ibu (aman) dan tidak dikirim ke server lain.</p>
+              
+              <div className="flex gap-3">
+                <button onClick={() => setShowApiModal(false)} className="flex-1 py-3 bg-slate-100 text-slate-700 font-bold rounded-xl hover:bg-slate-200 transition">Batal</button>
+                <button onClick={saveApiKey} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition shadow-lg shadow-blue-600/30">Simpan Key</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* FOOTER */}
       <footer className="max-w-6xl mx-auto px-4 mt-8 sm:mt-12 pb-6 text-center text-slate-500 text-xs sm:text-sm w-full">
