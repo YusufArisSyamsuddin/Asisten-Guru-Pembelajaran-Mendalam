@@ -191,7 +191,7 @@ function App() {
   };
 
   const [rppData, setRppData] = useState(() => {
-    const saved = localStorage.getItem('asistenGuruData_v31');
+    const saved = localStorage.getItem('asistenGuruData_v32');
     if (saved) {
       try {
         let p = JSON.parse(saved);
@@ -203,7 +203,7 @@ function App() {
     return defaultDataObj;
   });
 
-  useEffect(() => { localStorage.setItem('asistenGuruData_v31', JSON.stringify(rppData)); }, [rppData]);
+  useEffect(() => { localStorage.setItem('asistenGuruData_v32', JSON.stringify(rppData)); }, [rppData]);
 
   const toggleStep = (id) => setCompletedSteps(p => ({ ...p, [id]: !p[id] }));
   const handleInputChange = (e) => setRppData(p => ({ ...p, [e.target.name]: e.target.value }));
@@ -241,7 +241,7 @@ function App() {
     setIsGenerating(true);
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
 
-    const prompt = `Anda adalah Ahli Kurikulum Nasional, Pakar Pembelajaran Mendalam (Deep Learning), dan Guru Penggerak di Indonesia. Buat rancangan Modul Ajar/RPP yang SANGAT DETAIL, aplikatif, dan langsung bisa dieksekusi di kelas berdasarkan Naskah Akademik Pembelajaran Mendalam Kemdikdasmen RI 2025.
+    const prompt = `Anda adalah Ahli Kurikulum Nasional, Pakar Pembelajaran Mendalam (Deep Learning), dan Guru Penggerak di Indonesia. Buat rancangan Modul Ajar/RPP yang SANGAT DETAIL, aplikatif, terstruktur rapi untuk dicetak, dan langsung bisa dieksekusi di kelas.
 
 Data Kelas & Input Guru:
 - Mata Pelajaran: ${rppData.mapel}
@@ -254,25 +254,26 @@ ${instruksiKhusus ? `\n🔥 **INSTRUKSI KHUSUS DARI GURU (PATUHI 100%):**\n${ins
 🔥 **PARADIGMA WAJIB (PEMBELAJARAN MENDALAM 2025):**
 Dalam merancang pengalaman belajar (kegiatanAwal, kegiatanInti, kegiatanPenutup), Anda WAJIB mengimplementasikan 3 pilar:
 1. **Mindful (Sadar):** Siswa sadar apa yang mereka pelajari dan mengapa itu penting (reflektif).
-2. **Meaningful (Bermakna):** Materi dikaitkan erat dengan konteks nyata kehidupan siswa (HOTS, bukan sekadar hafalan).
-3. **Joyful (Menyenangkan):** Lingkungan belajar inklusif, aman, tanpa ancaman, memicu eksplorasi aktif.
+2. **Meaningful (Bermakna):** Materi dikaitkan erat dengan konteks nyata.
+3. **Joyful (Menyenangkan):** Lingkungan belajar inklusif, aman, tanpa ancaman.
 
 ATURAN GENERATE UNTUK SETIAP FIELD:
-1. **kesiapanSiswa & karakteristikMateri**: Analisis mendalam. WAJIB gunakan (\\n) untuk pisah baris/poin.
-2. **profilLulusan**: Berikan array Dimensi Lulusan. WAJIB HANYA MEMILIH DARI: "keimanan", "kewargaan", "penalaran", "kreativitas", "kolaborasi", "kemandirian", "kesehatan", "komunikasi".
-3. **kseLulusan**: Berikan array CASEL. WAJIB HANYA MEMILIH DARI: "kesadaranDiri", "manajemenDiri", "kesadaranSosial", "keterampilanBerelasi", "keputusanBertanggungJawab".
-4. **kegiatanAwal, kegiatanInti, kegiatanPenutup**: JABARKAN DENGAN FORMAT POIN. Implementasikan pilar Mindful, Meaningful, Joyful. WAJIB gunakan (\\n) untuk ganti baris.
-5. **kisiKisi**: WAJIB BUAT TEPAT 10 Indikator berlevel HOTS (C4-C6). PADA KOLOM 'bentuk', WAJIB ISI DENGAN: "PG", "PG Kompleks", "Menjodohkan", "Isian Singkat", "Uraian", "Praktik", atau "Proyek".
-6. **bankSoal**: WAJIB BUAT TEPAT 10 Soal berstandar AKM (Literasi/Numerasi) berlevel HOTS (C4-C6). 
-   - WAJIB gunakan (\\n) untuk memisahkan STIMULUS (cerita konteks) dengan PERTANYAAN.
-   - Pada kolom "opsi", WAJIB gunakan (\\n) untuk memisahkan setiap pilihan (A... \\n B... \\n C... \\n D...).
+1. Isian Teks (kesiapanSiswa, kegiatanAwal, kegiatanInti, dll): WAJIB dijabarkan dengan format poin-poin yang RAPI dan DESKRIPTIF menggunakan \\n. Kalimat harus lengkap siap cetak.
+2. **profilLulusan**: Berikan array Dimensi Lulusan (Hanya pilih dari: "keimanan", "kewargaan", "penalaran", "kreativitas", "kolaborasi", "kemandirian", "kesehatan", "komunikasi").
+3. **kseLulusan**: Berikan array CASEL (Hanya pilih dari: "kesadaranDiri", "manajemenDiri", "kesadaranSosial", "keterampilanBerelasi", "keputusanBertanggungJawab").
+4. **kisiKisi**: WAJIB BUAT TEPAT 10 Indikator berlevel HOTS (C4-C6). PADA KOLOM 'bentuk', WAJIB ISI DENGAN: "PG", "PG Kompleks", "Menjodohkan", "Isian Singkat", "Uraian", "Praktik", atau "Proyek".
+5. **bankSoal**: WAJIB SINKRON 100% DENGAN kisiKisi (Nomor dan Bentuk soal harus urut dan cocok). 
+   - Jika soal PG/Menjodohkan: kolom "opsi" berisi A, B, C, D (pisahkan dengan \\n), kolom "kunci" berisi jawaban benar.
+   - Jika soal Uraian/Isian Singkat: kolom "opsi" WAJIB diisi dengan PEDOMAN JAWABAN/KRITERIA JAWABAN (agar tabel rapi), dan kolom "kunci" diisi dengan tanda "-".
+   - Gunakan (\\n) untuk memisahkan STIMULUS dengan PERTANYAAN.
+6. **rubrikPenilaian**: WAJIB SINKRON dengan soal Uraian/Praktik/Proyek di bankSoal. Kolom 'skor' WAJIB diisi rentang logis (contoh: "Skor 4" atau "Skala 81-100"), kolom 'kriteria' diisi deskripsi lengkap capaian.
 7. DILARANG KERAS menggunakan format markdown tebal (**) atau miring (*) dalam seluruh isian. Gunakan teks murni saja.
 
 HASILKAN OUTPUT MURNI JSON SESUAI SKEMA BERIKUT:`;
 
     const payload = {
       contents: [{ parts: [{ text: prompt }] }],
-      systemInstruction: { parts: [{ text: "Keluarkan output hanya dalam JSON valid yang ketat. Pastikan array profilLulusan dan kseLulusan HANYA berisi *exact matching strings* sesuai yang diminta di prompt. DILARANG menggunakan tanda bintang (**) untuk menebalkan tulisan." }] },
+      systemInstruction: { parts: [{ text: "Keluarkan output hanya dalam JSON valid yang ketat. Pastikan seluruh isian kalimat sangat rapi, deskriptif, siap cetak, dan tabel instrumen penilaian (kisi, soal, rubrik) saling sinkron 100%. DILARANG menggunakan tanda bintang (**) untuk menebalkan tulisan." }] },
       generationConfig: {
         responseMimeType: "application/json",
         responseSchema: {
@@ -332,7 +333,7 @@ HASILKAN OUTPUT MURNI JSON SESUAI SKEMA BERIKUT:`;
           bankSoal: (aiData.bankSoal && aiData.bankSoal.length > 0) ? aiData.bankSoal.map((b, i) => ({ id: Date.now() + 'b' + i, soal: cleanStr(b.soal), opsi: cleanStr(b.opsi), kunci: b.kunci })) : prev.bankSoal,
           rubrikPenilaian: (aiData.rubrikPenilaian && aiData.rubrikPenilaian.length > 0) ? aiData.rubrikPenilaian.map((r, i) => ({ id: Date.now() + 'r' + i, skor: cleanStr(r.skor), kriteria: cleanStr(r.kriteria) })) : prev.rubrikPenilaian,
         }));
-        alert("Yeay! Modul berbasis Pembelajaran Mendalam (Mindful, Meaningful, Joyful) telah diracik otomatis oleh AI.");
+        alert("Yeay! Modul berbasis Pembelajaran Mendalam telah diracik otomatis. Semua tabel (kisi, soal, rubrik) kini disinkronisasi dengan presisi!");
       } else { alert("Gagal menerima format data yang benar dari AI."); }
     } catch (error) {
       console.error(error); alert("Terjadi kesalahan saat menghubungi AI. Pastikan internet stabil.");
@@ -353,29 +354,34 @@ HASILKAN OUTPUT MURNI JSON SESUAI SKEMA BERIKUT:`;
     setIndividualLoading(prev => ({...prev, [fieldKey]: true}));
     const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`;
 
-    // Buat Instruksi Spesifik berdasarkan Kolom yang di-klik
+    // Buat Instruksi Spesifik berdasarkan Kolom yang di-klik agar sinkron
     let fieldSpecificInstruction = "";
     if (fieldKey === 'kegiatanInti') {
-        fieldSpecificInstruction = "Jabarkan aktivitas langkah fisik guru dan siswa secara detail. Wajib merancang skenario diferensiasi TaRL (Teaching at the Right Level) menjadi 3 aktivitas kelompok: 1) Kelompok Perlu Bimbingan Ekstra, 2) Kelompok Cakap, 3) Kelompok Mahir. Pastikan aktivitas ini Meaningful (berkaitan langsung dengan dunia nyata).";
+        fieldSpecificInstruction = "Jabarkan aktivitas langkah fisik guru dan siswa secara detail. Wajib merancang skenario diferensiasi TaRL (Teaching at the Right Level) menjadi 3 aktivitas kelompok: 1) Kelompok Perlu Bimbingan Ekstra, 2) Kelompok Cakap, 3) Kelompok Mahir. Buat dengan format poin-poin terurut dan kalimat utuh yang rapi untuk dicetak.";
     } else if (fieldKey === 'kegiatanAwal') {
-        fieldSpecificInstruction = "Sertakan aktivitas penyadaran (Mindful) seperti praktik kesadaran bernapas (STOP), pengecekan kesiapan emosi awal siswa (KSE/CASEL), dan apersepsi yang mengaitkan materi dengan konteks daerah Secang.";
+        fieldSpecificInstruction = "Sertakan aktivitas penyadaran (Mindful) seperti praktik kesadaran bernapas (STOP), pengecekan kesiapan emosi awal siswa (KSE/CASEL), dan apersepsi yang mengaitkan materi dengan konteks daerah Secang. Buat dengan format poin-poin yang rapi dan deskriptif.";
     } else if (fieldKey === 'kegiatanPenutup') {
-        fieldSpecificInstruction = "Arahkan guru memandu siswa melakukan refleksi (Mindful) terhadap proses belajar, memberikan apresiasi pada usaha mereka bukan sekadar hasil (Joyful), dan menarik kesimpulan.";
+        fieldSpecificInstruction = "Arahkan guru memandu siswa melakukan refleksi (Mindful) terhadap proses belajar, memberikan apresiasi pada usaha mereka bukan sekadar hasil (Joyful), dan menarik kesimpulan. Buat dalam format poin-poin langkah yang terstruktur rapi.";
     } else if (fieldKey === 'kompetensiAwal') {
-        fieldSpecificInstruction = "Tuliskan secara spesifik konsep/materi prasyarat apa yang harus sudah dikuasai siswa di bab/jenjang sebelumnya agar siap masuk ke topik ini. Langsung sebutkan kompetensinya tanpa basa-basi.";
+        fieldSpecificInstruction = "Tuliskan secara spesifik konsep/materi prasyarat apa yang harus sudah dikuasai siswa di bab/jenjang sebelumnya agar siap masuk ke topik ini. Gunakan poin deskriptif.";
     } else if (fieldKey === 'kesiapanSiswa') {
-        fieldSpecificInstruction = "Deskripsikan variasi kesiapan belajar siswa di kelas ini secara realistis terkait topik ini. Contoh: sebagian siswa sudah paham konsep A, sebagian belum, dan sebagian butuh bimbingan visual.";
+        fieldSpecificInstruction = "Deskripsikan variasi kesiapan belajar siswa di kelas ini secara realistis terkait topik ini. Contoh: sebagian siswa sudah paham konsep A, sebagian belum, dan sebagian butuh bimbingan visual. Gunakan poin deskriptif.";
     } else if (fieldKey === 'tp') {
         fieldSpecificInstruction = "Buat rumusan Tujuan Pembelajaran menggunakan kaidah ABCD (Audience, Behavior, Condition, Degree) yang jelas dan berpusat pada siswa.";
+    } else if (fieldKey === 'bankSoal') {
+        const stringKisi = rppData.kisiKisi.map(k => `No.${k.nomor} (${k.bentuk}): ${k.indikator}`).join(' | ');
+        fieldSpecificInstruction = `Tulis soal HOTS berstandar AKM. WAJIB SINKRON 100% DENGAN KISI-KISI BERIKUT: [ ${stringKisi || 'Buat 10 soal acak.'} ]. Aturan ketat: Jika bentuk soal PG/Menjodohkan, tulis opsi A,B,C,D dan tulis kunci. JIKA BENTUK SOAL URAIAN/ISIAN SINGKAT, tulis PEDOMAN JAWABAN/KRITERIA di kolom 'opsi', lalu tulis tanda '-' di kolom 'kunci' agar tabel rapi.`;
+    } else if (fieldKey === 'rubrikPenilaian') {
+        const stringSoalUraian = rppData.bankSoal.filter(b => b.kunci === '-').map(b => b.soal).join(' | ');
+        fieldSpecificInstruction = `Buat tabel rubrik penilaian kinerja/uraian. WAJIB SINKRON dengan soal/tugas berikut: [ ${stringSoalUraian || 'Buat rubrik umum.'} ]. Kolom 'skor' WAJIB diisi format rentang nilai (misal: "Skor 4" atau "Skala 81-100"). Kolom 'kriteria' diisi deskripsi pencapaian yang lengkap.`;
     }
 
-    let prompt = `Anda adalah Pakar Kurikulum Nasional dan Pembelajaran Mendalam (Deep Learning). Tugas Anda merancang/merevisi SATU BAGIAN SAJA dari RPP.
+    let prompt = `Anda adalah Pakar Kurikulum Nasional dan Pembelajaran Mendalam (Deep Learning). Tugas Anda merancang/merevisi SATU BAGIAN SAJA dari RPP secara presisi dan rapi siap cetak.
     
     Agar bagian ini terhubung dengan rencana RPP secara utuh, perhatikan data RPP SAAT INI:
     - Mapel & Kelas: ${rppData.mapel} (Kelas ${rppData.kelas})
     - Topik Pembelajaran: ${rppData.topik}
     - Tujuan Pembelajaran (TP): ${rppData.tp || '-'}
-    - Kompetensi Awal Siswa: ${rppData.kompetensiAwal || '-'}
     - Kesiapan & Karakteristik: ${rppData.kesiapanSiswa || '-'} | ${rppData.karakteristikMateri || '-'}
     ${instruksiKhusus ? `- Instruksi Khusus dari Guru: ${instruksiKhusus}` : ''}
     
@@ -383,12 +389,12 @@ HASILKAN OUTPUT MURNI JSON SESUAI SKEMA BERIKUT:`;
     ${fieldSpecificInstruction ? `\n🔥 FOKUS UNTUK BAGIAN INI: ${fieldSpecificInstruction}\n` : ''}
     Pastikan mencerminkan prinsip Mindful, Meaningful, dan Joyful serta selaras dengan konteks data di atas.`;
 
-    let payload = { contents: [{ parts: [{ text: prompt }] }], systemInstruction: { parts: [{ text: "Berikan respon ringkas, padat, spesifik, dan langsung pada intinya. DILARANG KERAS menggunakan tanda bintang ganda (**) untuk menebalkan teks." }] } };
+    let payload = { contents: [{ parts: [{ text: prompt }] }], systemInstruction: { parts: [{ text: "Berikan respon kalimat utuh yang rapi, spesifik, dan langsung pada intinya siap cetak di dokumen Word. DILARANG KERAS menggunakan tanda bintang ganda (**) untuk menebalkan teks." }] } };
 
     if (type === 'string') {
       prompt += `\n\nATURAN FORMAT: 
       1. HANYA kembalikan teks murni isiannya saja tanpa kata pengantar/penutup markdown. 
-      2. WAJIB gunakan newline/enter (\\n) untuk memisahkan poin-poin/paragraf.
+      2. SAJIKAN DENGAN KALIMAT LENGKAP YANG RAPI. Gunakan format list (seperti 1., 2., 3. atau tanda strip -) jika terdapat lebih dari satu poin agar layak cetak di dokumen resmi. Pisahkan antar poin dengan (\\n).
       3. DILARANG menggunakan format *miring* atau **tebal** (markdown). Gunakan teks biasa.`;
     } else {
       let schemaObj = {};
@@ -397,11 +403,11 @@ HASILKAN OUTPUT MURNI JSON SESUAI SKEMA BERIKUT:`;
           schemaObj = { type: "ARRAY", items: { type: "OBJECT", properties: { materi: { type: "STRING" }, indikator: { type: "STRING" }, level: { type: "STRING" }, bentuk: { type: "STRING" }, nomor: { type: "STRING" } } } };
       }
       else if (type === 'array_soal') {
-          prompt += `\nKeluarkan TEPAT 10 soal JSON berstandar AKM (Literasi/Numerasi) level HOTS. Wajib gunakan STIMULUS pada tiap soal. Gunakan \\n untuk memisahkan STIMULUS dengan SOAL, dan memisahkan OPSI (A... \\n B...). Pilihan jawaban harus menuntut penalaran kritis! Dilarang pakai bintang ganda (**).`;
+          prompt += `\nKeluarkan TEPAT JSON berstandar AKM. WAJIB ikuti aturan: Jika soal PG/Menjodohkan isi kolom opsi dan kunci. Jika Uraian/Isian Singkat, masukkan Pedoman Jawaban/Kriteria di kolom 'opsi', dan beri tanda '-' di 'kunci'. Dilarang pakai bintang ganda (**).`;
           schemaObj = { type: "ARRAY", items: { type: "OBJECT", properties: { soal: { type: "STRING" }, opsi: { type: "STRING" }, kunci: { type: "STRING" } } } };
       }
       else if (type === 'array_rubrik') {
-          prompt += `\nKeluarkan dalam format JSON murni tabel rubrik penilaian. Dilarang pakai bintang ganda (**).`;
+          prompt += `\nKeluarkan format JSON tabel rubrik penilaian. Kolom 'skor' berupa teks nilai rasional (contoh: "Skor 4" atau "Sangat Baik (90-100)"). Dilarang pakai bintang ganda (**).`;
           schemaObj = { type: "ARRAY", items: { type: "OBJECT", properties: { skor: { type: "STRING" }, kriteria: { type: "STRING" } } } };
       }
       payload.generationConfig = { responseMimeType: "application/json", responseSchema: schemaObj };
@@ -555,7 +561,7 @@ HASILKAN OUTPUT MURNI JSON SESUAI SKEMA BERIKUT:`;
             <h1 className="text-xl sm:text-2xl md:text-3xl font-bold mb-1 tracking-tight">Asisten Guru Secang</h1>
             <p className="text-blue-200 text-xs sm:text-sm md:text-base font-medium">Modul Pembelajaran Mendalam (Deep Learning)</p>
           </div>
-          <div className="hidden md:block bg-white/10 px-4 py-1.5 rounded-full text-xs font-semibold text-blue-50 border border-white/20">Versi 31.0 (Standar Deep Learning 2025)</div>
+          <div className="hidden md:block bg-white/10 px-4 py-1.5 rounded-full text-xs font-semibold text-blue-50 border border-white/20">Versi 32.0 (Sinkronisasi Instrumen Cerdas)</div>
         </div>
       </header>
 
@@ -699,7 +705,7 @@ HASILKAN OUTPUT MURNI JSON SESUAI SKEMA BERIKUT:`;
                       <h4 className="font-bold text-slate-800 mb-3">Bagian 1: Pendahuluan (Membangun Mindful & Joyful)</h4>
                       <div className="space-y-4">
                         <div>
-                          <LabelWithHint onRegenerate={() => handleRegenerateSpecific('kegiatanAwal', 'Aktivitas Langkah Fisik Guru & Siswa di Fase Pendahuluan (Sertakan KSE & Apersepsi)')} isLoading={individualLoading['kegiatanAwal']} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600" hint="Gunakan praktik STOP/Mindfulness dan buat suasana Joyful.">Aktivitas Kelas (Langkah Fisik)</LabelWithHint>
+                          <LabelWithHint onRegenerate={() => handleRegenerateSpecific('kegiatanAwal', 'Aktivitas Langkah Fisik Guru & Siswa di Fase Pendahuluan')} isLoading={individualLoading['kegiatanAwal']} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600" hint="Gunakan praktik STOP/Mindfulness dan buat suasana Joyful.">Aktivitas Kelas (Langkah Fisik)</LabelWithHint>
                           <textarea name="kegiatanAwal" value={rppData.kegiatanAwal} onChange={handleInputChange} rows="6" className="w-full p-3 border border-slate-300 rounded focus:ring-2 bg-slate-50 outline-none min-h-[140px] leading-relaxed"></textarea>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -719,7 +725,7 @@ HASILKAN OUTPUT MURNI JSON SESUAI SKEMA BERIKUT:`;
                       <h4 className="font-bold text-slate-800 mb-3">Bagian 2: Inti (Pengalaman Meaningful & Eksplorasi)</h4>
                       <div className="space-y-4">
                         <div>
-                          <LabelWithHint onRegenerate={() => handleRegenerateSpecific('kegiatanInti', 'Aktivitas Langkah Fisik Guru & Siswa di Fase Kegiatan Inti (Wajib terapkan TaRL 3 Kelompok)')} isLoading={individualLoading['kegiatanInti']} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600" hint="Berikan masalah kontekstual agar Meaningful (bermakna).">Aktivitas Kelas (Langkah Fisik)</LabelWithHint>
+                          <LabelWithHint onRegenerate={() => handleRegenerateSpecific('kegiatanInti', 'Aktivitas Langkah Fisik Guru & Siswa di Fase Kegiatan Inti')} isLoading={individualLoading['kegiatanInti']} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600" hint="Berikan masalah kontekstual agar Meaningful (bermakna).">Aktivitas Kelas (Langkah Fisik)</LabelWithHint>
                           <textarea name="kegiatanInti" value={rppData.kegiatanInti} onChange={handleInputChange} rows="10" className="w-full p-3 border border-slate-300 rounded focus:ring-2 bg-slate-50 outline-none min-h-[200px] sm:min-h-[250px] leading-relaxed"></textarea>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -761,7 +767,7 @@ HASILKAN OUTPUT MURNI JSON SESUAI SKEMA BERIKUT:`;
                   <h4 className="font-bold text-orange-900 text-base sm:text-lg mb-4">Lampiran Instrumen Penilaian</h4>
                   
                   <div className="mb-6 bg-white p-3 sm:p-4 rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-                    <LabelWithHint onRegenerate={() => handleRegenerateSpecific('kisiKisi', 'Tabel Kisi-kisi Soal (10 Indikator Level HOTS)', 'array_kisi')} isLoading={individualLoading['kisiKisi']} className="font-bold text-slate-800 text-sm sm:text-base mb-2">A. Tabel Kisi-kisi Soal</LabelWithHint>
+                    <LabelWithHint onRegenerate={() => handleRegenerateSpecific('kisiKisi', 'Tabel Kisi-kisi Soal', 'array_kisi')} isLoading={individualLoading['kisiKisi']} className="font-bold text-slate-800 text-sm sm:text-base mb-2">A. Tabel Kisi-kisi Soal</LabelWithHint>
                     <div className="w-full overflow-x-auto border border-slate-300 rounded scrollbar-hide pb-2">
                       <table className="w-full text-left text-sm border-collapse min-w-[800px]">
                         <thead className="bg-slate-100 text-slate-700 border-b border-slate-300">
@@ -790,18 +796,18 @@ HASILKAN OUTPUT MURNI JSON SESUAI SKEMA BERIKUT:`;
                   </div>
 
                   <div className="bg-white p-3 sm:p-4 rounded-lg border border-slate-200 shadow-sm mb-6 overflow-hidden">
-                    <LabelWithHint onRegenerate={() => handleRegenerateSpecific('bankSoal', 'Bank Soal AKM (10 Soal Berbasis Studi Kasus)', 'array_soal')} isLoading={individualLoading['bankSoal']} className="font-bold text-slate-800 text-sm sm:text-base mb-2" hint="Ketik opsi jawaban di kolom pilihan (A, B, C, D atau pernyataan jodoh) untuk soal PG. Kosongkan jika Uraian.">B. Bank Soal (Mendukung PG & Menjodohkan)</LabelWithHint>
+                    <LabelWithHint onRegenerate={() => handleRegenerateSpecific('bankSoal', 'Bank Soal AKM', 'array_soal')} isLoading={individualLoading['bankSoal']} className="font-bold text-slate-800 text-sm sm:text-base mb-2" hint="Untuk soal Uraian, letakkan Pedoman Jawaban di kolom Pilihan Jawaban agar rapi.">B. Bank Soal (Sinkron dengan Kisi-kisi)</LabelWithHint>
                     <div className="w-full overflow-x-auto border border-slate-300 rounded scrollbar-hide pb-2">
                       <table className="w-full text-left text-sm border-collapse min-w-[800px]">
                         <thead className="bg-slate-100 text-slate-700 border-b border-slate-300">
-                          <tr><th className="p-2 border-r w-10 text-center shrink-0">No</th><th className="p-2 border-r min-w-[300px] w-[45%]">Butir Soal & Stimulus</th><th className="p-2 border-r min-w-[200px] w-[30%]">Pilihan Jawaban / Pernyataan</th><th className="p-2 border-r min-w-[100px] text-center">Kunci</th><th className="p-2 w-10 shrink-0"></th></tr>
+                          <tr><th className="p-2 border-r w-10 text-center shrink-0">No</th><th className="p-2 border-r min-w-[300px] w-[45%]">Butir Soal & Stimulus</th><th className="p-2 border-r min-w-[200px] w-[30%]">Pilihan Jawaban / Pedoman Jawab</th><th className="p-2 border-r min-w-[100px] text-center">Kunci</th><th className="p-2 w-10 shrink-0"></th></tr>
                         </thead>
                         <tbody>
                           {rppData.bankSoal.map((row, index) => (
                             <tr key={row.id} className="border-b hover:bg-slate-50">
                               <td className="p-2 border-r text-center text-slate-500 align-top">{index + 1}</td>
                               <td className="p-1 border-r align-top"><textarea className="table-input resize-y min-h-[90px] leading-relaxed" rows="4" value={row.soal} onChange={(e) => handleTableChange('bankSoal', index, 'soal', e.target.value)} placeholder="Tuliskan stimulus cerita/kasus dan soal..."></textarea></td>
-                              <td className="p-1 border-r align-top"><textarea className="table-input resize-y min-h-[90px] leading-relaxed" rows="4" value={row.opsi} onChange={(e) => handleTableChange('bankSoal', index, 'opsi', e.target.value)} placeholder={"A. ...\nB. ...\nC. ...\nD. ...\n(Kosongkan jika uraian)"}></textarea></td>
+                              <td className="p-1 border-r align-top"><textarea className="table-input resize-y min-h-[90px] leading-relaxed" rows="4" value={row.opsi} onChange={(e) => handleTableChange('bankSoal', index, 'opsi', e.target.value)} placeholder={"PG: A... B...\nUraian: Pedoman... "}></textarea></td>
                               <td className="p-1 border-r align-top"><input type="text" className="table-input font-bold text-center mt-2" value={row.kunci} onChange={(e) => handleTableChange('bankSoal', index, 'kunci', e.target.value)} placeholder="Kunci" /></td>
                               <td className="p-2 text-center align-top"><button onClick={() => removeTableRow('bankSoal', row.id)} className="text-red-400 hover:text-red-600 mt-2 p-2"><i className="fas fa-trash"></i></button></td>
                             </tr>
@@ -813,17 +819,17 @@ HASILKAN OUTPUT MURNI JSON SESUAI SKEMA BERIKUT:`;
                   </div>
 
                   <div className="bg-white p-3 sm:p-4 rounded-lg border border-slate-200 shadow-sm overflow-hidden">
-                    <LabelWithHint onRegenerate={() => handleRegenerateSpecific('rubrikPenilaian', 'Tabel Rubrik Penilaian (Skor 1-4)', 'array_rubrik')} isLoading={individualLoading['rubrikPenilaian']} className="font-bold text-slate-800 text-sm sm:text-base mb-2">C. Rubrik Penilaian Khusus</LabelWithHint>
+                    <LabelWithHint onRegenerate={() => handleRegenerateSpecific('rubrikPenilaian', 'Tabel Rubrik Penilaian Khusus', 'array_rubrik')} isLoading={individualLoading['rubrikPenilaian']} className="font-bold text-slate-800 text-sm sm:text-base mb-2">C. Rubrik Penilaian Khusus (Kinerja / Uraian)</LabelWithHint>
                     <div className="w-full overflow-x-auto border border-slate-300 rounded scrollbar-hide pb-2">
                       <table className="w-full text-left text-sm border-collapse min-w-[600px]">
                         <thead className="bg-slate-100 text-slate-700 border-b border-slate-300">
-                          <tr><th className="p-2 border-r min-w-[150px] w-1/4">Skor / Kriteria</th><th className="p-2 border-r min-w-[300px]">Deskripsi Indikator Penilaian</th><th className="p-2 w-12 text-center shrink-0"></th></tr>
+                          <tr><th className="p-2 border-r min-w-[150px] w-1/4">Skor / Rentang Nilai</th><th className="p-2 border-r min-w-[300px]">Deskripsi Indikator Penilaian</th><th className="p-2 w-12 text-center shrink-0"></th></tr>
                         </thead>
                         <tbody>
                           {rppData.rubrikPenilaian.map((row, index) => (
                             <tr key={row.id} className="border-b hover:bg-slate-50">
-                              <td className="p-1 border-r align-top"><textarea className="table-input resize-y min-h-[50px] font-bold" rows="2" value={row.skor} onChange={(e) => handleTableChange('rubrikPenilaian', index, 'skor', e.target.value)} placeholder="Skor/Aspek..."></textarea></td>
-                              <td className="p-1 border-r align-top"><textarea className="table-input resize-y min-h-[50px] leading-relaxed" rows="2" value={row.kriteria} onChange={(e) => handleTableChange('rubrikPenilaian', index, 'kriteria', e.target.value)} placeholder="Deskripsi..."></textarea></td>
+                              <td className="p-1 border-r align-top"><textarea className="table-input resize-y min-h-[50px] font-bold" rows="2" value={row.skor} onChange={(e) => handleTableChange('rubrikPenilaian', index, 'skor', e.target.value)} placeholder="Contoh: Skor 4 / Baik..."></textarea></td>
+                              <td className="p-1 border-r align-top"><textarea className="table-input resize-y min-h-[50px] leading-relaxed" rows="2" value={row.kriteria} onChange={(e) => handleTableChange('rubrikPenilaian', index, 'kriteria', e.target.value)} placeholder="Deskripsi pencapaian..."></textarea></td>
                               <td className="p-2 text-center align-top"><button onClick={() => removeTableRow('rubrikPenilaian', row.id)} className="text-red-400 hover:text-red-600 mt-1 p-2"><i className="fas fa-trash"></i></button></td>
                             </tr>
                           ))}
