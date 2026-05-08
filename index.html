@@ -12,6 +12,7 @@
 <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 <!-- SheetJS untuk Export Excel -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <!-- Konversi HTML terstruktur menjadi DOCX -->
 <script src="https://unpkg.com/html-docx-js@0.3.1/dist/html-docx.js"></script>
 <style>
@@ -291,12 +292,40 @@ function App() {
     };
   });
 
-  const mapBankRows = (rows) => (rows || []).map((b, i) => ({
-    id: Date.now() + 'b' + i,
-    soal: cleanStr(b.soal),
-    opsi: cleanStr(b.opsi),
-    kunci: cleanStr(b.kunci)
-  }));
+  const hasCompleteChoiceOptions = (text) => ["A","B","C","D"].every(l => new RegExp(`(^|\\n|\\s)${l}\\s*[\\).:-]`, "i").test(cleanStr(text)));
+
+  const splitChoiceOptionsFromSoal = (soal, opsi, bentuk) => {
+    const form = normalizeBentuk(bentuk);
+    const question = cleanStr(soal);
+    let options = cleanStr(opsi);
+    if (!["PG", "PG Kompleks"].includes(form)) return { soal: question, opsi: options };
+    const match = question.match(/(^|\n|\s)A\s*[\).:-]\s*/i);
+    if (!match) return { soal: question, opsi: options };
+    const start = match.index + (match[1] ? match[1].length : 0);
+    const candidate = cleanStr(question.slice(start));
+    if (!hasCompleteChoiceOptions(candidate)) return { soal: question, opsi: options };
+    return {
+      soal: cleanStr(question.slice(0, start)),
+      opsi: hasCompleteChoiceOptions(options) ? options : candidate
+    };
+  };
+
+  const mapBankRows = (rows, kisi = rppData.kisiKisi) => (rows || []).map((b, i) => {
+    const form = kisi?.[i]?.bentuk || bentukSoalUrut[i] || "";
+    const split = splitChoiceOptionsFromSoal(b.soal, b.opsi, form);
+    return {
+      id: Date.now() + 'b' + i,
+      soal: split.soal,
+      opsi: split.opsi,
+      kunci: cleanStr(b.kunci)
+    };
+  });
+
+  const getBankRowForDisplay = (row, index) => {
+    const form = rppData.kisiKisi[index]?.bentuk || bentukSoalUrut[index] || "";
+    const split = splitChoiceOptionsFromSoal(row.soal, row.opsi, form);
+    return { ...row, soal: split.soal, opsi: split.opsi };
+  };
 
   const countMatchingParts = (text) => {
     const clean = cleanStr(text);
@@ -391,10 +420,11 @@ function App() {
     if (bank.length < 10) warnings.push(`Bank soal minimal 10 butir, saat ini ${bank.length}.`);
     bank.forEach((b, i) => {
       const bentuk = normalizeBentuk(kisi[i]?.bentuk);
-      const opsi = cleanStr(b.opsi);
+      const normalizedBankRow = splitChoiceOptionsFromSoal(b.soal, b.opsi, bentuk);
+      const opsi = cleanStr(normalizedBankRow.opsi);
       const kunci = cleanStr(b.kunci).toUpperCase();
       const letters = extractKeyLetters(kunci);
-      if (cleanStr(b.soal).length < 80 || !/(data|kasus|tabel|grafik|cerita|situasi|pengamatan|informasi|hasil|lingkungan|siswa|sekolah|angka|jumlah)/i.test(b.soal)) warnings.push(`Soal ${i + 1}: stimulus HOTS/literasi-numerasi perlu dibuat lebih jelas.`);
+      if (cleanStr(normalizedBankRow.soal).length < 80 || !/(data|kasus|tabel|grafik|cerita|situasi|pengamatan|informasi|hasil|lingkungan|siswa|sekolah|angka|jumlah)/i.test(normalizedBankRow.soal)) warnings.push(`Soal ${i + 1}: stimulus HOTS/literasi-numerasi perlu dibuat lebih jelas.`);
       if ((bentuk === "PG" || bentuk === "PG Kompleks") && !["A","B","C","D"].every(l => new RegExp(`(^|\\n|\\s)${l}[\\).:-]`, "i").test(opsi))) warnings.push(`Soal ${i + 1}: opsi A-D belum lengkap.`);
       if (bentuk === "PG" && letters.length !== 1) warnings.push(`Soal ${i + 1}: PG biasa harus punya 1 kunci.`);
       if (bentuk === "PG Kompleks" && letters.length !== 2) warnings.push(`Soal ${i + 1}: PG Kompleks harus tepat 2 kunci benar.`);
@@ -525,6 +555,9 @@ Keluarkan format JSON murni.`;
       if (aiData.profilLulusan) aiData.profilLulusan.forEach(k => { const sk = k.trim(); if(newProfil[sk] !== undefined) newProfil[sk] = true; });
       const newKse = { ...rppData.kseLulusan };
       if (aiData.kseLulusan) aiData.kseLulusan.forEach(k => { const sk = k.trim(); if(newKse[sk] !== undefined) newKse[sk] = true; });
+      const generatedKisi = aiData.kisiKisi ? mapKisiRows(aiData.kisiKisi) : rppData.kisiKisi;
+      const generatedBank = aiData.bankSoal ? mapBankRows(aiData.bankSoal, generatedKisi) : rppData.bankSoal;
+      const generatedRubrik = aiData.rubrikPenilaian ? mapRubrikByKisi(aiData.rubrikPenilaian, generatedKisi) : rppData.rubrikPenilaian;
 
       saveAiSnapshot("Generate semua modul");
       setRppData(prev => ({
@@ -536,15 +569,15 @@ Keluarkan format JSON murni.`;
         kegiatanAwal: cleanStr(aiData.kegiatanAwal) || prev.kegiatanAwal, pengalamanMemahami: cleanStr(aiData.pengalamanMemahami) || prev.pengalamanMemahami, asesmenAwal: cleanStr(aiData.asesmenAwal) || prev.asesmenAwal,
         kegiatanInti: cleanStr(aiData.kegiatanInti) || prev.kegiatanInti, pengalamanMengaplikasi: cleanStr(aiData.pengalamanMengaplikasi) || prev.pengalamanMengaplikasi, asesmenProses: cleanStr(aiData.asesmenProses) || prev.asesmenProses,
         kegiatanPenutup: cleanStr(aiData.kegiatanPenutup) || prev.kegiatanPenutup, pengalamanMerefleksi: cleanStr(aiData.pengalamanMerefleksi) || prev.pengalamanMerefleksi, asesmenAkhir: cleanStr(aiData.asesmenAkhir) || prev.asesmenAkhir,
-        kisiKisi: (aiData.kisiKisi && aiData.kisiKisi.length > 0) ? mapKisiRows(aiData.kisiKisi) : prev.kisiKisi,
-        bankSoal: (aiData.bankSoal && aiData.bankSoal.length > 0) ? mapBankRows(aiData.bankSoal) : prev.bankSoal,
-        rubrikPenilaian: (aiData.rubrikPenilaian && aiData.rubrikPenilaian.length > 0) ? mapRubrikByKisi(aiData.rubrikPenilaian, aiData.kisiKisi ? mapKisiRows(aiData.kisiKisi) : prev.kisiKisi) : prev.rubrikPenilaian,
+        kisiKisi: (aiData.kisiKisi && aiData.kisiKisi.length > 0) ? generatedKisi : prev.kisiKisi,
+        bankSoal: (aiData.bankSoal && aiData.bankSoal.length > 0) ? generatedBank : prev.bankSoal,
+        rubrikPenilaian: (aiData.rubrikPenilaian && aiData.rubrikPenilaian.length > 0) ? generatedRubrik : prev.rubrikPenilaian,
       }));
       const warnings = validateAssessmentStructure({
         ...rppData,
-        kisiKisi: aiData.kisiKisi ? mapKisiRows(aiData.kisiKisi) : rppData.kisiKisi,
-        bankSoal: aiData.bankSoal ? mapBankRows(aiData.bankSoal) : rppData.bankSoal,
-        rubrikPenilaian: aiData.rubrikPenilaian ? mapRubrikByKisi(aiData.rubrikPenilaian, aiData.kisiKisi ? mapKisiRows(aiData.kisiKisi) : rppData.kisiKisi) : rppData.rubrikPenilaian
+        kisiKisi: generatedKisi,
+        bankSoal: generatedBank,
+        rubrikPenilaian: generatedRubrik
       });
       if (warnings.length) notify("Catatan Validasi Hasil AI", "- " + warnings.slice(0, 10).join("\n- "), "warning");
     } catch (error) {
@@ -609,7 +642,7 @@ Keluarkan format JSON murni.`;
         }
         let mappedData = aiData.map((item, i) => ({ id: Date.now() + fieldKey + i, ...item }));
         if(type === 'array_kisi') mappedData = mapKisiRows(aiData);
-        else if(type === 'array_soal') mappedData = mapBankRows(aiData);
+        else if(type === 'array_soal') mappedData = mapBankRows(aiData, rppData.kisiKisi);
         else if(type === 'array_rubrik') mappedData = mapRubrikByKisi(aiData);
         const nextData = { ...rppData, [fieldKey]: mappedData };
         const allWarnings = validateAssessmentStructure(nextData);
@@ -682,7 +715,8 @@ Keluarkan format JSON murni.`;
     const kRows = rppData.kisiKisi.length > 0 ? rppData.kisiKisi.map((k, i) => `<tr><td style="text-align:center;${tdStyle}">${i+1}</td><td style="${tdStyle}">${formatText(k.materi)}</td><td style="${tdStyle}">${formatText(k.indikator)}</td><td style="text-align:center;${tdStyle}">${k.level}</td><td style="text-align:center;${tdStyle}">${k.bentuk}</td><td style="text-align:center;${tdStyle}">${k.nomor}</td></tr>`).join('') : `<tr><td colspan="6" style="text-align:center;${tdStyle}">Tidak ada data</td></tr>`;
     const bRows = rppData.bankSoal.length > 0 ? rppData.bankSoal.map((b, i) => {
       const form = rppData.kisiKisi[i]?.bentuk;
-      return `<tr><td style="text-align:center;${tdStyle}">${i+1}</td><td style="${tdStyle}">${formatText(b.soal)}</td><td style="${tdStyle}">${formatOptionsForWord(b.opsi, form)}</td><td style="text-align:center;font-weight:bold;${tdStyle}">${b.kunci}</td></tr>`;
+      const row = getBankRowForDisplay(b, i);
+      return `<tr><td style="text-align:center;${tdStyle}">${i+1}</td><td style="${tdStyle}">${formatText(row.soal)}</td><td style="${tdStyle}">${formatOptionsForWord(row.opsi, form)}</td><td style="text-align:center;font-weight:bold;${tdStyle}">${row.kunci}</td></tr>`;
     }).join('') : `<tr><td colspan="4" style="text-align:center;${tdStyle}">Tidak ada soal</td></tr>`;
     const rubrikRowsForExport = rppData.kisiKisi.length ? mapRubrikByKisi(rppData.rubrikPenilaian, rppData.kisiKisi) : rppData.rubrikPenilaian;
     const rRowsTable = rubrikRowsForExport.length > 0 ? rubrikRowsForExport.map(r => `<tr><td style="text-align:center;font-weight:bold;${tdStyle}">${formatText(r.bentukPenilaian)}</td><td style="text-align:left;font-weight:bold;${tdStyle}">${formatText(r.skor)}</td><td style="${tdStyle}">${formatText(r.kriteria)}</td></tr>`).join('') : `<tr><td colspan="3" style="text-align:center;${tdStyle}">Tidak ada rubrik</td></tr>`;
@@ -819,42 +853,103 @@ Keluarkan format JSON murni.`;
   };
 
   const handleDownloadExcel = () => {
-    runWithAssessmentCheck(() => {
+    runWithAssessmentCheck(async () => {
+      const rubrikRowsForExcel = rppData.kisiKisi.length ? mapRubrikByKisi(rppData.rubrikPenilaian, rppData.kisiKisi) : rppData.rubrikPenilaian;
+      const sheets = [
+        {
+          name: "Kisi-kisi Soal",
+          minWidths: [5, 18, 28, 8, 12, 8],
+          rows: rppData.kisiKisi.map((k, i) => ({ "No": i + 1, "Materi Pokok": k.materi, "Indikator Soal": k.indikator, "Level Kognitif": k.level, "Bentuk Soal": k.bentuk, "Nomor Soal": k.nomor }))
+        },
+        {
+          name: "Bank Soal",
+          minWidths: [5, 26, 24, 12],
+          rows: rppData.bankSoal.map((b, i) => {
+            const row = getBankRowForDisplay(b, i);
+            return { "No": i + 1, "Butir Soal & Stimulus": row.soal, "Pilihan Jawaban / Pedoman Jawab": row.opsi || "-", "Kunci Jawaban": row.kunci || "-" };
+          })
+        },
+        {
+          name: "Rubrik Penilaian",
+          minWidths: [5, 14, 22, 34],
+          rows: rubrikRowsForExcel.map((r, i) => ({ "No": i + 1, "Bentuk Penilaian": r.bentukPenilaian, "Skor / Rentang Nilai": r.skor, "Deskripsi Indikator Penilaian": r.kriteria }))
+        }
+      ];
+
+      const getHeaders = (rows) => Object.keys(rows[0] || { "Informasi": "Tidak ada data" });
+      const safeRows = (rows, name) => rows.length ? rows : [{ "Informasi": `Tidak ada data ${name}` }];
+      const autoFitColumnWidth = (header, rows, minWidth = 8) => {
+        const maxLine = Math.max(header.length, ...rows.map(row => String(row[header] || '').split(/\r?\n/).reduce((m, line) => Math.max(m, line.length), 0)));
+        return Math.min(80, Math.max(minWidth, Math.ceil(maxLine * 1.08) + 2));
+      };
+      const autoFitRowHeight = (row) => {
+        const values = Object.values(row);
+        const lineCount = Math.max(1, ...values.map(v => String(v || '').split(/\r?\n/).length));
+        const longest = Math.max(1, ...values.map(v => String(v || '').split(/\r?\n/).reduce((m, line) => Math.max(m, line.length), 0)));
+        return Math.min(210, Math.max(24, 18 + (lineCount - 1) * 15 + Math.ceil(longest / 48) * 14));
+      };
+      const saveBlob = (blob, filename) => {
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = filename;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      };
+
+      if (window.ExcelJS) {
+        try {
+          const wb = new ExcelJS.Workbook();
+          wb.creator = "Asisten Guru Pembelajaran Mendalam";
+          wb.created = new Date();
+          sheets.forEach(sheet => {
+            const rows = safeRows(sheet.rows, sheet.name);
+            const headers = getHeaders(rows);
+            const ws = wb.addWorksheet(sheet.name);
+            ws.views = [{ state: "frozen", ySplit: 1 }];
+            ws.addRow(headers);
+            rows.forEach(row => ws.addRow(headers.map(h => row[h] ?? "")));
+            ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: headers.length } };
+            headers.forEach((header, idx) => {
+              ws.getColumn(idx + 1).width = autoFitColumnWidth(header, rows, sheet.minWidths[idx] || 8);
+            });
+            ws.eachRow((excelRow, rowNumber) => {
+              excelRow.height = rowNumber === 1 ? 24 : autoFitRowHeight(rows[rowNumber - 2] || {});
+              excelRow.eachCell({ includeEmpty: true }, cell => {
+                cell.alignment = { wrapText: true, vertical: "top" };
+                cell.border = { top: { style: "thin", color: { argb: "FFD1D5DB" } }, left: { style: "thin", color: { argb: "FFD1D5DB" } }, bottom: { style: "thin", color: { argb: "FFD1D5DB" } }, right: { style: "thin", color: { argb: "FFD1D5DB" } } };
+                if (rowNumber === 1) {
+                  cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+                  cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1D4ED8" } };
+                  cell.alignment = { wrapText: true, vertical: "middle", horizontal: "center" };
+                }
+              });
+            });
+          });
+          const buffer = await wb.xlsx.writeBuffer();
+          saveBlob(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), `${getCustomFileName('Instrumen Penilaian')}.xlsx`);
+          return;
+        } catch (error) {
+          notify("ExcelJS Bermasalah", "Ekspor styling penuh belum berhasil, aplikasi memakai ekspor Excel cadangan.\n\nDetail: " + error.message, "warning");
+        }
+      }
+
       if (!window.XLSX) {
         notify("Excel Belum Siap", "Library Excel belum dimuat. Mohon tunggu beberapa detik lalu coba lagi.", "warning");
         return;
       }
-    const wb = XLSX.utils.book_new();
-    const addSht = (data, cols, name) => {
-      const ws = data.length > 0 ? XLSX.utils.json_to_sheet(data) : XLSX.utils.json_to_sheet([{"Informasi": `Tidak ada data ${name}`}]);
-      if(data.length > 0) {
-        const headers = Object.keys(data[0] || {});
-        ws['!cols'] = headers.map((header, idx) => {
-          const maxLine = Math.max(
-            header.length,
-            ...data.map(row => String(row[header] || '').split(/\r?\n/).reduce((m, line) => Math.max(m, line.length), 0))
-          );
-          const preferred = Math.ceil(maxLine * 1.05) + 2;
-          const minimum = cols?.[idx]?.wch || 8;
-          return { wch: Math.min(90, Math.max(minimum, preferred)) };
-        });
+      const wb = XLSX.utils.book_new();
+      sheets.forEach(sheet => {
+        const rows = safeRows(sheet.rows, sheet.name);
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const headers = getHeaders(rows);
+        ws['!cols'] = headers.map((header, idx) => ({ wch: autoFitColumnWidth(header, rows, sheet.minWidths[idx] || 8) }));
+        ws['!rows'] = [{ hpt: 24 }, ...rows.map(row => ({ hpt: autoFitRowHeight(row) }))];
         ws['!autofilter'] = { ref: ws['!ref'] };
-        ws['!freeze'] = { xSplit: 0, ySplit: 1 };
-        ws['!rows'] = [{ hpt: 24 }, ...data.map(row => {
-          const lineCount = Math.max(...Object.values(row).map(v => String(v || '').split(/\r?\n/).length));
-          const longest = Math.max(...Object.values(row).map(v => String(v || '').split(/\r?\n/).reduce((m, line) => Math.max(m, line.length), 0)));
-          return { hpt: Math.min(180, Math.max(28, 18 + lineCount * 16 + Math.ceil(longest / 55) * 14)) };
-        })];
-        Object.keys(ws).forEach(addr => {
-          if (!addr.startsWith('!')) ws[addr].s = { alignment: { wrapText: true, vertical: 'top' } };
-        });
-      }
-      XLSX.utils.book_append_sheet(wb, ws, name);
-    };
-      addSht(rppData.kisiKisi.map((k, i) => ({ "No": i + 1, "Materi Pokok": k.materi, "Indikator Soal": k.indikator, "Level Kognitif": k.level, "Bentuk Soal": k.bentuk, "Nomor Soal": k.nomor })), [{wch: 5}, {wch: 35}, {wch: 60}, {wch: 8}, {wch: 12}, {wch: 8}], "Kisi-kisi Soal");
-      addSht(rppData.bankSoal.map((b, i) => ({ "No": i + 1, "Butir Soal & Stimulus": b.soal, "Pilihan Jawaban / Pernyataan": b.opsi || "-", "Kunci Jawaban": b.kunci || "-" })), [{wch: 5}, {wch: 50}, {wch: 40}, {wch: 15}], "Bank Soal");
-      const rubrikRowsForExcel = rppData.kisiKisi.length ? mapRubrikByKisi(rppData.rubrikPenilaian, rppData.kisiKisi) : rppData.rubrikPenilaian;
-      addSht(rubrikRowsForExcel.map((r, i) => ({ "No": i + 1, "Bentuk Penilaian": r.bentukPenilaian, "Skor / Level": r.skor, "Deskripsi Indikator Penilaian": r.kriteria })), [{wch: 5}, {wch: 16}, {wch: 28}, {wch: 85}], "Rubrik Penilaian");
+        XLSX.utils.book_append_sheet(wb, ws, sheet.name);
+      });
       XLSX.writeFile(wb, `${getCustomFileName('Instrumen Penilaian')}.xlsx`);
     });
   };
@@ -1131,18 +1226,21 @@ Keluarkan format JSON murni.`;
                           <tr><th className="p-2 border-r w-10 text-center shrink-0">No</th><th className="p-2 border-r min-w-[300px] w-[45%]">Butir Soal & Stimulus</th><th className="p-2 border-r min-w-[200px] w-[30%]">Pilihan Jawaban / Pedoman Jawab</th><th className="p-2 border-r min-w-[100px] text-center">Kunci</th><th className="p-2 w-10 shrink-0"></th></tr>
                         </thead>
                         <tbody>
-                          {rppData.bankSoal.map((row, index) => (
+                          {rppData.bankSoal.map((row, index) => {
+                            const displayRow = getBankRowForDisplay(row, index);
+                            return (
                             <tr key={row.id} className="border-b hover:bg-slate-50">
                               <td className="p-2 border-r text-center text-slate-500 align-top">{index + 1}</td>
-                              <td className="p-1 border-r align-top"><textarea className="table-input resize-y min-h-[120px] leading-relaxed whitespace-pre-wrap" rows="5" value={row.soal} onChange={(e) => handleTableChange('bankSoal', index, 'soal', e.target.value)} placeholder="Tuliskan stimulus cerita/kasus dan soal..."></textarea></td>
+                              <td className="p-1 border-r align-top"><textarea className="table-input resize-y min-h-[120px] leading-relaxed whitespace-pre-wrap" rows="5" value={displayRow.soal} onChange={(e) => handleTableChange('bankSoal', index, 'soal', e.target.value)} placeholder="Tuliskan stimulus cerita/kasus dan soal..."></textarea></td>
                               <td className="p-1 border-r align-top">
-                                <textarea className="table-input resize-y min-h-[120px] leading-relaxed whitespace-pre-wrap" rows="5" value={row.opsi} onChange={(e) => handleTableChange('bankSoal', index, 'opsi', e.target.value)} placeholder={"PG: A... B...\nMenjodohkan: Premis... Respon...\nUraian: Pedoman... "}></textarea>
-                                {normalizeBentuk(rppData.kisiKisi[index]?.bentuk) === "Menjodohkan" ? <div className="mt-2">{renderMatchingOptions(row.opsi)}</div> : null}
+                                <textarea className="table-input resize-y min-h-[120px] leading-relaxed whitespace-pre-wrap" rows="5" value={displayRow.opsi} onChange={(e) => handleTableChange('bankSoal', index, 'opsi', e.target.value)} placeholder={"PG: A... B...\nMenjodohkan: Premis... Respon...\nUraian: Pedoman... "}></textarea>
+                                {normalizeBentuk(rppData.kisiKisi[index]?.bentuk) === "Menjodohkan" ? <div className="mt-2">{renderMatchingOptions(displayRow.opsi)}</div> : null}
                               </td>
                               <td className="p-1 border-r align-top"><input type="text" className="table-input font-bold text-center mt-2 text-blue-700" value={row.kunci} onChange={(e) => handleTableChange('bankSoal', index, 'kunci', e.target.value)} placeholder="Kunci" /></td>
                               <td className="p-2 text-center align-top"><button onClick={() => removeTableRow('bankSoal', row.id)} className="text-red-400 hover:text-red-600 mt-2 p-2"><i className="fas fa-trash"></i></button></td>
                             </tr>
-                          ))}
+                            );
+                          })}
                         </tbody>
                       </table>
                     </div>
@@ -1260,7 +1358,10 @@ Keluarkan format JSON murni.`;
                     <div className="w-full overflow-x-auto border border-slate-300 rounded pb-2">
                       <table className="w-full text-left text-xs sm:text-sm border-collapse min-w-[600px] sm:min-w-[800px]">
                         <thead className="bg-slate-100 text-slate-700 border-b border-slate-300"><tr><th className="p-2 border-r w-10 text-center shrink-0">No</th><th className="p-2 border-r min-w-[300px]">Butir Soal & Stimulus</th><th className="p-2 min-w-[260px]">Pilihan Jawaban / Pernyataan</th></tr></thead>
-                        <tbody>{rppData.bankSoal.map((r, i) => (<tr key={r.id} className="border-b"><td className="p-2 sm:p-3 border-r text-center align-top">{i+1}</td><td className="p-2 sm:p-3 border-r align-top"><div className="whitespace-pre-wrap font-medium leading-relaxed">{r.soal}</div></td><td className="p-2 sm:p-3 align-top"><div className="text-slate-700 bg-slate-50 p-2 rounded border leading-relaxed">{renderStudentOptions(r, i)}</div></td></tr>))}</tbody>
+                        <tbody>{rppData.bankSoal.map((r, i) => {
+                          const row = getBankRowForDisplay(r, i);
+                          return <tr key={r.id} className="border-b"><td className="p-2 sm:p-3 border-r text-center align-top">{i+1}</td><td className="p-2 sm:p-3 border-r align-top"><div className="whitespace-pre-wrap font-medium leading-relaxed">{row.soal}</div></td><td className="p-2 sm:p-3 align-top"><div className="text-slate-700 bg-slate-50 p-2 rounded border leading-relaxed">{renderStudentOptions(row, i)}</div></td></tr>;
+                        })}</tbody>
                       </table>
                     </div>
                   </div>
