@@ -23,6 +23,7 @@
 .btn-word:hover { animation: none; }
 .table-input { width: 100%; background: transparent; border: 1px solid transparent; padding: 6px; outline: none; resize: vertical; min-height: 40px; }
 .table-input:focus { border: 1px solid #3b82f6; border-radius: 4px; background: #fff; }
+p.whitespace-pre-wrap, div.whitespace-pre-wrap, textarea { text-align: justify; text-justify: inter-word; }
 @keyframes slideDown { from { opacity: 0; transform: translateY(-10px); } to { opacity: 1; transform: translateY(0); } }
 .dropdown-animate { animation: slideDown 0.2s ease-out forwards; }
 @keyframes wave { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
@@ -36,6 +37,7 @@ html, body, #root { max-width: 100%; overflow-x: hidden; }
   .table-input { font-size: 12px; line-height: 1.35; }
   button, input, select, textarea { max-width: 100%; }
   .mobile-stack-safe { min-width: 0; width: 100%; }
+  main { row-gap: 1.25rem; }
 }
 </style>
 </head>
@@ -48,6 +50,7 @@ const Card = ({ children, className = "" }) => (<div className={`bg-white rounde
 
 const Accordion = ({ title, icon, subtitle, children, defaultOpen = false, isCompleted, onToggleComplete, headerColorClass = "bg-blue-100 text-blue-700" }) => {
   const [isOpen, setIsOpen] = useState(defaultOpen);
+
   return (
     <Card className={`mb-5 transition-all duration-300 ${isCompleted ? 'border-l-4 border-l-green-500 opacity-80 bg-slate-50' : 'border-l-4 border-l-blue-600'}`}>
       <div className="flex items-center justify-between p-3 sm:p-4 hover:bg-slate-50 cursor-pointer" onClick={() => setIsOpen(!isOpen)}>
@@ -70,8 +73,44 @@ const Accordion = ({ title, icon, subtitle, children, defaultOpen = false, isCom
   );
 };
 
+const defaultLabelHints = {
+  "Nama Sekolah": "- Identitas satuan pendidikan.\n- Dikunci agar kop dan arsip dokumen konsisten.",
+  "Tahun Pelajaran": "- Tulis format 2025/2026.\n- Dipakai sebagai metadata dokumen dan arsip sekolah.",
+  "Nama Kepala Sekolah": "- Isi nama lengkap dan NIP bila ada.\n- Digunakan pada lembar pengesahan dokumen.",
+  "Nama Guru Penyusun": "- Isi nama lengkap, gelar, dan NIP/NUPTK bila ada.\n- Pastikan sama dengan data administrasi sekolah.",
+  "Mata Pelajaran": "- Pilih mapel sesuai struktur Kurikulum Nasional.\n- Mapel menjadi acuan CP, TP, materi, dan asesmen.",
+  "Fase / Kelas": "- Pilih fase dan kelas yang sesuai dengan CP.\n- Jangan mencampur CP fase lain agar TP dan asesmen tidak melenceng.",
+  "Topik Pembelajaran": "- Tulis topik esensial yang akan dipelajari.\n- Hindari topik terlalu luas agar kegiatan dan asesmen fokus.",
+  "Alokasi Waktu": "- Tulis durasi belajar, misalnya 2 x 40 Menit.\n- Sesuaikan kedalaman kegiatan dengan waktu nyata di kelas.",
+  "Jml. Pertemuan": "- Tulis jumlah pertemuan, misalnya 1 Pertemuan.\n- Dipakai untuk menata alur pengalaman belajar.",
+  "Kompetensi Awal": "- Turunkan dari prasyarat materi.\n- Jelaskan kemampuan awal yang harus sudah dimiliki siswa sebelum topik ini.\n- Hindari kalimat umum seperti siswa sudah siap belajar.",
+  "Kesiapan Peserta Didik": "- Bedakan aspek kognitif, motivasi, kebiasaan belajar, dan kebutuhan dukungan.\n- Tambahkan variasi kesiapan siswa bila kelas heterogen.",
+  "Karakteristik Materi Pelajaran": "- Jelaskan apakah materi faktual, konseptual, prosedural, kontekstual, atau lintas disiplin.\n- Tautkan dengan masalah nyata yang dekat dengan siswa.",
+  "Situasi Nyata Lingkungan Siswa": "- Tulis konteks lokal: rumah, sekolah, pasar, pertanian, lingkungan, kebiasaan digital, atau peristiwa sekitar.\n- Konteks ini menjadi jangkar meaningful learning.",
+  "Alasan & Konsekuensi Profil": "- Jelaskan mengapa dimensi dipilih.\n- Tulis bukti operasionalnya dalam kegiatan, produk, asesmen, atau refleksi.",
+  "Alasan & Konsekuensi KSE": "- Jelaskan perilaku sosial emosional yang ingin dilatih.\n- Hubungkan dengan kegiatan kelompok, pengambilan keputusan, dan refleksi.",
+  "Capaian Pembelajaran": "- Isi CP resmi sesuai fase dan mapel.\n- CP menjadi sumber penurunan TP, kegiatan, dan asesmen.",
+  "Lintas Disiplin Ilmu": "- Tulis keterkaitan nyata antarmapel atau bidang kehidupan.\n- Hindari hanya menempel daftar mata pelajaran tanpa fungsi.",
+  "Tujuan Pembelajaran": "- Gunakan kata kerja operasional yang dapat diukur.\n- Pastikan TP menurunkan CP dan dapat diuji lewat asesmen.",
+  "Praktik Pedagogis": "- Tulis strategi belajar mendalam yang nyata, bukan hanya label.\n- Contoh: inkuiri, studi kasus, proyek, diskusi berbasis data, praktik kinerja.",
+  "Kemitraan Pembelajaran": "- Tulis peran teman sebaya, orang tua, komunitas, atau narasumber bila relevan.\n- Kemitraan harus membantu tercapainya TP.",
+  "Lingkungan Pembelajaran": "- Jelaskan ruang, alat, budaya kelas, keamanan psikologis, dan aturan kerja.\n- Pastikan mendukung belajar sadar, bermakna, dan menggembirakan.",
+  "Pemanfaatan Digital": "- Tulis alat digital yang memperkaya belajar, bukan sekadar aksesori.\n- Jelaskan fungsi: mencari data, simulasi, kolaborasi, asesmen, atau produk.",
+  "Aktivitas Kelas (Langkah Fisik)": "- Tulis tindakan guru dan siswa secara runtut.\n- Utamakan aktivasi pengetahuan awal, eksplorasi, pemecahan kasus, produk/kinerja, dan refleksi.",
+  "Target Kognitif (Memahami)": "- Jelaskan cara siswa membangun pemahaman konsep.\n- Sertakan aktivasi pengetahuan awal, eksplorasi, dan penguatan makna.",
+  "Asesmen Awal": "- Ukur prasyarat dan miskonsepsi awal.\n- Gunakan pertanyaan diagnostik, tugas singkat, atau cek pemahaman.",
+  "Target Kognitif (Mengaplikasi)": "- Jelaskan transfer konsep ke kasus atau situasi baru.\n- Arahkan siswa memakai bukti, data, strategi, atau produk.",
+  "Asesmen Proses": "- Amati proses belajar selama kegiatan berlangsung.\n- Gunakan observasi, cek kemajuan, pertanyaan lisan, catatan guru, atau umpan balik teman.",
+  "Target Kognitif (Merefleksi)": "- Minta siswa menilai strategi berpikir dan hasil belajarnya.\n- Hubungkan refleksi dengan perbaikan belajar berikutnya.",
+  "Asesmen Akhir": "- Ukur capaian TP secara holistik.\n- Sesuaikan bentuk asesmen dengan indikator dan bukti belajar yang diharapkan."
+};
+
 const LabelWithHint = ({ children, hint, className="block text-slate-700 font-semibold mb-1", onRegenerate, isLoading }) => {
   const [showHint, setShowHint] = useState(false);
+  const labelText = typeof children === "string" ? children : "";
+  const defaultHint = defaultLabelHints[labelText] || "";
+  const effectiveHint = [hint, defaultHint && hint !== defaultHint ? defaultHint : ""].filter(Boolean).join("\n\n");
+
   return (
     <div className="mb-1 w-full">
       <div className="flex items-center justify-between">
@@ -89,9 +128,9 @@ const LabelWithHint = ({ children, hint, className="block text-slate-700 font-se
             </button>
           ) : null}
         </div>
-        {hint ? <button type="button" onClick={() => setShowHint(!showHint)} className={`ml-2 shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded transition-colors flex items-center shadow-sm ${showHint ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-white border border-slate-300 text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`} title="Klik untuk bantuan pengisian"><i className={`fas ${showHint ? 'fa-times' : 'fa-info-circle'} mr-1`}></i> <span className="hidden sm:inline">{showHint ? 'Tutup' : 'Petunjuk'}</span></button> : null}
+        {effectiveHint ? <button type="button" onClick={() => setShowHint(!showHint)} className={`ml-2 shrink-0 text-[10px] font-bold uppercase tracking-wider px-2 py-1 rounded transition-colors flex items-center shadow-sm ${showHint ? 'bg-blue-600 text-white hover:bg-blue-700' : 'bg-white border border-slate-300 text-slate-500 hover:bg-slate-100 hover:text-slate-800'}`} title="Klik untuk bantuan pengisian"><i className={`fas ${showHint ? 'fa-times' : 'fa-info-circle'} mr-1`}></i> <span className="hidden sm:inline">{showHint ? 'Tutup' : 'Petunjuk'}</span></button> : null}
       </div>
-      {showHint ? <div className="mt-2 mb-3 p-3 bg-blue-50/80 border border-blue-200 text-blue-800 text-xs rounded-lg shadow-inner leading-relaxed whitespace-pre-wrap"><i className="fas fa-lightbulb text-yellow-500 mr-2 text-sm"></i>{hint}</div> : null}
+      {showHint ? <div className="mt-2 mb-3 p-3 bg-blue-50/80 border border-blue-200 text-blue-800 text-xs rounded-lg shadow-inner leading-relaxed whitespace-pre-wrap"><i className="fas fa-lightbulb text-yellow-500 mr-2 text-sm"></i>{effectiveHint}</div> : null}
     </div>
   );
 };
@@ -100,6 +139,7 @@ function App() {
   const [completedSteps, setCompletedSteps] = useState({});
   const [isEditing, setIsEditing] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [activeGenerateMode, setActiveGenerateMode] = useState("");
   const [individualLoading, setIndividualLoading] = useState({});
   const [countdown, setCountdown] = useState(0); 
   const [aiHistory, setAiHistory] = useState([]);
@@ -107,7 +147,7 @@ function App() {
   const [instruksiKhusus, setInstruksiKhusus] = useState(() => localStorage.getItem('asistenGuru_instruksiKhusus_v43') || ""); 
   
   const [showApiModal, setShowApiModal] = useState(false);
-  const [geminiApiKey, setGeminiApiKey] = useState(() => sessionStorage.getItem('gemini_api_key_eksternal_v2') || localStorage.getItem('gemini_api_key_eksternal_v2') || "");
+  const [geminiApiKey, setGeminiApiKey] = useState(() => sessionStorage.getItem('gemini_api_key_eksternal_v2') || "");
   const [tempApiKey, setTempApiKey] = useState("");
   const [popup, setPopup] = useState(null);
 
@@ -128,7 +168,7 @@ function App() {
     localStorage.removeItem('gemini_api_key_eksternal_v2');
     setGeminiApiKey(cleanedKey);
     setShowApiModal(false);
-    notify("API Key Tersimpan", "API key berhasil disimpan di perangkat ini. Generate AI sekarang memakai key tersebut.", "success");
+    notify("API Key Tersimpan", "API key berhasil disimpan sementara di tab browser ini. Generate AI sekarang memakai key tersebut.", "success");
   };
 
   const getInjectedApiKey = () => {
@@ -148,6 +188,7 @@ function App() {
   const isAnyLoading = isGenerating || Object.values(individualLoading).some(v => v === true);
 
   useEffect(() => { localStorage.setItem('asistenGuru_instruksiKhusus_v43', instruksiKhusus); }, [instruksiKhusus]);
+  useEffect(() => { localStorage.removeItem('gemini_api_key_eksternal_v2'); }, []);
 
   useEffect(() => {
     let timer;
@@ -186,6 +227,13 @@ function App() {
     Praktik: "4 = sangat baik\n3 = baik\n2 = cukup\n1 = perlu bimbingan\n0 = tidak menunjukkan evidensi",
     Proyek: "4 = sangat baik\n3 = baik\n2 = cukup\n1 = perlu bimbingan\n0 = tidak menunjukkan evidensi"
   };
+  const defaultAssessmentPlan = [
+    { id: "plan-pg-c3", bentuk: "PG", jumlah: 2, level: "C3" },
+    { id: "plan-pgk-c4", bentuk: "PG Kompleks", jumlah: 2, level: "C4" },
+    { id: "plan-jodoh-c4", bentuk: "Menjodohkan", jumlah: 2, level: "C4" },
+    { id: "plan-isian-c4", bentuk: "Isian Singkat", jumlah: 2, level: "C4" },
+    { id: "plan-uraian-c5", bentuk: "Uraian", jumlah: 2, level: "C5" }
+  ];
 
   const defaultDataObj = {
     namaSekolah: "SMP Negeri 2 Secang", namaGuru: "YUSUF ARIS SYAMSUDDIN, S.Pd.", tahunPelajaran: "2025/2026", nipGuru: "19950430 202321 1 004", namaKepsek: "", nipKepsek: "", mapel: "", kelas: "", topik: "", waktu: "2 x 40 Menit", jumlahPertemuan: "1 Pertemuan", kompetensiAwal: "", kesiapanSiswa: "", karakteristikMateri: "", situasiNyataSiswa: "",
@@ -195,6 +243,7 @@ function App() {
     kseAlasan: "",
     cp: "", lintasDisiplin: "", tp: "", praktikPedagogis: "Pembelajaran Mendalam", kemitraanPembelajaran: "", lingkunganPembelajaran: "", pemanfaatanDigital: "",
     kegiatanAwal: "", kegiatanInti: "", kegiatanPenutup: "", pengalamanMemahami: "", pengalamanMengaplikasi: "", pengalamanMerefleksi: "", asesmenAwal: "", asesmenProses: "", asesmenAkhir: "", catatanRefleksi: "",
+    rencanaAsesmen: defaultAssessmentPlan.map(row => ({ ...row })),
     kisiKisi: [], bankSoal: [], rubrikPenilaian: []
   };
 
@@ -211,6 +260,23 @@ function App() {
   });
 
   useEffect(() => { localStorage.setItem('asistenGuruData_v42', JSON.stringify(rppData)); }, [rppData]);
+
+  const getAssessmentBlueprint = (data = rppData) => {
+    const source = Array.isArray(data.rencanaAsesmen) && data.rencanaAsesmen.length ? data.rencanaAsesmen : defaultAssessmentPlan;
+    return source.map((row, index) => ({
+      id: row.id || `plan-${index}`,
+      bentuk: normalizeBentuk(row.bentuk),
+      jumlah: Math.max(0, parseInt(row.jumlah, 10) || 0),
+      level: ["C1","C2","C3","C4","C5","C6"].includes(cleanStr(row.level).toUpperCase()) ? cleanStr(row.level).toUpperCase() : "C4"
+    })).filter(row => row.bentuk && row.jumlah > 0);
+  };
+
+  const expandAssessmentBlueprint = (data = rppData) => getAssessmentBlueprint(data).flatMap(row => Array.from({ length: row.jumlah }, () => ({ bentuk: row.bentuk, level: row.level })));
+
+  const getAssessmentPlanText = (data = rppData) => {
+    const blueprint = getAssessmentBlueprint(data);
+    return blueprint.length ? blueprint.map(row => `${row.jumlah} soal ${row.bentuk} level ${row.level}`).join("; ") : "Gunakan pola minimal 10 soal dengan dominasi C4-C6.";
+  };
 
   const toggleStep = (id) => setCompletedSteps(p => ({ ...p, [id]: !p[id] }));
   const handleInputChange = (e) => setRppData(p => ({ ...p, [e.target.name]: e.target.value }));
@@ -278,19 +344,43 @@ function App() {
       `Kriteria disusun sesuai evidensi ${bentuk}: proses, produk/kinerja, ketepatan konsep, penggunaan bukti, dan refleksi siswa.`
   });
 
-  const mapKisiRows = (rows) => (rows || []).map((k, i) => {
-    const level = cleanStr(k.level).toUpperCase();
-    let finalLevel = ["C1","C2","C3","C4","C5","C6"].includes(level) ? level : (i < 2 ? "C3" : "C4");
-    if (i >= 2 && ["C1","C2"].includes(finalLevel)) finalLevel = "C4";
+  const kkoByLevel = { C1: "mengidentifikasi", C2: "menjelaskan", C3: "menerapkan", C4: "menganalisis", C5: "mengevaluasi", C6: "merancang" };
+  const getExpectedAssessmentSequence = (planData = rppData) => {
+    const planned = expandAssessmentBlueprint(planData);
+    const total = Math.max(10, planned.length || 10);
+    return Array.from({ length: total }).map((_, i) => planned[i] || { bentuk: bentukSoalUrut[i] || "Uraian", level: i < 2 ? "C3" : i < 8 ? "C4" : "C5" });
+  };
+  const getDefaultKisiRow = (shape, index, planData = rppData) => {
+    const topic = cleanStr(planData.topik) || "materi pembelajaran";
+    const context = cleanStr(planData.situasiNyataSiswa) || "situasi nyata di lingkungan siswa";
+    const verb = kkoByLevel[shape.level] || "menganalisis";
     return {
-      id: Date.now() + 'k' + i,
-      materi: cleanStr(k.materi),
-      indikator: cleanStr(k.indikator),
-      level: finalLevel,
-      bentuk: bentukSoalUrut[i] || normalizeBentuk(k.bentuk) || "",
-      nomor: cleanStr(k.nomor) || String(i + 1)
+      materi: topic,
+      indikator: `${verb.charAt(0).toUpperCase() + verb.slice(1)} ${topic} melalui stimulus/kasus kontekstual tentang ${context} sesuai tujuan pembelajaran.`,
+      level: shape.level,
+      bentuk: shape.bentuk,
+      nomor: String(index + 1)
     };
-  });
+  };
+
+  const mapKisiRows = (rows, planData = rppData) => {
+    const expected = getExpectedAssessmentSequence(planData);
+    return expected.map((shape, i) => {
+      const k = rows?.[i] || {};
+      const level = cleanStr(k.level).toUpperCase();
+      const fallback = getDefaultKisiRow(shape, i, planData);
+      const finalLevel = shape.level || (["C1","C2","C3","C4","C5","C6"].includes(level) ? level : fallback.level);
+      const finalBentuk = shape.bentuk || normalizeBentuk(k.bentuk) || fallback.bentuk;
+      return {
+        id: Date.now() + 'k' + i,
+        materi: cleanStr(k.materi) || fallback.materi,
+        indikator: cleanStr(k.indikator) || fallback.indikator,
+        level: finalLevel,
+        bentuk: finalBentuk,
+        nomor: String(i + 1)
+      };
+    });
+  };
 
   const hasCompleteChoiceOptions = (text) => ["A","B","C","D"].every(l => new RegExp(`(^|\\n|\\s)${l}\\s*[\\).:-]`, "i").test(cleanStr(text)));
 
@@ -310,22 +400,59 @@ function App() {
     };
   };
 
-  const mapBankRows = (rows, kisi = rppData.kisiKisi) => (rows || []).map((b, i) => {
-    const form = kisi?.[i]?.bentuk || bentukSoalUrut[i] || "";
-    const split = splitChoiceOptionsFromSoal(b.soal, b.opsi, form);
+  const splitMatchingOptionsFromSoal = (soal, opsi) => {
+    const question = cleanStr(soal);
+    const options = cleanStr(opsi);
+    if (/(premis|kelompok\s*a|kolom\s*a).*(respon|kelompok\s*b|kolom\s*b)/is.test(options)) return { soal: question, opsi: options };
+    const match = question.match(/(?:^|\n)\s*((?:premis(?:\s*\/\s*kolom\s*a)?|kelompok\s*a|kolom\s*a)\s*:?\s*[\s\S]*)/i);
+    if (!match) return { soal: question, opsi: options };
+    return { soal: cleanStr(question.slice(0, match.index)), opsi: options || cleanStr(match[1]) };
+  };
+
+  const buildMatchingTemplate = (kisiRow, index) => {
+    const materi = cleanStr(kisiRow?.materi) || cleanStr(rppData.topik) || "materi";
+    const indikator = cleanStr(kisiRow?.indikator) || `indikator soal nomor ${index + 1}`;
+    return `Premis / Kolom A:\n1. Pernyataan tentang konsep utama ${materi}.\n2. Bukti/gejala yang harus dianalisis sesuai indikator.\n3. Dampak atau akibat dari proses pada ${materi}.\n4. Tindakan/kesimpulan yang tepat berdasarkan kasus.\n\nRespon / Kolom B:\nA. Konsep kunci yang sesuai dengan premis nomor 3.\nB. Bukti atau gejala yang sesuai dengan premis nomor 1.\nC. Dampak/akibat yang sesuai dengan premis nomor 4.\nD. Tindakan/kesimpulan yang sesuai dengan premis nomor 2.\n\nAcuan indikator: ${indikator}`;
+  };
+
+  const normalizeBankRowByKisi = (rawRow, kisiRow, index) => {
+    const b = rawRow || {};
+    const form = normalizeBentuk(kisiRow?.bentuk || bentukSoalUrut[index] || "");
+    let split = splitChoiceOptionsFromSoal(b.soal, b.opsi, form);
+    if (form === "Menjodohkan") split = splitMatchingOptionsFromSoal(split.soal, split.opsi);
+    const needsMatchingTemplate = form === "Menjodohkan" && (countMatchingParts(split.opsi).premis < 4 || countMatchingParts(split.opsi).respon < 4);
+    const fallbackSoal = `Bacalah stimulus kontekstual tentang ${cleanStr(kisiRow?.materi) || cleanStr(rppData.topik) || "materi"} berikut. Hubungkan setiap premis dengan respon yang paling tepat berdasarkan indikator: ${cleanStr(kisiRow?.indikator) || "indikator pembelajaran"}.`;
     return {
-      id: Date.now() + 'b' + i,
-      soal: split.soal,
-      opsi: split.opsi,
-      kunci: cleanStr(b.kunci)
+      id: Date.now() + 'b' + index,
+      soal: split.soal || fallbackSoal,
+      opsi: needsMatchingTemplate ? buildMatchingTemplate(kisiRow, index) : split.opsi,
+      kunci: cleanStr(b.kunci) || (needsMatchingTemplate ? "1-B, 2-D, 3-A, 4-C" : "")
     };
-  });
+  };
+
+  const mapBankRows = (rows, kisi = rppData.kisiKisi) => {
+    const total = kisi?.length || rows?.length || 0;
+    return Array.from({ length: total }).map((_, i) => normalizeBankRowByKisi(rows?.[i], kisi?.[i], i));
+  };
 
   const getBankRowForDisplay = (row, index) => {
     const form = rppData.kisiKisi[index]?.bentuk || bentukSoalUrut[index] || "";
-    const split = splitChoiceOptionsFromSoal(row.soal, row.opsi, form);
+    let split = splitChoiceOptionsFromSoal(row.soal, row.opsi, form);
+    if (normalizeBentuk(form) === "Menjodohkan") split = splitMatchingOptionsFromSoal(split.soal, split.opsi);
     return { ...row, soal: split.soal, opsi: split.opsi };
   };
+
+  useEffect(() => {
+    if (!rppData.bankSoal.length) return;
+    const normalizedRows = rppData.bankSoal.map((row, index) => {
+      const form = rppData.kisiKisi[index]?.bentuk || bentukSoalUrut[index] || "";
+      let split = splitChoiceOptionsFromSoal(row.soal, row.opsi, form);
+      if (normalizeBentuk(form) === "Menjodohkan") split = splitMatchingOptionsFromSoal(split.soal, split.opsi);
+      return { ...row, soal: split.soal, opsi: split.opsi };
+    });
+    const hasMovedOptions = normalizedRows.some((row, index) => row.soal !== rppData.bankSoal[index].soal || row.opsi !== rppData.bankSoal[index].opsi);
+    if (hasMovedOptions) setRppData(prev => ({ ...prev, bankSoal: normalizedRows }));
+  }, [rppData.bankSoal, rppData.kisiKisi]);
 
   const countMatchingParts = (text) => {
     const clean = cleanStr(text);
@@ -409,17 +536,23 @@ function App() {
     const kisi = data.kisiKisi || [];
     const bank = data.bankSoal || [];
     const rubrik = data.rubrikPenilaian || [];
-    const requiredForms = getBentukPenilaianList(kisi);
-    if (kisi.length < 10) warnings.push(`Kisi-kisi minimal 10 baris, saat ini ${kisi.length}.`);
+    const blueprint = getAssessmentBlueprint(data);
+    const expectedSequence = getExpectedAssessmentSequence(data);
+    const expectedTotal = expectedSequence.length;
+    const requiredForms = kisi.length ? getBentukPenilaianList(kisi) : [...new Set(blueprint.map(row => row.bentuk))];
+    if (kisi.length !== expectedTotal) warnings.push(`Kisi-kisi harus tepat ${expectedTotal} baris sesuai rencana jumlah soal, saat ini ${kisi.length}.`);
     const hotsCount = kisi.filter(k => ["C4","C5","C6"].includes(k.level)).length;
-    if (kisi.length >= 10 && hotsCount < 6) warnings.push(`Kisi-kisi perlu dominan C4-C6, saat ini baru ${hotsCount} indikator.`);
+    if (kisi.length >= expectedTotal && hotsCount < Math.ceil(expectedTotal * 0.6)) warnings.push(`Kisi-kisi perlu dominan C4-C6, saat ini baru ${hotsCount} indikator.`);
+    blueprint.forEach(plan => {
+      const matching = kisi.filter(k => normalizeBentuk(k.bentuk) === plan.bentuk && cleanStr(k.level).toUpperCase() === plan.level).length;
+      if (matching < plan.jumlah) warnings.push(`Rencana ${plan.bentuk} level ${plan.level} perlu ${plan.jumlah} soal, saat ini ${matching}.`);
+    });
     kisi.forEach((k, i) => {
       if (!["C1","C2","C3","C4","C5","C6"].includes(k.level)) warnings.push(`Kisi-kisi nomor ${i + 1}: level kognitif belum valid.`);
-      if (bentukSoalUrut[i] && normalizeBentuk(k.bentuk) !== bentukSoalUrut[i]) warnings.push(`Kisi-kisi nomor ${i + 1}: bentuk soal seharusnya ${bentukSoalUrut[i]}.`);
     });
-    if (bank.length < 10) warnings.push(`Bank soal minimal 10 butir, saat ini ${bank.length}.`);
+    if (bank.length !== expectedTotal) warnings.push(`Bank soal harus tepat ${expectedTotal} butir sesuai rencana jumlah soal, saat ini ${bank.length}.`);
     bank.forEach((b, i) => {
-      const bentuk = normalizeBentuk(kisi[i]?.bentuk);
+      const bentuk = normalizeBentuk(kisi[i]?.bentuk || expectedSequence[i]?.bentuk);
       const normalizedBankRow = splitChoiceOptionsFromSoal(b.soal, b.opsi, bentuk);
       const opsi = cleanStr(normalizedBankRow.opsi);
       const kunci = cleanStr(b.kunci).toUpperCase();
@@ -436,6 +569,8 @@ function App() {
         if (/1\s*[-=]\s*A.*2\s*[-=]\s*B.*3\s*[-=]\s*C.*4\s*[-=]\s*D/is.test(b.kunci)) warnings.push(`Soal ${i + 1}: pasangan menjodohkan masih terlalu berurutan, acak posisi respon agar tidak mudah ditebak.`);
       }
       if (bentuk === "Uraian" && !/(pedoman|rubrik|kriteria|jawaban)/i.test(opsi)) warnings.push(`Soal ${i + 1}: uraian perlu pedoman jawaban/rubrik ringkas.`);
+      if (bentuk === "Isian Singkat" && !cleanStr(b.kunci)) warnings.push(`Soal ${i + 1}: isian singkat perlu kunci jawaban singkat yang pasti.`);
+      if ((bentuk === "Praktik" || bentuk === "Proyek") && !/(rambu|pedoman|langkah|produk|kinerja|kriteria|rubrik)/i.test(opsi)) warnings.push(`Soal ${i + 1}: ${bentuk} perlu rambu/pedoman pengerjaan di kolom pedoman jawab.`);
     });
     requiredForms.forEach(form => {
       if (!rubrik.some(r => normalizeBentuk(r.bentukPenilaian) === form)) warnings.push(`Rubrik belum memuat bentuk penilaian: ${form}.`);
@@ -473,75 +608,76 @@ function App() {
     throw lastError; 
   };
 
+  const stableGenerationConfig = (extra = {}) => ({
+    candidateCount: 1,
+    temperature: 0.22,
+    topP: 0.86,
+    ...extra
+  });
+
   const handleGenerateAI = async () => {
     if (!rppData.topik || !rppData.mapel || !rppData.kelas) {
       notify("Data Belum Lengkap", "Mohon isi Mata Pelajaran, Fase/Kelas, dan Topik Pembelajaran terlebih dahulu.", "warning");
       return;
     }
     setIsGenerating(true);
-    setCountdown(15); 
+    setActiveGenerateMode("modul");
+    setCountdown(12);
 
-    const prompt = `Anda adalah Ahli Kurikulum Nasional dan Pakar Pembelajaran Mendalam. Buat Modul Ajar/RPP yang SANGAT DETAIL, terstruktur, langsung pada poin-poinnya (TANPA BASA-BASI).
-Konteks: Targetkan siswa tingkat SMP (Mayoritas dari keluarga petani & buruh). Gunakan pendekatan konstekstual, pedesaan, atau industri yang relevan.
+    const prompt = `Anda adalah ahli kurikulum dan Pembelajaran Mendalam. Tugas Anda HANYA menyusun Modul Ajar/RPM, bukan menyusun kisi-kisi, bank soal, atau rubrik lampiran.
 
-Data Guru Saat Ini: 
+ATURAN TETAP KURIKULER:
+1. Ikuti alur CP -> analisis materi -> kompetensi awal -> TP -> pengalaman memahami, mengaplikasi, merefleksi -> asesmen awal, proses, akhir -> refleksi guru.
+2. CP harus formal sesuai mapel dan fase. Jangan mengubah CP menjadi tujuan harian. Jika mapel IPA Fase D, CP harus bernuansa elemen Pemahaman IPA dan Keterampilan Proses, lalu dikaitkan dengan topik tanpa keluar dari CP resmi.
+3. Tujuan Pembelajaran WAJIB minimal 3 butir bernomor, memakai kata kerja operasional terukur, dan jelas menurunkan CP ke topik.
+4. Kompetensi awal harus berupa prasyarat materi yang spesifik, bukan teks generik. Awali tiap poin dengan kemampuan prasyarat konkret.
+5. Kesiapan peserta didik wajib membedakan kognitif, motivasi, kebiasaan belajar, dan kebutuhan dukungan.
+6. Karakteristik materi wajib menjelaskan sifat faktual, konseptual, prosedural, kontekstual, dan/atau lintas disiplin.
+7. Profil lulusan dan KSE wajib tampak sebagai konsekuensi nyata dalam kegiatan, asesmen, atau refleksi.
+8. Aktivitas kelas harus kaya, operasional, dan dapat dipraktikkan guru: kegiatan awal minimal 5 langkah; kegiatan inti minimal 7 langkah; kegiatan penutup minimal 4 langkah.
+9. Target kognitif Memahami, Mengaplikasi, dan Merefleksi masing-masing minimal 3 poin yang menunjukkan proses berpikir siswa, bukan sekadar aktivitas fisik.
+10. Asesmen awal, proses, dan akhir masing-masing harus memuat teknik, bukti yang dikumpulkan, cara guru membaca hasil, dan tindak lanjut.
+
+KONTEKS KELAS DAN GURU:
 - Mapel: ${rppData.mapel}
-- Kelas: ${rppData.kelas}
+- Fase/Kelas: ${rppData.kelas}
 - Topik: ${rppData.topik}
-- Capaian Pembelajaran (JIKA ADA): ${rppData.cp || 'Belum dirumuskan'}
-- Analisis/Karakteristik Materi (JIKA ADA): ${rppData.karakteristikMateri || 'Belum dirumuskan'}
-- Tujuan Pembelajaran (JIKA ADA): ${rppData.tp || 'Belum dirumuskan'}
-- Kompetensi Awal (JIKA ADA): ${rppData.kompetensiAwal || 'Belum dirumuskan'}
-- Kesiapan Peserta Didik (JIKA ADA): ${rppData.kesiapanSiswa || 'Belum dirumuskan'}
-- Situasi Nyata Lingkungan Siswa (JIKA ADA): ${rppData.situasiNyataSiswa || 'Belum dirumuskan'}
-- Profil Lulusan Dipilih: ${Object.keys(rppData.profilLulusan).filter(k => rppData.profilLulusan[k]).map(k => profilLabels[k]).join(', ') || 'Belum dipilih'}
-- Alasan Profil Lulusan: ${rppData.profilAlasan || 'Belum dirumuskan'}
-- KSE Dipilih: ${Object.keys(rppData.kseLulusan).filter(k => rppData.kseLulusan[k]).map(k => kseLabels[k]).join(', ') || 'Belum dipilih'}
+- CP saat ini: ${rppData.cp || 'Belum dirumuskan'}
+- Analisis materi saat ini: ${rppData.karakteristikMateri || 'Belum dirumuskan'}
+- Tujuan Pembelajaran saat ini: ${rppData.tp || 'Belum dirumuskan'}
+- Kompetensi awal saat ini: ${rppData.kompetensiAwal || 'Belum dirumuskan'}
+- Kesiapan peserta didik saat ini: ${rppData.kesiapanSiswa || 'Belum dirumuskan'}
+- Situasi nyata lingkungan siswa: ${rppData.situasiNyataSiswa || 'Belum dirumuskan'}
+- Profil lulusan dipilih: ${Object.keys(rppData.profilLulusan).filter(k => rppData.profilLulusan[k]).map(k => profilLabels[k]).join(', ') || 'Belum dipilih'}
+- Alasan profil lulusan: ${rppData.profilAlasan || 'Belum dirumuskan'}
+- KSE dipilih: ${Object.keys(rppData.kseLulusan).filter(k => rppData.kseLulusan[k]).map(k => kseLabels[k]).join(', ') || 'Belum dipilih'}
 - Alasan KSE: ${rppData.kseAlasan || 'Belum dirumuskan'}
+${instruksiKhusus ? `- Instruksi khusus guru: ${instruksiKhusus}` : ''}
 
-${instruksiKhusus ? `\n🔥 INSTRUKSI KHUSUS GURU: ${instruksiKhusus}\n` : ''}
-
-ATURAN KETAT KONSISTENSI & FORMAT:
-1. SINKRONISASI AKTIVITAS: Kegiatan Inti, TP, dan Asesmen selaras satu sama lain dan patuh mengikuti Instruksi Khusus di atas.
-1a. Kompetensi Awal harus berupa prasyarat materi/topik yang spesifik. Kesiapan Peserta Didik wajib membedakan aspek kognitif, motivasi, kebiasaan belajar, dan kebutuhan dukungan. Karakteristik Materi wajib menjelaskan sifat faktual, konseptual, prosedural, kontekstual, dan/atau lintas disiplin.
-1b. Gunakan Situasi Nyata Lingkungan Siswa sebagai konteks utama agar pembelajaran bermakna, dekat dengan kehidupan siswa, dan tidak generik.
-2. KISI-KISI, BANK SOAL, DAN RUBRIK tetap boleh memakai konteks instruksi guru, tetapi validitas asesmen lebih utama: **bankSoal WAJIB 100% PATUH & SINKRON dengan indikator di kisiKisi**, dan **rubrikPenilaian WAJIB mengikuti bentuk penilaian yang muncul di kisiKisi**.
-3. Isian Teks: WAJIB dijabarkan dengan penomoran (1., 2.) atau bullet (-). Gunakan 1 kali enter (\\n) untuk baris baru.
-4. **kisiKisi**: WAJIB MINIMAL 10 Indikator. Kolom 'level' HANYA isi dengan: C1, C2, C3, C4, C5, C6. Minimal 6 indikator berada pada C4-C6; C1-C3 hanya untuk prasyarat pemahaman. Untuk 10 soal utama, kolom 'bentuk' WAJIB URUT: PG, PG, PG Kompleks, PG Kompleks, Menjodohkan, Menjodohkan, Isian Singkat, Isian Singkat, Uraian, Uraian. Boleh menambah Praktik/Proyek sebagai evidensi otentik tambahan bila TP membutuhkan.
-5. **bankSoal**: WAJIB MINIMAL 10 SOAL HOTS dan/atau mendukung LITERASI-NUMERASI (SINKRON DENGAN KISI-KISI). Setiap soal wajib punya stimulus berupa teks pendek, data, tabel sederhana, grafik/deskripsi angka, kasus nyata, atau informasi kontekstual sebelum pertanyaan. Hindari soal hafalan murni. Jika kisi-kisi memuat Praktik/Proyek, tambahkan butir tugas Praktik/Proyek setelah 10 soal utama; kolom soal berisi perintah kinerja/proyek, kolom opsi berisi rambu/pedoman pengerjaan, dan kunci diisi "-".
-   - PG Biasa: Opsi A, B, C, D (dipisah 1 \\n). Kunci hanya 1 huruf.
-   - PG Kompleks: Opsi A, B, C, D (dipisah 1 \\n). WAJIB TEPAT 2 OPSI JAWABAN BENAR. Kunci diisi dengan 2 huruf (contoh: A dan C).
-   - MENJODOHKAN: DILARANG menjadikannya Pilihan Ganda. Di kolom opsi, buat 2 lajur dengan MINIMAL 4 Premis dan 4 Respon (Contoh: "Premis: 1..., 2..., 3..., 4... | Respon: A..., B..., C..., D..."). Kunci minimal 4 pasangan (contoh: 1-A, 2-C, 3-B, 4-D).
-   - Uraian: kolom opsi WAJIB diisi PEDOMAN JAWABAN (rubrik ringkas), kunci diisi "-".
-6. **rubrikPenilaian**: WAJIB membuat 1 rubrik untuk SETIAP bentuk unik pada kisiKisi. Aturan skor: PG 1/0; PG Kompleks 2 bila tepat 2 benar dan 0 bila ada satu saja salah/kurang/lebih; Menjodohkan minimal 4 pasangan dengan skor 0-4; Isian Singkat 2/1/0; Uraian 0-5; Praktik/Proyek disesuaikan indikator.
-7. Profil lulusan dan KSE wajib tampak sebagai konsekuensi dalam kegiatan belajar, asesmen, atau refleksi; jangan hanya mencentang dimensi.
-
-Keluarkan format JSON murni.`;
+FORMAT OUTPUT:
+Keluarkan JSON murni. Semua field wajib terisi, spesifik untuk mapel/kelas/topik, berupa 2-5 poin bernomor atau bullet, memakai newline (\\n), tanpa basa-basi. Jangan keluarkan field kisiKisi, bankSoal, atau rubrikPenilaian.`;
 
     const payload = {
       contents: [{ parts: [{ text: prompt }] }],
-      systemInstruction: { parts: [{ text: "Keluarkan JSON murni tanpa markdown pembuka. Selaraskan CP, TP, kegiatan, asesmen, kisi-kisi, bank soal, dan rubrik. Soal wajib berbasis stimulus HOTS/literasi/numerasi, bukan hafalan murni. Patuhi urutan kisi-kisi, PG Kompleks tepat 2 jawaban, dan rubrik wajib mengikuti setiap bentuk penilaian unik di kisi-kisi." }] },
-      generationConfig: {
+      systemInstruction: { parts: [{ text: "Keluarkan JSON murni tanpa markdown. Fokus hanya pada Modul Ajar/RPM. Selaraskan CP, TP, kegiatan, pengalaman belajar, asesmen kelas, profil lulusan, dan KSE." }] },
+      generationConfig: stableGenerationConfig({
         responseMimeType: "application/json",
         responseSchema: {
           type: "OBJECT",
           properties: {
             kompetensiAwal: { type: "STRING" }, kesiapanSiswa: { type: "STRING" }, karakteristikMateri: { type: "STRING" }, situasiNyataSiswa: { type: "STRING" },
-            profilLulusan: { type: "ARRAY", items: { type: "STRING" }, description: "Pilih array key yang relevan HANYA dari: keimanan, kewargaan, penalaran, kreativitas, kolaborasi, kemandirian, kesehatan, komunikasi" }, 
+            profilLulusan: { type: "ARRAY", items: { type: "STRING" }, description: "Pilih array key yang relevan HANYA dari: keimanan, kewargaan, penalaran, kreativitas, kolaborasi, kemandirian, kesehatan, komunikasi" },
             kseLulusan: { type: "ARRAY", items: { type: "STRING" }, description: "Pilih array key yang relevan HANYA dari: kesadaranDiri, manajemenDiri, kesadaranSosial, keterampilanBerelasi, keputusanBertanggungJawab" },
             profilAlasan: { type: "STRING" }, kseAlasan: { type: "STRING" },
             praktikPedagogis: { type: "STRING" }, cp: { type: "STRING" }, lintasDisiplin: { type: "STRING" }, tp: { type: "STRING" },
             kemitraanPembelajaran: { type: "STRING" }, lingkunganPembelajaran: { type: "STRING" }, pemanfaatanDigital: { type: "STRING" },
             kegiatanAwal: { type: "STRING" }, pengalamanMemahami: { type: "STRING" }, asesmenAwal: { type: "STRING" },
             kegiatanInti: { type: "STRING" }, pengalamanMengaplikasi: { type: "STRING" }, asesmenProses: { type: "STRING" },
-            kegiatanPenutup: { type: "STRING" }, pengalamanMerefleksi: { type: "STRING" }, asesmenAkhir: { type: "STRING" },
-            kisiKisi: { type: "ARRAY", items: { type: "OBJECT", properties: { materi: { type: "STRING" }, indikator: { type: "STRING" }, level: { type: "STRING", description: "Hanya isi dengan: C1, C2, C3, C4, C5, C6" }, bentuk: { type: "STRING", description: "Hanya isi dengan: PG, PG Kompleks, Menjodohkan, Isian Singkat, Uraian, Praktik, Proyek" }, nomor: { type: "STRING" } }, required: ["materi","indikator","level","bentuk","nomor"] } },
-            bankSoal: { type: "ARRAY", items: { type: "OBJECT", properties: { soal: { type: "STRING" }, opsi: { type: "STRING" }, kunci: { type: "STRING" } }, required: ["soal","opsi","kunci"] } },
-            rubrikPenilaian: { type: "ARRAY", items: { type: "OBJECT", properties: { bentukPenilaian: { type: "STRING" }, skor: { type: "STRING" }, kriteria: { type: "STRING" } }, required: ["bentukPenilaian","skor","kriteria"] } }
+            kegiatanPenutup: { type: "STRING" }, pengalamanMerefleksi: { type: "STRING" }, asesmenAkhir: { type: "STRING" }
           },
-          required: ["kompetensiAwal","kesiapanSiswa","karakteristikMateri","situasiNyataSiswa","profilLulusan","kseLulusan","profilAlasan","kseAlasan","praktikPedagogis","cp","lintasDisiplin","tp","kemitraanPembelajaran","lingkunganPembelajaran","pemanfaatanDigital","kegiatanAwal","pengalamanMemahami","asesmenAwal","kegiatanInti","pengalamanMengaplikasi","asesmenProses","kegiatanPenutup","pengalamanMerefleksi","asesmenAkhir","kisiKisi","bankSoal","rubrikPenilaian"]
+          required: ["kompetensiAwal","kesiapanSiswa","karakteristikMateri","situasiNyataSiswa","profilLulusan","kseLulusan","profilAlasan","kseAlasan","praktikPedagogis","cp","lintasDisiplin","tp","kemitraanPembelajaran","lingkunganPembelajaran","pemanfaatanDigital","kegiatanAwal","pengalamanMemahami","asesmenAwal","kegiatanInti","pengalamanMengaplikasi","asesmenProses","kegiatanPenutup","pengalamanMerefleksi","asesmenAkhir"]
         }
-      }
+      })
     };
 
     try {
@@ -550,16 +686,12 @@ Keluarkan format JSON murni.`;
       if (!aiText) throw new Error("Respons AI kosong atau tidak berisi JSON, sehingga kolom tidak dapat diperbarui.");
       aiText = aiText.replace(/```json/gi, '').replace(/```/g, '').trim();
       const aiData = JSON.parse(aiText);
-
       const newProfil = { ...rppData.profilLulusan };
       if (aiData.profilLulusan) aiData.profilLulusan.forEach(k => { const sk = k.trim(); if(newProfil[sk] !== undefined) newProfil[sk] = true; });
       const newKse = { ...rppData.kseLulusan };
       if (aiData.kseLulusan) aiData.kseLulusan.forEach(k => { const sk = k.trim(); if(newKse[sk] !== undefined) newKse[sk] = true; });
-      const generatedKisi = aiData.kisiKisi ? mapKisiRows(aiData.kisiKisi) : rppData.kisiKisi;
-      const generatedBank = aiData.bankSoal ? mapBankRows(aiData.bankSoal, generatedKisi) : rppData.bankSoal;
-      const generatedRubrik = aiData.rubrikPenilaian ? mapRubrikByKisi(aiData.rubrikPenilaian, generatedKisi) : rppData.rubrikPenilaian;
 
-      saveAiSnapshot("Generate semua modul");
+      saveAiSnapshot("Generate Modul Ajar PM");
       setRppData(prev => ({
         ...prev,
         kompetensiAwal: cleanStr(aiData.kompetensiAwal) || prev.kompetensiAwal, kesiapanSiswa: cleanStr(aiData.kesiapanSiswa) || prev.kesiapanSiswa, karakteristikMateri: cleanStr(aiData.karakteristikMateri) || prev.karakteristikMateri, situasiNyataSiswa: cleanStr(aiData.situasiNyataSiswa) || prev.situasiNyataSiswa,
@@ -568,22 +700,94 @@ Keluarkan format JSON murni.`;
         kemitraanPembelajaran: cleanStr(aiData.kemitraanPembelajaran) || prev.kemitraanPembelajaran, lingkunganPembelajaran: cleanStr(aiData.lingkunganPembelajaran) || prev.lingkunganPembelajaran, pemanfaatanDigital: cleanStr(aiData.pemanfaatanDigital) || prev.pemanfaatanDigital,
         kegiatanAwal: cleanStr(aiData.kegiatanAwal) || prev.kegiatanAwal, pengalamanMemahami: cleanStr(aiData.pengalamanMemahami) || prev.pengalamanMemahami, asesmenAwal: cleanStr(aiData.asesmenAwal) || prev.asesmenAwal,
         kegiatanInti: cleanStr(aiData.kegiatanInti) || prev.kegiatanInti, pengalamanMengaplikasi: cleanStr(aiData.pengalamanMengaplikasi) || prev.pengalamanMengaplikasi, asesmenProses: cleanStr(aiData.asesmenProses) || prev.asesmenProses,
-        kegiatanPenutup: cleanStr(aiData.kegiatanPenutup) || prev.kegiatanPenutup, pengalamanMerefleksi: cleanStr(aiData.pengalamanMerefleksi) || prev.pengalamanMerefleksi, asesmenAkhir: cleanStr(aiData.asesmenAkhir) || prev.asesmenAkhir,
-        kisiKisi: (aiData.kisiKisi && aiData.kisiKisi.length > 0) ? generatedKisi : prev.kisiKisi,
-        bankSoal: (aiData.bankSoal && aiData.bankSoal.length > 0) ? generatedBank : prev.bankSoal,
-        rubrikPenilaian: (aiData.rubrikPenilaian && aiData.rubrikPenilaian.length > 0) ? generatedRubrik : prev.rubrikPenilaian,
+        kegiatanPenutup: cleanStr(aiData.kegiatanPenutup) || prev.kegiatanPenutup, pengalamanMerefleksi: cleanStr(aiData.pengalamanMerefleksi) || prev.pengalamanMerefleksi, asesmenAkhir: cleanStr(aiData.asesmenAkhir) || prev.asesmenAkhir
       }));
-      const warnings = validateAssessmentStructure({
-        ...rppData,
-        kisiKisi: generatedKisi,
-        bankSoal: generatedBank,
-        rubrikPenilaian: generatedRubrik
-      });
-      if (warnings.length) notify("Catatan Validasi Hasil AI", "- " + warnings.slice(0, 10).join("\n- "), "warning");
+      notify("Modul Ajar PM Selesai", "Modul Ajar/RPM sudah digenerate. Lampiran instrumen penilaian tetap dipisahkan agar prompt asesmen lebih fokus.", "success");
     } catch (error) {
       if (!hasActiveApiKey() || error.message.toLowerCase().includes("api key") || error.message.includes("API_KEY_INVALID")) { setTempApiKey(geminiApiKey); setShowApiModal(true); }
-      else notify("Generate Belum Berhasil", "Terjadi kendala saat Generate. Silakan coba lagi.\n\nDetail: " + error.message, "error");
-    } finally { setIsGenerating(false); }
+      else notify("Generate Belum Berhasil", "Terjadi kendala saat Generate Modul Ajar. Silakan coba lagi.\n\nDetail: " + error.message, "error");
+    } finally { setIsGenerating(false); setActiveGenerateMode(""); }
+  };
+
+  const handleGenerateAssessmentAI = async () => {
+    if (!rppData.topik || !rppData.mapel || !rppData.kelas) {
+      notify("Data Belum Lengkap", "Mohon isi Mata Pelajaran, Fase/Kelas, dan Topik Pembelajaran terlebih dahulu.", "warning");
+      return;
+    }
+    setIsGenerating(true);
+    setActiveGenerateMode("asesmen");
+    setCountdown(15);
+    const expectedTotal = getExpectedAssessmentSequence().length;
+
+    const prompt = `Anda adalah ahli asesmen Pembelajaran Mendalam. Tugas Anda HANYA menyusun Instrumen Penilaian: kisi-kisi, bank soal, dan rubrik. Jangan menulis ulang Modul Ajar/RPM.
+
+ATURAN TETAP ASESMEN:
+1. Kisi-kisi harus menurunkan CP dan TP secara logis.
+2. Kisi-kisi WAJIB mengikuti Rencana Jumlah Soal secara berurutan dan tepat: jumlah, bentuk, level kognitif, dan nomor soal tidak boleh berubah.
+3. Bank soal wajib 100% mengikuti kisi-kisi: nomor, bentuk, level kognitif, materi, dan indikator.
+4. Setiap soal wajib memiliki stimulus HOTS/literasi-numerasi yang jelas: minimal 2 kalimat berisi teks/kasus/data/tabel sederhana/grafik tertulis/deskripsi angka/konteks lokal. Jangan membuat stimulus satu kalimat pendek.
+5. Kolom soal HANYA berisi stimulus dan pertanyaan/perintah. Jangan menaruh opsi A-D, premis-respon, atau pedoman jawaban di kolom soal.
+6. Kolom opsi/pedoman jawab wajib berisi pilihan jawaban untuk PG/PG Kompleks, premis-respon untuk Menjodohkan, pedoman jawaban untuk Isian/Uraian, dan rambu pengerjaan untuk Praktik/Proyek.
+7. PG Kompleks wajib tepat 2 jawaban benar. Menjodohkan wajib memakai format persis di kolom opsi: "Premis / Kolom A:" berisi 1-4 dan "Respon / Kolom B:" berisi A-D. Kunci minimal 4 pasangan dan tidak urut 1-A, 2-B, 3-C, 4-D.
+8. Untuk Praktik/Proyek, kolom soal berisi tugas kinerja/proyek berbasis konteks, kolom opsi berisi rambu pengerjaan/produk/bukti, dan kunci berisi "-".
+9. Rubrik wajib 1 baris untuk setiap bentuk penilaian unik yang muncul di kisi-kisi.
+
+KONTEKS MODUL:
+- Mapel: ${rppData.mapel}
+- Fase/Kelas: ${rppData.kelas}
+- Topik: ${rppData.topik}
+- CP: ${rppData.cp || '-'}
+- TP: ${rppData.tp || '-'}
+- Materi esensial: ${rppData.karakteristikMateri || '-'}
+- Kompetensi awal: ${rppData.kompetensiAwal || '-'}
+- Situasi nyata siswa: ${rppData.situasiNyataSiswa || '-'}
+- Kegiatan inti: ${rppData.kegiatanInti || '-'}
+- Asesmen awal/proses/akhir: ${[rppData.asesmenAwal, rppData.asesmenProses, rppData.asesmenAkhir].filter(Boolean).join(' | ') || '-'}
+- Instruksi khusus guru sebagai konteks: ${instruksiKhusus || '-'}
+
+RENCANA JUMLAH SOAL:
+${getAssessmentPlanText()}
+Total wajib: tepat ${expectedTotal} butir kisi-kisi dan tepat ${expectedTotal} butir bank soal.
+
+FORMAT OUTPUT:
+Keluarkan JSON murni dengan field kisiKisi, bankSoal, rubrikPenilaian. Jangan menambah narasi di luar JSON.`;
+
+    const assessmentSchema = {
+      type: "OBJECT",
+      properties: {
+        kisiKisi: { type: "ARRAY", items: { type: "OBJECT", properties: { materi: { type: "STRING" }, indikator: { type: "STRING" }, level: { type: "STRING", description: "Hanya isi dengan: C1, C2, C3, C4, C5, C6" }, bentuk: { type: "STRING", description: "Hanya isi dengan: PG, PG Kompleks, Menjodohkan, Isian Singkat, Uraian, Praktik, Proyek" }, nomor: { type: "STRING" } }, required: ["materi","indikator","level","bentuk","nomor"] } },
+        bankSoal: { type: "ARRAY", items: { type: "OBJECT", properties: { soal: { type: "STRING" }, opsi: { type: "STRING" }, kunci: { type: "STRING" } }, required: ["soal","opsi","kunci"] } },
+        rubrikPenilaian: { type: "ARRAY", items: { type: "OBJECT", properties: { bentukPenilaian: { type: "STRING" }, skor: { type: "STRING" }, kriteria: { type: "STRING" } }, required: ["bentukPenilaian","skor","kriteria"] } }
+      },
+      required: ["kisiKisi","bankSoal","rubrikPenilaian"]
+    };
+
+    const payload = {
+      contents: [{ parts: [{ text: prompt }] }],
+      systemInstruction: { parts: [{ text: "Keluarkan JSON murni tanpa markdown. Fokus hanya pada instrumen penilaian. Bank soal wajib berbasis stimulus, opsi/pedoman jawab terpisah dari soal, dan rubrik mengikuti bentuk unik di kisi-kisi." }] },
+      generationConfig: stableGenerationConfig({ responseMimeType: "application/json", responseSchema: assessmentSchema })
+    };
+
+    try {
+      const result = await callGeminiAPI(payload);
+      let aiText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      if (!aiText) throw new Error("Respons AI kosong atau tidak berisi JSON instrumen.");
+      aiText = aiText.replace(/```json/gi, '').replace(/```/g, '').trim();
+      const aiData = JSON.parse(aiText);
+      const generatedKisi = mapKisiRows(aiData.kisiKisi || [], rppData);
+      const generatedBank = mapBankRows(aiData.bankSoal || [], generatedKisi);
+      const generatedRubrik = mapRubrikByKisi(aiData.rubrikPenilaian || [], generatedKisi);
+      if (generatedKisi.length < expectedTotal || generatedBank.length < expectedTotal) throw new Error(`Instrumen belum memenuhi total minimal ${expectedTotal} butir. Silakan generate ulang.`);
+
+      saveAiSnapshot("Generate Instrumen Penilaian");
+      setRppData(prev => ({ ...prev, kisiKisi: generatedKisi, bankSoal: generatedBank, rubrikPenilaian: generatedRubrik }));
+      const warnings = validateAssessmentStructure({ ...rppData, kisiKisi: generatedKisi, bankSoal: generatedBank, rubrikPenilaian: generatedRubrik });
+      if (warnings.length) notify("Catatan Validasi Instrumen", "- " + warnings.slice(0, 10).join("\n- "), "warning");
+      else notify("Instrumen Penilaian Selesai", "Kisi-kisi, bank soal, dan rubrik sudah digenerate sesuai rencana jumlah soal.", "success");
+    } catch (error) {
+      if (!hasActiveApiKey() || error.message.toLowerCase().includes("api key") || error.message.includes("API_KEY_INVALID")) { setTempApiKey(geminiApiKey); setShowApiModal(true); }
+      else notify("Generate Instrumen Belum Berhasil", "Sistem AI belum berhasil menyusun instrumen penilaian.\n\nDetail: " + error.message, "error");
+    } finally { setIsGenerating(false); setActiveGenerateMode(""); }
   };
 
   const handleRegenerateSpecific = async (fieldKey, fieldTitle, type = 'string') => {
@@ -593,6 +797,7 @@ Keluarkan format JSON murni.`;
     }
     setIndividualLoading(prev => ({...prev, [fieldKey]: true}));
     setCountdown(8);
+    const expectedAssessmentTotal = Math.max(rppData.kisiKisi.length, getExpectedAssessmentSequence().length);
 
     let sequentialContext = `Konteks Saat Ini:\n- Mapel: ${rppData.mapel}\n- Fase/Kelas: ${rppData.kelas || '-'}\n- Topik: ${rppData.topik}\n- CP: ${rppData.cp || '-'}\n- Analisis Materi: ${rppData.karakteristikMateri || '-'}\n- Situasi Nyata Siswa: ${rppData.situasiNyataSiswa || '-'}\n- Kompetensi Awal: ${rppData.kompetensiAwal || '-'}\n- TP: ${rppData.tp || '-'}\n- Profil Lulusan: ${Object.keys(rppData.profilLulusan).filter(k => rppData.profilLulusan[k]).map(k => profilLabels[k]).join(', ') || '-'}\n- Alasan Profil: ${rppData.profilAlasan || '-'}\n- KSE: ${Object.keys(rppData.kseLulusan).filter(k => rppData.kseLulusan[k]).map(k => kseLabels[k]).join(', ') || '-'}\n- Alasan KSE: ${rppData.kseAlasan || '-'}\n- Kegiatan Awal: ${rppData.kegiatanAwal || '-'}\n- Kegiatan Inti: ${rppData.kegiatanInti || '-'}\n- Asesmen: ${[rppData.asesmenAwal, rppData.asesmenProses, rppData.asesmenAkhir].filter(Boolean).join(' | ') || '-'}\n`;
     let fieldSpecificInstruction = "Jabarkan dengan penomoran/bullet point (1., 2., atau -). Jaga sinkronisasi dengan CP, analisis materi, kompetensi awal, TP, kegiatan, asesmen, dan rubrik.";
@@ -602,21 +807,32 @@ Keluarkan format JSON murni.`;
         fieldSpecificInstruction += `\n🔥 PENTING (INSTRUKSI KHUSUS): ${instruksiKhusus}`; 
     }
 
-    if (fieldKey === 'kegiatanInti') { sequentialContext += `Kegiatan Pendahuluan Sebelumnya: ${rppData.kegiatanAwal}\n`; fieldSpecificInstruction += "\nLanjutkan alur secara logis dari Pendahuluan. Jabarkan aktivitas guru & siswa. DILARANG ADA BASA-BASI PEMBUKA."; }
-    else if (fieldKey === 'kegiatanPenutup') { sequentialContext += `Kegiatan Inti Sebelumnya: ${rppData.kegiatanInti}\n`; fieldSpecificInstruction += "\nGiring siswa melakukan refleksi berdasarkan Kegiatan Inti di atas."; }
-    else if (fieldKey === 'kisiKisi') { fieldSpecificInstruction += "\nWAJIB MINIMAL 10 BARIS. Kolom 'level' HANYA isi dengan: C1-C6 dan minimal 6 indikator C4-C6. Untuk 10 soal utama, kolom 'bentuk' WAJIB URUT: PG, PG, PG Kompleks, PG Kompleks, Menjodohkan, Menjodohkan, Isian Singkat, Isian Singkat, Uraian, Uraian. Boleh menambah Praktik/Proyek sebagai evidensi otentik tambahan bila relevan."; }
-    else if (fieldKey === 'bankSoal') { const stringKisi = rppData.kisiKisi.map(k => `No.${k.nomor} (Level: ${k.level}, Bentuk: ${k.bentuk}): ${k.indikator}`).join(' | '); sequentialContext += `KISI-KISI SEBAGAI ACUAN MUTLAK:\n[ ${stringKisi || 'Acak'} ]\n`; fieldSpecificInstruction += `\nWAJIB MINIMAL 10 SOAL HOTS dan/atau LITERASI-NUMERASI. BERIKAN STIMULUS berupa cerita, data, tabel sederhana, deskripsi angka, grafik tertulis, atau kasus nyata sebelum pertanyaan. WAJIB 100% SINKRON DENGAN KISI-KISI DI ATAS dan hindari hafalan murni. \nKHUSUS PG Kompleks: Opsi A, B, C, D dan WAJIB TEPAT 2 OPSI BENAR (Kunci: contoh A dan C). \nKHUSUS MENJODOHKAN: BUKAN pilihan ganda. Buat Kelompok A/Premis minimal 4 nomor dan Kelompok B/Respon minimal 4 huruf. Kunci minimal 4 pasangan, contoh: 1-A, 2-C, 3-B, 4-D.\nKHUSUS PRAKTIK/PROYEK: jika ada di kisi-kisi, tambahkan sebagai butir tugas setelah 10 soal utama. Kolom soal berisi perintah tugas kinerja/proyek yang dapat dikerjakan siswa; kolom opsi berisi rambu/pedoman pengerjaan; kunci diisi "-".\nPENTING: Abaikan instruksi khusus konteks, prioritaskan kepatuhan mutlak pada kisi-kisi, HOTS, literasi, numerasi, dan evidensi Praktik/Proyek.`; }
+    if (fieldKey === 'cp') { fieldSpecificInstruction += "\nRumuskan CP formal sesuai mapel dan fase. Jangan menjadi tujuan harian. Untuk IPA Fase D, jaga nuansa elemen Pemahaman IPA dan Keterampilan Proses, lalu kaitkan dengan topik secara wajar."; }
+    else if (fieldKey === 'tp') { fieldSpecificInstruction += "\nBuat minimal 3 Tujuan Pembelajaran bernomor. Setiap TP harus menurunkan CP, memakai kata kerja operasional terukur, menyebut konteks/topik, dan dapat diukur asesmen."; }
+    else if (fieldKey === 'kompetensiAwal') { fieldSpecificInstruction += "\nTulis prasyarat materi secara eksplisit. Hindari teks generik. Setiap poin harus berupa kemampuan awal yang perlu dimiliki siswa sebelum mempelajari topik."; }
+    else if (fieldKey === 'kesiapanSiswa') { fieldSpecificInstruction += "\nPisahkan aspek: Kognitif, Motivasi, Kebiasaan Belajar, dan Kebutuhan Dukungan. Berikan konteks kelas SMP yang realistis."; }
+    else if (fieldKey === 'kegiatanAwal') { fieldSpecificInstruction += "\nBuat minimal 5 langkah operasional untuk memantik kesadaran belajar, tujuan, motivasi intrinsik, aktivasi pengetahuan awal, dan koneksi konteks nyata."; }
+    else if (fieldKey === 'pengalamanMemahami') { fieldSpecificInstruction += "\nBuat minimal 3 poin proses berpikir siswa: aktivasi pengetahuan awal, eksplorasi konsep, pemeriksaan miskonsepsi, dan penguatan makna."; }
+    else if (fieldKey === 'asesmenAwal') { fieldSpecificInstruction += "\nJelaskan teknik diagnostik, prasyarat yang diukur, bukti jawaban/kinerja, cara guru membaca hasil, dan tindak lanjut diferensiasi."; }
+    else if (fieldKey === 'kegiatanInti') { sequentialContext += `Kegiatan Pendahuluan Sebelumnya: ${rppData.kegiatanAwal}\n`; fieldSpecificInstruction += "\nLanjutkan alur secara logis dari Pendahuluan. Buat minimal 7 langkah operasional guru-siswa yang melatih TP melalui kasus nyata, diskusi bukti/data, produk/kinerja, dan umpan balik. DILARANG ADA BASA-BASI PEMBUKA."; }
+    else if (fieldKey === 'pengalamanMengaplikasi') { fieldSpecificInstruction += "\nBuat minimal 3 poin transfer pengetahuan ke kasus baru, penggunaan data/bukti, produk/kinerja siswa, dan alasan pengambilan keputusan."; }
+    else if (fieldKey === 'asesmenProses') { fieldSpecificInstruction += "\nJelaskan teknik formatif saat proses berlangsung, bukti yang diamati, alat/catatan guru, umpan balik, dan tindak lanjut saat pembelajaran."; }
+    else if (fieldKey === 'pengalamanMerefleksi') { fieldSpecificInstruction += "\nBuat minimal 3 poin regulasi diri siswa: strategi belajar, bukti pemahaman, kesulitan, perbaikan, dan rencana belajar berikutnya."; }
+    else if (fieldKey === 'asesmenAkhir') { fieldSpecificInstruction += "\nJelaskan asesmen akhir yang mengukur TP secara holistik: bentuk, bukti belajar, kriteria keberhasilan, dan tindak lanjut hasil."; }
+    else if (fieldKey === 'kegiatanPenutup') { sequentialContext += `Kegiatan Inti Sebelumnya: ${rppData.kegiatanInti}\n`; fieldSpecificInstruction += "\nBuat minimal 4 langkah penutup: sintesis, refleksi strategi berpikir, umpan balik, tindak lanjut/remedial-pengayaan, dan koneksi pertemuan berikutnya."; }
+    else if (fieldKey === 'kisiKisi') { fieldSpecificInstruction += `\nWAJIB mengikuti rencana jumlah soal berikut: ${getAssessmentPlanText()}. Buat tepat ${expectedAssessmentTotal} baris. Kolom 'level' HANYA isi dengan: C1-C6 dan minimal 60% indikator C4-C6. Bentuk Praktik/Proyek boleh dipakai bila ada pada rencana asesmen atau TP membutuhkan evidensi otentik.`; }
+    else if (fieldKey === 'bankSoal') { const stringKisi = rppData.kisiKisi.map(k => `No.${k.nomor} (Level: ${k.level}, Bentuk: ${k.bentuk}): ${k.indikator}`).join(' | '); sequentialContext += `KISI-KISI SEBAGAI ACUAN MUTLAK:\n[ ${stringKisi || 'Acak'} ]\n`; fieldSpecificInstruction += `\nWAJIB membuat bank soal HOTS dan/atau LITERASI-NUMERASI sesuai semua baris kisi-kisi di atas. Kolom soal HANYA berisi stimulus minimal 2 kalimat dan pertanyaan/perintah; jangan menaruh opsi A-D, premis-respon, atau pedoman jawaban di kolom soal. Kolom opsi wajib berisi pilihan jawaban untuk PG/PG Kompleks, premis-respon untuk Menjodohkan, pedoman jawaban untuk Isian/Uraian, dan rambu pengerjaan untuk Praktik/Proyek.\nKHUSUS PG Kompleks: Opsi A, B, C, D dan WAJIB TEPAT 2 OPSI BENAR (Kunci: contoh A dan C).\nKHUSUS MENJODOHKAN: BUKAN pilihan ganda. Format kolom opsi wajib persis: "Premis / Kolom A:" berisi 1-4 dan "Respon / Kolom B:" berisi A-D. Kunci minimal 4 pasangan acak, contoh: 1-B, 2-D, 3-A, 4-C.\nPENTING: prioritaskan kepatuhan mutlak pada kisi-kisi, stimulus HOTS, literasi, numerasi, dan evidensi Praktik/Proyek.`; }
     else if (fieldKey === 'rubrikPenilaian') { const bentukRubrik = getBentukPenilaianList().join(', '); const aturanSkor = getBentukPenilaianList().map(b => `${b}: ${skorBentuk[b] || 'skor disesuaikan indikator'}`).join(' | '); sequentialContext += `Bentuk penilaian dari kisi-kisi: ${bentukRubrik}\nAturan skor: ${aturanSkor}\n`; fieldSpecificInstruction += `\nBuat tepat 1 rubrik untuk setiap bentuk penilaian dari kisi-kisi: ${bentukRubrik}. Kolom bentukPenilaian wajib diisi. Kolom skor wajib mengikuti aturan skor per bentuk, bukan disamakan semua 4-1. Kolom kriteria berisi deskripsi operasional penilaian.`; }
 
     let prompt = `Tugas Anda: Merancang spesifik bagian "${fieldTitle}" tanpa basa-basi.\n${sequentialContext}\nATURAN KETAT: ${fieldSpecificInstruction}`;
-    let payload = { contents: [{ parts: [{ text: prompt }] }], systemInstruction: { parts: [{ text: "Keluarkan output sesuai permintaan, dilarang memberi pengantar. Gunakan 1 kali enter/newline (\\n) agar poin rapi ke bawah. Patuhi instruksi sinkronisasi." }] } };
+    let payload = { contents: [{ parts: [{ text: prompt }] }], systemInstruction: { parts: [{ text: "Keluarkan output sesuai permintaan, dilarang memberi pengantar. Gunakan 1 kali enter/newline (\\n) agar poin rapi ke bawah. Patuhi instruksi sinkronisasi." }] }, generationConfig: stableGenerationConfig() };
 
     if (type === 'string') { prompt += `\n\nHANYA kembalikan teks isian.`; } else {
       let schemaObj = {};
       if (type === 'array_kisi') schemaObj = { type: "ARRAY", items: { type: "OBJECT", properties: { materi: { type: "STRING" }, indikator: { type: "STRING" }, level: { type: "STRING", description: "Hanya: C1, C2, C3, C4, C5, C6" }, bentuk: { type: "STRING", description: "Hanya: PG, PG Kompleks, Menjodohkan, Isian Singkat, Uraian, Praktik, Proyek" }, nomor: { type: "STRING" } }, required: ["materi","indikator","level","bentuk","nomor"] } };
-      else if (type === 'array_soal') { prompt += `\nFormat JSON Array minimal 10 butir. Tambahkan butir Praktik/Proyek jika bentuk tersebut ada di kisi-kisi.`; schemaObj = { type: "ARRAY", items: { type: "OBJECT", properties: { soal: { type: "STRING" }, opsi: { type: "STRING" }, kunci: { type: "STRING" } }, required: ["soal","opsi","kunci"] } }; }
+      else if (type === 'array_soal') { prompt += `\nFormat JSON Array tepat ${expectedAssessmentTotal} butir, mengikuti semua baris kisi-kisi bila sudah ada. Tambahkan butir Praktik/Proyek jika bentuk tersebut ada di kisi-kisi.`; schemaObj = { type: "ARRAY", items: { type: "OBJECT", properties: { soal: { type: "STRING" }, opsi: { type: "STRING" }, kunci: { type: "STRING" } }, required: ["soal","opsi","kunci"] } }; }
       else if (type === 'array_rubrik') { prompt += `\nFormat JSON Array dengan jumlah baris sesuai bentuk penilaian unik dari kisi-kisi: ${getBentukPenilaianList().join(', ')}.`; schemaObj = { type: "ARRAY", items: { type: "OBJECT", properties: { bentukPenilaian: { type: "STRING" }, skor: { type: "STRING" }, kriteria: { type: "STRING" } }, required: ["bentukPenilaian","skor","kriteria"] } }; }
-      payload.generationConfig = { responseMimeType: "application/json", responseSchema: schemaObj };
+      payload.generationConfig = stableGenerationConfig({ responseMimeType: "application/json", responseSchema: schemaObj });
     }
     payload.contents = [{ parts: [{ text: prompt }] }];
 
@@ -632,16 +848,16 @@ Keluarkan format JSON murni.`;
         aiText = aiText.replace(/```json/gi, '').replace(/```/g, '').trim();
         const aiData = JSON.parse(aiText);
         if (!Array.isArray(aiData)) throw new Error("Output AI bukan JSON Array.");
-        if (type === 'array_kisi' && aiData.length < 10) {
-          notify("Hasil AI Belum Valid", `Kisi-kisi minimal 10 baris, tetapi saat ini berjumlah ${aiData.length}. Silakan regenerate ulang.`, "warning");
+        if (type === 'array_kisi' && aiData.length < expectedAssessmentTotal) {
+          notify("Hasil AI Belum Valid", `Kisi-kisi minimal ${expectedAssessmentTotal} baris sesuai rencana, tetapi saat ini berjumlah ${aiData.length}. Silakan regenerate ulang.`, "warning");
           return;
         }
-        if (type === 'array_soal' && aiData.length < 10) {
-          notify("Hasil AI Belum Valid", `Bank soal minimal 10 butir, tetapi saat ini berjumlah ${aiData.length}. Silakan regenerate ulang.`, "warning");
+        if (type === 'array_soal' && aiData.length < expectedAssessmentTotal) {
+          notify("Hasil AI Belum Valid", `Bank soal minimal ${expectedAssessmentTotal} butir sesuai kisi-kisi/rencana, tetapi saat ini berjumlah ${aiData.length}. Silakan regenerate ulang.`, "warning");
           return;
         }
         let mappedData = aiData.map((item, i) => ({ id: Date.now() + fieldKey + i, ...item }));
-        if(type === 'array_kisi') mappedData = mapKisiRows(aiData);
+        if(type === 'array_kisi') mappedData = mapKisiRows(aiData, rppData);
         else if(type === 'array_soal') mappedData = mapBankRows(aiData, rppData.kisiKisi);
         else if(type === 'array_rubrik') mappedData = mapRubrikByKisi(aiData);
         const nextData = { ...rppData, [fieldKey]: mappedData };
@@ -660,8 +876,89 @@ Keluarkan format JSON murni.`;
     } finally { setIndividualLoading(prev => ({...prev, [fieldKey]: false})); }
   };
 
+  const handleRegenerateBankItem = async (index) => {
+    const kisi = rppData.kisiKisi[index];
+    if (!kisi) {
+      notify("Kisi-kisi Belum Ada", "Baris soal ini belum memiliki acuan kisi-kisi. Isi/generate kisi-kisi lebih dulu.", "warning");
+      return;
+    }
+    if (!rppData.topik || !rppData.mapel) {
+      notify("Data Belum Lengkap", "Mohon isi Mata Pelajaran dan Topik Pembelajaran terlebih dahulu.", "warning");
+      return;
+    }
+    const loadingKey = `bankSoal_${index}`;
+    setIndividualLoading(prev => ({ ...prev, [loadingKey]: true }));
+    setCountdown(8);
+
+    const bentuk = normalizeBentuk(kisi.bentuk);
+    const prompt = `Generate ulang SATU butir Bank Soal nomor ${index + 1} sesuai kisi-kisi berikut.
+
+KONTEKS:
+- Mapel: ${rppData.mapel}
+- Fase/Kelas: ${rppData.kelas || '-'}
+- Topik: ${rppData.topik}
+- CP: ${rppData.cp || '-'}
+- TP: ${rppData.tp || '-'}
+- Situasi nyata siswa: ${rppData.situasiNyataSiswa || '-'}
+- Materi kisi-kisi: ${kisi.materi || '-'}
+- Indikator soal: ${kisi.indikator || '-'}
+- Level kognitif: ${kisi.level || '-'}
+- Bentuk soal: ${bentuk || '-'}
+
+ATURAN:
+1. Kolom soal hanya berisi stimulus HOTS/literasi-numerasi minimal 2 kalimat dan pertanyaan/perintah. Stimulus harus memuat konteks, data/fakta/informasi, dan masalah yang perlu dianalisis. Jangan masukkan opsi A-D, premis-respon, pedoman jawaban, atau kunci ke kolom soal.
+2. Kolom opsi berisi:
+   - PG/PG Kompleks: opsi A-D, satu opsi per baris.
+   - Menjodohkan: WAJIB format "Premis / Kolom A:" berisi 1-4 dan "Respon / Kolom B:" berisi A-D. Jangan menjadikan menjodohkan sebagai pilihan ganda terselubung.
+   - Isian/Uraian: pedoman jawaban ringkas.
+   - Praktik/Proyek: rambu/pedoman pengerjaan dan bukti produk/kinerja.
+3. Kunci: PG satu huruf; PG Kompleks tepat dua huruf; Menjodohkan minimal 4 pasangan acak, contoh 1-B, 2-D, 3-A, 4-C; Isian jawaban singkat; Uraian/Praktik/Proyek isi "-" bila pedoman sudah ada di opsi.
+
+Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
+
+    const payload = {
+      contents: [{ parts: [{ text: prompt }] }],
+      systemInstruction: { parts: [{ text: "Keluarkan JSON object murni tanpa markdown. Fokus hanya satu butir soal. Pisahkan stimulus/pertanyaan dari opsi atau pedoman jawab." }] },
+      generationConfig: stableGenerationConfig({
+        responseMimeType: "application/json",
+        responseSchema: { type: "OBJECT", properties: { soal: { type: "STRING" }, opsi: { type: "STRING" }, kunci: { type: "STRING" } }, required: ["soal","opsi","kunci"] }
+      })
+    };
+
+    try {
+      const result = await callGeminiAPI(payload);
+      let aiText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      if (!aiText) throw new Error("Respons AI kosong atau bukan JSON soal.");
+      aiText = aiText.replace(/```json/gi, '').replace(/```/g, '').trim();
+      const aiData = JSON.parse(aiText);
+      const mapped = mapBankRows([aiData], [kisi])[0];
+      saveAiSnapshot(`Regenerate soal nomor ${index + 1}`);
+      setRppData(prev => {
+        const bank = [...prev.bankSoal];
+        while (bank.length <= index) bank.push({ id: Date.now() + 'b' + bank.length, soal: "", opsi: "", kunci: "" });
+        bank[index] = { ...bank[index], ...mapped, id: bank[index]?.id || mapped.id };
+        return { ...prev, bankSoal: bank };
+      });
+      const warnings = validateAssessmentStructure({ ...rppData, bankSoal: rppData.bankSoal.map((row, i) => i === index ? mapped : row) }).filter(w => w.includes(`Soal ${index + 1}:`));
+      if (warnings.length) notify("Catatan Soal Ini", "- " + warnings.join("\n- "), "warning");
+      else notify("Soal Diperbarui", `Soal nomor ${index + 1} sudah digenerate ulang sesuai kisi-kisi.`, "success");
+    } catch (error) {
+      if (!hasActiveApiKey() || error.message.toLowerCase().includes("api key") || error.message.includes("API_KEY_INVALID")) { setTempApiKey(geminiApiKey); setShowApiModal(true); }
+      else notify("Generate Soal Belum Berhasil", "Sistem AI belum berhasil membuat ulang soal ini.\n\nDetail: " + error.message, "error");
+    } finally { setIndividualLoading(prev => ({ ...prev, [loadingKey]: false })); }
+  };
+
   const formatText = (txt) => txt ? cleanStr(txt).replace(/\n/g, '<br/>') : '';
-  const getHtmlCheckbox = (val, label) => val ? `☑ ${label}` : `☐ ${label}`;
+  const getHtmlCheckbox = (val, label) => `${val ? '&#9745;' : '&#9744;'} ${label}`;
+  const formatChecklistForWord = (keys, labels, values, color = "") => {
+    const rows = [];
+    for (let i = 0; i < keys.length; i += 2) {
+      const left = getHtmlCheckbox(values[keys[i]], labels[keys[i]]);
+      const right = keys[i + 1] ? getHtmlCheckbox(values[keys[i + 1]], labels[keys[i + 1]]) : "";
+      rows.push(`<p class="check-row" style="${color ? `color:${color};` : ''}"><span class="check-item">${left}</span><span class="check-item">${right}</span></p>`);
+    }
+    return rows.join('');
+  };
 
   const isChoiceLikeForm = (form) => ["PG", "PG Kompleks", "Menjodohkan"].includes(normalizeBentuk(form));
 
@@ -709,8 +1006,8 @@ Keluarkan format JSON murni.`;
 
   const generateWordContent = () => {
     // Styling khusus untuk MS Word agar border dan background header tabel lampiran berfungsi baik
-    const thStyle = "border:1px solid black; background-color:#dbeafe; padding:6px; font-weight:bold; text-align:center; font-size:10pt;";
-    const tdStyle = "border:1px solid black; padding:6px; vertical-align:top; font-size:10pt;";
+    const thStyle = "border:1px solid black; background-color:#dbeafe; padding:3px; font-weight:bold; text-align:center; font-size:11pt; line-height:1.05;";
+    const tdStyle = "border:1px solid black; padding:3px; vertical-align:top; font-size:11pt; line-height:1.05;";
     
     const kRows = rppData.kisiKisi.length > 0 ? rppData.kisiKisi.map((k, i) => `<tr><td style="text-align:center;${tdStyle}">${i+1}</td><td style="${tdStyle}">${formatText(k.materi)}</td><td style="${tdStyle}">${formatText(k.indikator)}</td><td style="text-align:center;${tdStyle}">${k.level}</td><td style="text-align:center;${tdStyle}">${k.bentuk}</td><td style="text-align:center;${tdStyle}">${k.nomor}</td></tr>`).join('') : `<tr><td colspan="6" style="text-align:center;${tdStyle}">Tidak ada data</td></tr>`;
     const bRows = rppData.bankSoal.length > 0 ? rppData.bankSoal.map((b, i) => {
@@ -721,19 +1018,14 @@ Keluarkan format JSON murni.`;
     const rubrikRowsForExport = rppData.kisiKisi.length ? mapRubrikByKisi(rppData.rubrikPenilaian, rppData.kisiKisi) : rppData.rubrikPenilaian;
     const rRowsTable = rubrikRowsForExport.length > 0 ? rubrikRowsForExport.map(r => `<tr><td style="text-align:center;font-weight:bold;${tdStyle}">${formatText(r.bentukPenilaian)}</td><td style="text-align:left;font-weight:bold;${tdStyle}">${formatText(r.skor)}</td><td style="${tdStyle}">${formatText(r.kriteria)}</td></tr>`).join('') : `<tr><td colspan="3" style="text-align:center;${tdStyle}">Tidak ada rubrik</td></tr>`;
     
-    let profilHtml = '<table style="width:100%;border:none;margin:0;padding:0">';
     let pKeys = Object.keys(profilLabels);
-    for(let i=0; i<pKeys.length; i+=2) { profilHtml += `<tr><td style="border:none;padding:1px;width:50%;font-size:9pt;line-height:1.05">${getHtmlCheckbox(rppData.profilLulusan[pKeys[i]], profilLabels[pKeys[i]])}</td><td style="border:none;padding:1px;width:50%;font-size:9pt;line-height:1.05">${pKeys[i+1]?getHtmlCheckbox(rppData.profilLulusan[pKeys[i+1]], profilLabels[pKeys[i+1]]):''}</td></tr>`; }
-    profilHtml += '</table>';
-    
-    let kseHtml = '<table style="width:100%;border:none;margin:0;padding:0">';
     let kKeys = Object.keys(kseLabels);
-    for(let i=0; i<kKeys.length; i+=2) { kseHtml += `<tr><td style="border:none;padding:1px;width:50%;font-size:9pt;line-height:1.05;color:#1e40af">${getHtmlCheckbox(rppData.kseLulusan[kKeys[i]], kseLabels[kKeys[i]])}</td><td style="border:none;padding:1px;width:50%;font-size:9pt;line-height:1.05;color:#1e40af">${kKeys[i+1]?getHtmlCheckbox(rppData.kseLulusan[kKeys[i+1]], kseLabels[kKeys[i+1]]):''}</td></tr>`; }
-    kseHtml += '</table>';
+    const profilHtml = formatChecklistForWord(pKeys, profilLabels, rppData.profilLulusan);
+    const kseHtml = formatChecklistForWord(kKeys, kseLabels, rppData.kseLulusan, "#1e40af");
 
-    return `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>RPP</title><style>@page WordSection1{size:595.3pt 841.9pt;margin:36pt;mso-header-margin:28pt;mso-footer-margin:28pt;mso-paper-source:0;}div.WordSection1{page:WordSection1;}body{font-family:'Times New Roman',Times,serif;font-size:10pt;line-height:1.1;color:#000;margin:0;padding:0;}p{margin-top:1pt;margin-bottom:1pt;}.kop{border-bottom:2px solid black;padding-bottom:2px;margin-bottom:6pt;text-align:center;}.kop-line1{font-size:11pt;font-weight:bold;text-transform:uppercase;}.kop-line2{font-size:15pt;font-weight:bold;text-transform:uppercase;margin:1pt 0;letter-spacing:0;}.kop-line3{font-size:9pt;font-style:italic;}.t-table{width:100%;border-collapse:collapse;margin-bottom:6pt;page-break-inside:auto;}.t-table th{background-color:#dbeafe;padding:3px;text-align:left;border:1px solid black;font-size:10pt;font-weight:bold;text-transform:uppercase;}.t-label{width:16%;background-color:#f8fafc;border:1px solid black;padding:3px;font-weight:bold;vertical-align:top;font-size:9.5pt;}.t-content{border:1px solid black;padding:3px;vertical-align:top;font-size:9.5pt;}.t-content-half{width:34%;border:1px solid black;padding:3px;vertical-align:top;font-size:9.5pt;}.t-header-sub{background-color:#e2e8f0;border:1px solid black;padding:3px;text-align:left;font-weight:bold;font-size:9.5pt;}thead{display:table-header-group;}tfoot{display:table-footer-group;}tr{page-break-inside:avoid;}</style></head><body><div class="WordSection1">
+    return `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>RPP</title><style>@page WordSection1{size:595.3pt 841.9pt;margin:36pt;mso-header-margin:24pt;mso-footer-margin:24pt;mso-paper-source:0;}div.WordSection1{page:WordSection1;}body{font-family:'Times New Roman',Times,serif;font-size:11pt;line-height:1.05;color:#000;margin:0;padding:0;}p{margin-top:0;margin-bottom:1pt;text-align:justify;}td{font-size:11pt;line-height:1.05;vertical-align:top;text-align:justify;}th{font-size:11pt;line-height:1.05;vertical-align:middle;}.kop{border-bottom:2px solid black;padding-bottom:2pt;margin-bottom:4pt;text-align:center;line-height:1.05;}.kop-line1{font-size:14pt;font-weight:bold;text-transform:uppercase;line-height:1.05;}.kop-line2{font-size:18pt;font-weight:bold;text-transform:none;margin:0;letter-spacing:0;line-height:1.05;}.kop-line3{font-size:11pt;font-style:italic;line-height:1.05;}.t-table{width:100%;border-collapse:collapse;margin-bottom:4pt;page-break-inside:auto;}.t-table th{background-color:#dbeafe;padding:3px;text-align:center;vertical-align:middle;border:1px solid black;font-size:11pt;font-weight:bold;text-transform:uppercase;}.t-label{width:16%;background-color:#f8fafc;border:1px solid black;padding:3px;font-weight:bold;vertical-align:middle;font-size:11pt;text-align:left;}.t-content{border:1px solid black;padding:3px;vertical-align:top;font-size:11pt;text-align:justify;}.t-content-half{width:34%;border:1px solid black;padding:3px;vertical-align:middle;font-size:11pt;text-align:justify;}.t-header-sub{background-color:#e2e8f0;border:1px solid black;padding:3px;text-align:left;font-weight:bold;font-size:11pt;}.check-row{margin:0 0 1pt 0;font-size:10pt;line-height:1.05;text-align:left;}.check-item{display:inline-block;width:49%;white-space:nowrap;}h3,h4{font-size:12pt;}thead{display:table-header-group;}tfoot{display:table-footer-group;}tr{page-break-inside:auto;page-break-after:auto;}</style></head><body><div class="WordSection1">
 <div class="kop"><div class="kop-line1">PEMERINTAH KABUPATEN MAGELANG<br/>DINAS PENDIDIKAN DAN KEBUDAYAAN</div><div class="kop-line2">${rppData.namaSekolah}</div><div class="kop-line3">Jalan Raya Secang, Kab. Magelang, Jawa Tengah 56195 | Telepon: (0293) 3195355</div></div>
-<h3 style="text-align:center;text-decoration:underline;margin-bottom:2pt;font-size:12pt;font-weight:bold">RANCANGAN PEMBELAJARAN MENDALAM</h3><p style="text-align:center;margin-bottom:12pt;font-weight:bold;text-transform:uppercase">TOPIK PEMBELAJARAN: ${rppData.topik||'........................'}</p>
+<h3 style="text-align:center;text-decoration:underline;margin:2pt 0;font-size:12pt;font-weight:bold">RANCANGAN PEMBELAJARAN MENDALAM</h3><p style="text-align:center;margin-bottom:6pt;font-weight:bold;text-transform:uppercase">TOPIK PEMBELAJARAN: ${rppData.topik||'........................'}</p>
 <table class="t-table"><tr><th colspan="4">INFORMASI UMUM</th></tr>
 <tr><td class="t-label">Nama Penyusun</td><td class="t-content-half">${rppData.namaGuru}</td><td class="t-label">Fase / Kelas</td><td class="t-content-half">${rppData.kelas}</td></tr>
 <tr><td class="t-label">Mata Pelajaran</td><td class="t-content-half">${rppData.mapel}</td><td class="t-label">Alokasi Waktu</td><td class="t-content-half">${rppData.waktu} / ${rppData.jumlahPertemuan}</td></tr>
@@ -744,8 +1036,8 @@ Keluarkan format JSON murni.`;
 </tr>
 <tr><td class="t-label">Karakter Materi</td><td colspan="3" class="t-content">${formatText(rppData.karakteristikMateri)}</td></tr>
 <tr><td class="t-label">Konteks Nyata Siswa</td><td colspan="3" class="t-content">${formatText(rppData.situasiNyataSiswa)}</td></tr>
-<tr><td class="t-label">Dimensi Lulusan</td><td colspan="3" class="t-content" style="padding:1px 3px">${profilHtml}</td></tr>
-<tr><td class="t-label" style="color:#1e40af">Komp. Sosial Emos.</td><td colspan="3" class="t-content" style="padding:1px 3px;background-color:#eff6ff">${kseHtml}</td></tr>
+<tr><td class="t-label">Dimensi Lulusan</td><td colspan="3" class="t-content" style="padding:0 2px;line-height:0.95">${profilHtml}</td></tr>
+<tr><td class="t-label" style="color:#1e40af">Komp. Sosial Emos.</td><td colspan="3" class="t-content" style="padding:0 2px;line-height:0.95;background-color:#eff6ff">${kseHtml}</td></tr>
 <tr><th colspan="4">2. DESAIN PEMBELAJARAN</th></tr>
 <tr><td class="t-label">Capaian Pemb.</td><td colspan="3" class="t-content">${formatText(rppData.cp)}</td></tr>
 <tr><td class="t-label">Tujuan Pemb.</td><td colspan="3" class="t-content">${formatText(rppData.tp)}</td></tr>
@@ -761,24 +1053,24 @@ Keluarkan format JSON murni.`;
 <tr><th colspan="4">3. PENGALAMAN BELAJAR (Mindful, Meaningful, Joyful) & 4. ASESMEN</th></tr>
 <tr><td colspan="4" class="t-header-sub">Rincian Langkah Pembelajaran, Pengalaman Kognitif, & Asesmen</td></tr>
 <tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 1:<br/>Pendahuluan</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa"><strong>Aktivitas Kelas (Langkah Fisik):</strong><br/>${formatText(rppData.kegiatanAwal)}</td></tr>
-<tr><td colspan="2" class="t-content" style="width:42%"><strong>🎯 Target: Memahami</strong><br/>${formatText(rppData.pengalamanMemahami)}</td><td class="t-content" style="width:42%;background:#f8fafc"><strong>📝 Asesmen Awal:</strong><br/>${formatText(rppData.asesmenAwal)}</td></tr>
+<tr><td colspan="2" class="t-content" style="width:42%"><strong>Target: Memahami</strong><br/>${formatText(rppData.pengalamanMemahami)}</td><td class="t-content" style="width:42%;background:#f8fafc"><strong>Asesmen Awal:</strong><br/>${formatText(rppData.asesmenAwal)}</td></tr>
 <tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 2:<br/>Inti</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa"><strong>Aktivitas Kelas (Langkah Fisik):</strong><br/>${formatText(rppData.kegiatanInti)}</td></tr>
-<tr><td colspan="2" class="t-content" style="width:42%"><strong>🎯 Target: Mengaplikasi / Memaknai</strong><br/>${formatText(rppData.pengalamanMengaplikasi)}</td><td class="t-content" style="width:42%;background:#f8fafc"><strong>📝 Asesmen Proses:</strong><br/>${formatText(rppData.asesmenProses)}</td></tr>
+<tr><td colspan="2" class="t-content" style="width:42%"><strong>Target: Mengaplikasi / Memaknai</strong><br/>${formatText(rppData.pengalamanMengaplikasi)}</td><td class="t-content" style="width:42%;background:#f8fafc"><strong>Asesmen Proses:</strong><br/>${formatText(rppData.asesmenProses)}</td></tr>
 <tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 3:<br/>Penutup</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa"><strong>Aktivitas Kelas (Langkah Fisik):</strong><br/>${formatText(rppData.kegiatanPenutup)}</td></tr>
-<tr><td colspan="2" class="t-content" style="width:42%"><strong>🎯 Target: Merefleksi</strong><br/>${formatText(rppData.pengalamanMerefleksi)}</td><td class="t-content" style="width:42%;background:#f8fafc"><strong>📝 Asesmen Akhir:</strong><br/>${formatText(rppData.asesmenAkhir)}</td></tr>
+<tr><td colspan="2" class="t-content" style="width:42%"><strong>Target: Merefleksi</strong><br/>${formatText(rppData.pengalamanMerefleksi)}</td><td class="t-content" style="width:42%;background:#f8fafc"><strong>Asesmen Akhir:</strong><br/>${formatText(rppData.asesmenAkhir)}</td></tr>
 </table>
-<h4 style="text-align:left;margin-top:15pt;margin-bottom:4pt;font-size:11pt;text-transform:uppercase">CATATAN REFLEKSI GURU</h4>
-<table class="t-table" style="margin-bottom:20pt"><tr><td style="border:1px solid black;padding:15px;vertical-align:top;height:100px">${(rppData.catatanRefleksi && rppData.catatanRefleksi.trim()) ? formatText(rppData.catatanRefleksi) : '<span style="color:#555;font-style:italic">1. Bagian pembelajaran apa yang paling membantu siswa memahami konsep?<br/>2. Bukti belajar apa yang paling kuat terlihat?<br/>3. Siswa/kelompok mana yang membutuhkan dukungan lanjutan?<br/>4. Apa yang perlu diperbaiki pada pertemuan berikutnya?</span>'}</td></tr></table>
-<table style="width:100%;border:none;page-break-inside:avoid;margin-bottom:0"><tr><td style="width:50%;text-align:center;border:none;padding:4px;font-size:10pt">Mengetahui,<br/>Kepala ${rppData.namaSekolah}<br/><br/><br/><br/><br/><strong><u>${rppData.namaKepsek||'_______________________'}</u></strong><br/>NIP. ${rppData.nipKepsek||'_______________________'}</td><td style="width:50%;text-align:center;border:none;padding:4px;font-size:10pt">Secang, ........................ 2026<br/>Guru Mata Pelajaran<br/><br/><br/><br/><br/><strong><u>${rppData.namaGuru||'_______________________'}</u></strong><br/>NIP. ${rppData.nipGuru||'_______________________'}</td></tr></table>
+<h4 style="text-align:left;margin-top:8pt;margin-bottom:3pt;font-size:12pt;text-transform:uppercase">CATATAN REFLEKSI GURU</h4>
+<table class="t-table" style="margin-bottom:10pt"><tr><td style="border:1px solid black;padding:8px;vertical-align:top;height:80px">${(rppData.catatanRefleksi && rppData.catatanRefleksi.trim()) ? formatText(rppData.catatanRefleksi) : '<span style="color:#555;font-style:italic">1. Bagian pembelajaran apa yang paling membantu siswa memahami konsep?<br/>2. Bukti belajar apa yang paling kuat terlihat?<br/>3. Siswa/kelompok mana yang membutuhkan dukungan lanjutan?<br/>4. Apa yang perlu diperbaiki pada pertemuan berikutnya?</span>'}</td></tr></table>
+<table style="width:100%;border:none;page-break-inside:auto;margin-bottom:0"><tr><td style="width:50%;text-align:center;border:none;padding:4px;font-size:10pt">Mengetahui,<br/>Kepala ${rppData.namaSekolah}<br/><br/><br/><br/><br/><strong><u>${rppData.namaKepsek||'_______________________'}</u></strong><br/>NIP. ${rppData.nipKepsek||'_______________________'}</td><td style="width:50%;text-align:center;border:none;padding:4px;font-size:10pt">Secang, ........................ 2026<br/>Guru Mata Pelajaran<br/><br/><br/><br/><br/><strong><u>${rppData.namaGuru||'_______________________'}</u></strong><br/>NIP. ${rppData.nipGuru||'_______________________'}</td></tr></table>
 
-<br style="page-break-before:always; clear:both" />
+<div style="border-top:1px solid #000;margin:8pt 0 4pt 0"></div>
 
-<h4 style="text-align:left;margin-top:12pt;margin-bottom:4pt;font-size:11pt">LAMPIRAN INSTRUMEN PENILAIAN</h4>
-<p style="margin-bottom:2pt;font-size:10pt"><strong>A. Kisi-kisi Soal</strong></p>
+<h4 style="text-align:left;margin-top:8pt;margin-bottom:3pt;font-size:12pt">LAMPIRAN INSTRUMEN PENILAIAN</h4>
+<p style="margin-bottom:2pt;font-size:11pt"><strong>A. Kisi-kisi Soal</strong></p>
 <table style="width:100%;border-collapse:collapse;margin-bottom:10pt;"><thead style="display:table-header-group"><tr><th width="4%" style="${thStyle}">No</th><th width="28%" style="${thStyle}">Materi Pokok</th><th width="42%" style="${thStyle}">Indikator Soal</th><th width="7%" style="${thStyle}">Level</th><th width="11%" style="${thStyle}">Bentuk</th><th width="8%" style="${thStyle}">No Soal</th></tr></thead><tbody>${kRows}</tbody></table>
-<p style="margin-bottom:2pt;font-size:10pt;margin-top:10pt"><strong>B. Bank Soal AKM (Literasi/Numerasi HOTS)</strong></p>
-<table style="width:100%;border-collapse:collapse;margin-bottom:10pt;"><thead style="display:table-header-group"><tr><th width="5%" style="${thStyle}">No</th><th width="50%" style="${thStyle}">Butir Soal & Stimulus Kontekstual</th><th width="35%" style="${thStyle}">Pilihan Jawaban / Pernyataan</th><th width="10%" style="${thStyle}">Kunci</th></tr></thead><tbody>${bRows}</tbody></table>
-<p style="margin-bottom:2pt;font-size:10pt;margin-top:15pt"><strong>C. Rubrik Penilaian Kinerja/Uraian</strong></p>
+<p style="margin-bottom:2pt;font-size:11pt;margin-top:6pt"><strong>B. Bank Soal AKM (Literasi/Numerasi HOTS)</strong></p>
+<table style="width:100%;border-collapse:collapse;margin-bottom:8pt;"><thead style="display:table-header-group"><tr><th width="5%" style="${thStyle}">No</th><th width="45%" style="${thStyle}">Butir Soal & Stimulus Kontekstual</th><th width="40%" style="${thStyle}">Pilihan Jawaban / Pedoman Jawab</th><th width="10%" style="${thStyle}">Kunci</th></tr></thead><tbody>${bRows}</tbody></table>
+<p style="margin-bottom:2pt;font-size:11pt;margin-top:8pt"><strong>C. Rubrik Penilaian Kinerja/Uraian</strong></p>
 <table style="width:100%;border-collapse:collapse;margin-bottom:10pt;"><thead style="display:table-header-group"><tr><th width="14%" style="${thStyle}">Bentuk Penilaian</th><th width="22%" style="${thStyle}">Skor / Level</th><th width="64%" style="${thStyle}">Deskripsi Indikator Penilaian</th></tr></thead><tbody>${rRowsTable}</tbody></table>
 </div></body></html>`;
   };
@@ -827,15 +1119,18 @@ Keluarkan format JSON murni.`;
     const kegiatan = cleanStr(`${rppData.kegiatanAwal} ${rppData.kegiatanInti} ${rppData.kegiatanPenutup}`).toLowerCase();
     const asesmen = cleanStr(`${rppData.asesmenAwal} ${rppData.asesmenProses} ${rppData.asesmenAkhir}`).toLowerCase();
     const measurable = /(menganalisis|mengevaluasi|merancang|menyusun|menjelaskan|membandingkan|mengidentifikasi|menyimpulkan|membuktikan|menerapkan|menyajikan)/i;
+    const countLines = (value) => cleanStr(value).split(/\n+/).filter(line => line.replace(/^[-\d\.\)\s]+/, '').trim().length > 18).length;
+    const tpCount = countLines(rppData.tp);
     if (!cleanStr(rppData.situasiNyataSiswa)) warnings.push("Situasi nyata lingkungan siswa belum diisi sebagai konteks PM.");
-    if (cleanStr(rppData.kompetensiAwal) && !/(prasyarat|sebelum|telah|mampu|pernah|dasar|awal)/i.test(rppData.kompetensiAwal)) warnings.push("Kompetensi awal perlu lebih eksplisit sebagai prasyarat materi.");
+    if (cleanStr(rppData.kompetensiAwal) && (countLines(rppData.kompetensiAwal) < 2 || !/(prasyarat|sebelum|telah|mampu|pernah|dasar|awal|memahami|menjelaskan|mengidentifikasi)/i.test(rppData.kompetensiAwal))) warnings.push("Kompetensi awal perlu lebih eksplisit sebagai prasyarat materi.");
     if (cleanStr(rppData.kesiapanSiswa) && !/(kognitif|motivasi|kebiasaan|dukungan|sosial|emosi)/i.test(rppData.kesiapanSiswa)) warnings.push("Kesiapan peserta didik sebaiknya memuat kognitif, motivasi, kebiasaan belajar, dan kebutuhan dukungan.");
     if (cleanStr(rppData.karakteristikMateri) && !/(faktual|konseptual|prosedural|kontekstual|lintas|disiplin)/i.test(rppData.karakteristikMateri)) warnings.push("Karakteristik materi perlu menyebut sifat faktual/konseptual/prosedural/kontekstual/lintas disiplin.");
     if (tp && !measurable.test(tp)) warnings.push("Tujuan Pembelajaran perlu memakai kata kerja operasional yang dapat diukur.");
+    if (tp && tpCount < 3) warnings.push("Tujuan Pembelajaran sebaiknya minimal 3 butir yang menurunkan CP.");
     if (cp && tp && !tp.split(/\s+/).some(w => w.length > 6 && cp.includes(w))) warnings.push("TP belum tampak menurunkan CP secara langsung.");
     if (tp && kegiatan && !tp.split(/\s+/).some(w => w.length > 6 && kegiatan.includes(w))) warnings.push("Kegiatan belajar belum cukup menampakkan latihan terhadap TP.");
     if (tp && asesmen && !tp.split(/\s+/).some(w => w.length > 6 && asesmen.includes(w))) warnings.push("Asesmen belum cukup jelas mengukur TP.");
-    if (!/(memahami|mengaplikasi|merefleksi|refleksi|strategi|bukti)/i.test(`${rppData.pengalamanMemahami} ${rppData.pengalamanMengaplikasi} ${rppData.pengalamanMerefleksi}`)) warnings.push("Pengalaman belajar perlu lebih eksplisit memuat memahami, mengaplikasi, dan merefleksi.");
+    if (countLines(rppData.pengalamanMemahami) < 2 || countLines(rppData.pengalamanMengaplikasi) < 2 || countLines(rppData.pengalamanMerefleksi) < 2) warnings.push("Pengalaman belajar perlu lebih eksplisit memuat memahami, mengaplikasi, dan merefleksi.");
     return warnings;
   };
 
@@ -858,12 +1153,14 @@ Keluarkan format JSON murni.`;
       const sheets = [
         {
           name: "Kisi-kisi Soal",
-          minWidths: [5, 18, 28, 8, 12, 8],
+          minWidths: [5, 26, 46, 8, 14, 8],
+          maxWidths: [6, 38, 68, 10, 16, 10],
           rows: rppData.kisiKisi.map((k, i) => ({ "No": i + 1, "Materi Pokok": k.materi, "Indikator Soal": k.indikator, "Level Kognitif": k.level, "Bentuk Soal": k.bentuk, "Nomor Soal": k.nomor }))
         },
         {
           name: "Bank Soal",
-          minWidths: [5, 26, 24, 12],
+          minWidths: [5, 46, 42, 12],
+          maxWidths: [6, 74, 62, 16],
           rows: rppData.bankSoal.map((b, i) => {
             const row = getBankRowForDisplay(b, i);
             return { "No": i + 1, "Butir Soal & Stimulus": row.soal, "Pilihan Jawaban / Pedoman Jawab": row.opsi || "-", "Kunci Jawaban": row.kunci || "-" };
@@ -871,22 +1168,44 @@ Keluarkan format JSON murni.`;
         },
         {
           name: "Rubrik Penilaian",
-          minWidths: [5, 14, 22, 34],
+          minWidths: [5, 18, 24, 52],
+          maxWidths: [6, 24, 34, 76],
           rows: rubrikRowsForExcel.map((r, i) => ({ "No": i + 1, "Bentuk Penilaian": r.bentukPenilaian, "Skor / Rentang Nilai": r.skor, "Deskripsi Indikator Penilaian": r.kriteria }))
         }
       ];
 
       const getHeaders = (rows) => Object.keys(rows[0] || { "Informasi": "Tidak ada data" });
       const safeRows = (rows, name) => rows.length ? rows : [{ "Informasi": `Tidak ada data ${name}` }];
-      const autoFitColumnWidth = (header, rows, minWidth = 8) => {
+      const autoFitColumnWidth = (header, rows, minWidth = 8, maxWidth = 72) => {
         const maxLine = Math.max(header.length, ...rows.map(row => String(row[header] || '').split(/\r?\n/).reduce((m, line) => Math.max(m, line.length), 0)));
-        return Math.min(80, Math.max(minWidth, Math.ceil(maxLine * 1.08) + 2));
+        return Math.min(maxWidth, Math.max(minWidth, Math.ceil(maxLine * 1.02) + 2));
       };
-      const autoFitRowHeight = (row) => {
-        const values = Object.values(row);
-        const lineCount = Math.max(1, ...values.map(v => String(v || '').split(/\r?\n/).length));
-        const longest = Math.max(1, ...values.map(v => String(v || '').split(/\r?\n/).reduce((m, line) => Math.max(m, line.length), 0)));
-        return Math.min(210, Math.max(24, 18 + (lineCount - 1) * 15 + Math.ceil(longest / 48) * 14));
+      const autoFitRowHeight = (row, headers, widths) => {
+        const estimatedLines = headers.map((header, idx) => {
+          const width = Math.max(12, widths[idx] || 30);
+          return String(row[header] || '').split(/\r?\n/).reduce((total, line) => total + Math.max(1, Math.ceil(line.length / Math.max(14, width * 1.05))), 0);
+        });
+        const lineCount = Math.max(1, ...estimatedLines);
+        return Math.min(150, Math.max(24, 18 + (lineCount - 1) * 14));
+      };
+      const getExcelAlignment = (sheetName, colNumber, rowNumber) => {
+        if (rowNumber === 1) return { wrapText: true, vertical: "middle", horizontal: "center" };
+        if (sheetName === "Kisi-kisi Soal") {
+          if ([1, 4, 5, 6].includes(colNumber)) return { wrapText: true, vertical: "center", horizontal: "center" };
+          if (colNumber === 3) return { wrapText: true, vertical: "top", horizontal: "justify" };
+          return { wrapText: true, vertical: "center", horizontal: "left" };
+        }
+        if (sheetName === "Bank Soal") {
+          if (colNumber === 1) return { wrapText: true, vertical: "top", horizontal: "center" };
+          if (colNumber === 4) return { wrapText: true, vertical: "center", horizontal: "center" };
+          return { wrapText: true, vertical: "top", horizontal: "justify" };
+        }
+        if (sheetName === "Rubrik Penilaian") {
+          if (colNumber === 1 || colNumber === 2) return { wrapText: true, vertical: "center", horizontal: "center" };
+          if (colNumber === 3) return { wrapText: true, vertical: "top", horizontal: "left" };
+          return { wrapText: true, vertical: "top", horizontal: "justify" };
+        }
+        return { wrapText: true, vertical: "top" };
       };
       const saveBlob = (blob, filename) => {
         const url = URL.createObjectURL(blob);
@@ -912,18 +1231,19 @@ Keluarkan format JSON murni.`;
             ws.addRow(headers);
             rows.forEach(row => ws.addRow(headers.map(h => row[h] ?? "")));
             ws.autoFilter = { from: { row: 1, column: 1 }, to: { row: 1, column: headers.length } };
+            const widths = headers.map((header, idx) => autoFitColumnWidth(header, rows, sheet.minWidths[idx] || 8, sheet.maxWidths?.[idx] || 72));
             headers.forEach((header, idx) => {
-              ws.getColumn(idx + 1).width = autoFitColumnWidth(header, rows, sheet.minWidths[idx] || 8);
+              ws.getColumn(idx + 1).width = widths[idx];
             });
             ws.eachRow((excelRow, rowNumber) => {
-              excelRow.height = rowNumber === 1 ? 24 : autoFitRowHeight(rows[rowNumber - 2] || {});
-              excelRow.eachCell({ includeEmpty: true }, cell => {
-                cell.alignment = { wrapText: true, vertical: "top" };
+              excelRow.height = rowNumber === 1 ? 24 : autoFitRowHeight(rows[rowNumber - 2] || {}, headers, widths);
+              excelRow.eachCell({ includeEmpty: true }, (cell, colNumber) => {
+                cell.font = { name: "Calibri", size: 11 };
+                cell.alignment = getExcelAlignment(sheet.name, colNumber, rowNumber);
                 cell.border = { top: { style: "thin", color: { argb: "FFD1D5DB" } }, left: { style: "thin", color: { argb: "FFD1D5DB" } }, bottom: { style: "thin", color: { argb: "FFD1D5DB" } }, right: { style: "thin", color: { argb: "FFD1D5DB" } } };
                 if (rowNumber === 1) {
-                  cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+                  cell.font = { name: "Calibri", size: 11, bold: true, color: { argb: "FFFFFFFF" } };
                   cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: "FF1D4ED8" } };
-                  cell.alignment = { wrapText: true, vertical: "middle", horizontal: "center" };
                 }
               });
             });
@@ -945,14 +1265,17 @@ Keluarkan format JSON murni.`;
         const rows = safeRows(sheet.rows, sheet.name);
         const ws = XLSX.utils.json_to_sheet(rows);
         const headers = getHeaders(rows);
-        ws['!cols'] = headers.map((header, idx) => ({ wch: autoFitColumnWidth(header, rows, sheet.minWidths[idx] || 8) }));
-        ws['!rows'] = [{ hpt: 24 }, ...rows.map(row => ({ hpt: autoFitRowHeight(row) }))];
+        const widths = headers.map((header, idx) => autoFitColumnWidth(header, rows, sheet.minWidths[idx] || 8, sheet.maxWidths?.[idx] || 72));
+        ws['!cols'] = widths.map(width => ({ wch: width }));
+        ws['!rows'] = [{ hpt: 24 }, ...rows.map(row => ({ hpt: autoFitRowHeight(row, headers, widths) }))];
         ws['!autofilter'] = { ref: ws['!ref'] };
         XLSX.utils.book_append_sheet(wb, ws, sheet.name);
       });
       XLSX.writeFile(wb, `${getCustomFileName('Instrumen Penilaian')}.xlsx`);
     });
   };
+
+  const currentAssessmentWarnings = isEditing ? validateAssessmentStructure(rppData) : [];
 
   return (
     <div className="pb-8 bg-slate-100 min-h-screen relative flex flex-col">
@@ -966,7 +1289,7 @@ Keluarkan format JSON murni.`;
         </div>
       </header>
 
-      <main className="w-full max-w-[98%] xl:max-w-[1400px] mx-auto px-2 sm:px-4 mt-6 sm:mt-8 flex flex-col md:flex-row gap-4 sm:gap-6 relative items-start flex-1 min-w-0">
+      <main className="w-full max-w-[99%] xl:max-w-[1560px] 2xl:max-w-[1760px] mx-auto px-2 sm:px-4 mt-5 sm:mt-8 flex flex-col md:flex-row gap-5 sm:gap-6 relative items-start flex-1 min-w-0">
         <div className="flex-1 w-full order-2 md:order-1 min-w-0">
           <div className="animate-in fade-in duration-500">
             {isEditing ? (
@@ -1002,7 +1325,7 @@ Keluarkan format JSON murni.`;
                       </div>
                     </div>
                     <button onClick={handleGenerateAI} disabled={isGenerating} className={`w-full py-3 sm:py-4 rounded-xl font-black text-sm sm:text-base shadow-2xl transition-all flex items-center justify-center border-b-4 active:border-b-0 active:mt-1 ${isGenerating ? 'bg-fuchsia-900 border-fuchsia-950 text-fuchsia-400 cursor-not-allowed' : 'bg-yellow-400 border-yellow-600 text-indigo-900 hover:bg-yellow-300 hover:scale-[1.01]'}`}>
-                      {isGenerating ? <><i className="fas fa-spinner fa-spin mr-2 sm:mr-3 text-lg sm:text-xl"></i> MENYUSUN MODUL SEKUENSIAL...</> : <><i className="fas fa-bolt mr-2 sm:mr-3 text-indigo-700 text-lg sm:text-xl"></i> GENERATE MODUL AJAR PM</>}
+                      {isGenerating && activeGenerateMode === "modul" ? <><i className="fas fa-spinner fa-spin mr-2 sm:mr-3 text-lg sm:text-xl"></i> MENYUSUN MODUL AJAR...</> : <><i className="fas fa-bolt mr-2 sm:mr-3 text-indigo-700 text-lg sm:text-xl"></i> GENERATE MODUL AJAR PM</>}
                     </button>
                   </div>
                 </div>
@@ -1192,6 +1515,49 @@ Keluarkan format JSON murni.`;
 
                 <Card className="p-4 sm:p-6 border-t-4 border-t-orange-500 bg-orange-50/30">
                   <h4 className="font-bold text-orange-900 text-base sm:text-lg mb-4">Lampiran Instrumen Penilaian</h4>
+                  <div className="mb-5 bg-white p-3 sm:p-4 rounded-lg border border-orange-200 shadow-sm overflow-hidden">
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-3">
+                      <div>
+                        <h5 className="font-bold text-orange-900 text-sm sm:text-base"><i className="fas fa-sliders mr-2"></i>Rencana Jumlah Soal per Bentuk dan Level</h5>
+                        <p className="text-xs sm:text-sm text-slate-600 mt-1">AI Instrumen Penilaian mengikuti tabel ini agar jumlah, bentuk soal, dan level kognitif tidak rancu.</p>
+                      </div>
+                      <button onClick={handleGenerateAssessmentAI} disabled={isGenerating} className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-bold shadow-sm flex items-center justify-center ${isGenerating ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : 'bg-orange-600 text-white hover:bg-orange-700'}`}>
+                        <i className={`fas ${isGenerating && activeGenerateMode === "asesmen" ? 'fa-spinner fa-spin' : 'fa-magic'} mr-2`}></i> Generate Instrumen Penilaian
+                      </button>
+                    </div>
+                    <div className="w-full overflow-x-auto border border-slate-300 rounded pb-2">
+                      <table className="w-full text-left text-sm border-collapse min-w-[620px]">
+                        <thead className="bg-orange-100 text-orange-900 border-b border-orange-200">
+                          <tr><th className="p-2 border-r w-[38%]">Bentuk Soal</th><th className="p-2 border-r w-[22%] text-center">Jumlah Soal</th><th className="p-2 border-r w-[28%] text-center">Level Kognitif</th><th className="p-2 w-10"></th></tr>
+                        </thead>
+                        <tbody>
+                          {(rppData.rencanaAsesmen || []).map((row, index) => (
+                            <tr key={row.id || index} className="border-b hover:bg-orange-50/50">
+                              <td className="p-1 border-r"><select className="table-input h-full font-bold" value={row.bentuk || ""} onChange={(e) => handleTableChange('rencanaAsesmen', index, 'bentuk', e.target.value)}><option value="">-Bentuk-</option><option value="PG">PG</option><option value="PG Kompleks">PG Kompleks</option><option value="Menjodohkan">Menjodohkan</option><option value="Isian Singkat">Isian Singkat</option><option value="Uraian">Uraian</option><option value="Praktik">Praktik</option><option value="Proyek">Proyek</option></select></td>
+                              <td className="p-1 border-r"><input type="number" min="0" className="table-input text-center font-bold" value={row.jumlah} onChange={(e) => handleTableChange('rencanaAsesmen', index, 'jumlah', e.target.value)} /></td>
+                              <td className="p-1 border-r"><select className="table-input text-center h-full font-bold" value={row.level || "C4"} onChange={(e) => handleTableChange('rencanaAsesmen', index, 'level', e.target.value)}><option value="C1">C1</option><option value="C2">C2</option><option value="C3">C3</option><option value="C4">C4</option><option value="C5">C5</option><option value="C6">C6</option></select></td>
+                              <td className="p-1 text-center"><button onClick={() => removeTableRow('rencanaAsesmen', row.id)} className="text-red-400 hover:text-red-600 p-2" title="Hapus rencana ini"><i className="fas fa-trash"></i></button></td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="mt-3 flex flex-col sm:flex-row gap-2 sm:items-center sm:justify-between">
+                      <button onClick={() => addTableRow('rencanaAsesmen', { bentuk: "PG", jumlah: 1, level: "C4" })} className="px-4 py-2 bg-orange-50 text-sm font-bold text-orange-700 rounded-lg hover:bg-orange-100 border border-orange-200 flex items-center justify-center"><i className="fas fa-plus mr-2"></i> Tambah Rencana Soal</button>
+                      <div className="text-xs sm:text-sm font-bold text-orange-900 bg-orange-50 border border-orange-200 rounded-lg px-3 py-2">Total rencana: {getExpectedAssessmentSequence().length} soal</div>
+                    </div>
+                  </div>
+
+                  <div className={`mb-5 rounded-lg border p-3 sm:p-4 ${currentAssessmentWarnings.length ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-emerald-50 border-emerald-200 text-emerald-900'}`}>
+                    <h5 className="font-bold text-sm sm:text-base mb-2"><i className={`fas ${currentAssessmentWarnings.length ? 'fa-circle-exclamation' : 'fa-circle-check'} mr-2`}></i>Catatan Validasi Lampiran Instrumen Penilaian</h5>
+                    {currentAssessmentWarnings.length ? (
+                      <ul className="space-y-1 text-xs sm:text-sm">
+                        {currentAssessmentWarnings.slice(0, 12).map((warning, i) => <li key={i} className="flex items-start"><span className="font-bold mr-2">-</span><span>{warning}</span></li>)}
+                      </ul>
+                    ) : (
+                      <p className="text-xs sm:text-sm">Struktur kisi-kisi, bank soal, dan rubrik sudah tampak selaras dengan rencana asesmen.</p>
+                    )}
+                  </div>
                   
                   <div className="mb-6 bg-white p-3 sm:p-4 rounded-lg border border-slate-200 shadow-sm overflow-hidden">
                     <LabelWithHint onRegenerate={() => handleRegenerateSpecific('kisiKisi', 'Tabel Kisi-kisi Soal', 'array_kisi')} isLoading={individualLoading['kisiKisi']} className="font-bold text-slate-800 text-sm sm:text-base mb-2">A. Tabel Kisi-kisi Soal</LabelWithHint>
@@ -1221,23 +1587,30 @@ Keluarkan format JSON murni.`;
                   <div className="bg-white p-3 sm:p-4 rounded-lg border border-slate-200 shadow-sm mb-6 overflow-hidden">
                     <LabelWithHint onRegenerate={() => handleRegenerateSpecific('bankSoal', 'Bank Soal AKM', 'array_soal')} isLoading={individualLoading['bankSoal']} className="font-bold text-slate-800 text-sm sm:text-base mb-2" hint="Pastikan soal selaras dengan grid Kisi-Kisi di atas.">B. Bank Soal (Sinkron dengan Kisi-kisi)</LabelWithHint>
                     <div className="w-full overflow-x-auto border border-slate-300 rounded scrollbar-hide pb-2">
-                      <table className="w-full text-left text-sm border-collapse min-w-[800px]">
+                      <table className="w-full text-left text-sm border-collapse min-w-[1000px]">
                         <thead className="bg-slate-100 text-slate-700 border-b border-slate-300">
-                          <tr><th className="p-2 border-r w-10 text-center shrink-0">No</th><th className="p-2 border-r min-w-[300px] w-[45%]">Butir Soal & Stimulus</th><th className="p-2 border-r min-w-[200px] w-[30%]">Pilihan Jawaban / Pedoman Jawab</th><th className="p-2 border-r min-w-[100px] text-center">Kunci</th><th className="p-2 w-10 shrink-0"></th></tr>
+                          <tr><th className="p-2 border-r w-10 text-center shrink-0">No</th><th className="p-2 border-r min-w-[320px] w-[38%]">Butir Soal & Stimulus</th><th className="p-2 border-r min-w-[360px] w-[42%]">Pilihan Jawaban / Pedoman Jawab</th><th className="p-2 border-r min-w-[90px] text-center">Kunci</th><th className="p-2 w-20 shrink-0 text-center">Aksi</th></tr>
                         </thead>
                         <tbody>
                           {rppData.bankSoal.map((row, index) => {
                             const displayRow = getBankRowForDisplay(row, index);
+                            const bankForm = normalizeBentuk(rppData.kisiKisi[index]?.bentuk);
                             return (
                             <tr key={row.id} className="border-b hover:bg-slate-50">
                               <td className="p-2 border-r text-center text-slate-500 align-top">{index + 1}</td>
                               <td className="p-1 border-r align-top"><textarea className="table-input resize-y min-h-[120px] leading-relaxed whitespace-pre-wrap" rows="5" value={displayRow.soal} onChange={(e) => handleTableChange('bankSoal', index, 'soal', e.target.value)} placeholder="Tuliskan stimulus cerita/kasus dan soal..."></textarea></td>
                               <td className="p-1 border-r align-top">
-                                <textarea className="table-input resize-y min-h-[120px] leading-relaxed whitespace-pre-wrap" rows="5" value={displayRow.opsi} onChange={(e) => handleTableChange('bankSoal', index, 'opsi', e.target.value)} placeholder={"PG: A... B...\nMenjodohkan: Premis... Respon...\nUraian: Pedoman... "}></textarea>
-                                {normalizeBentuk(rppData.kisiKisi[index]?.bentuk) === "Menjodohkan" ? <div className="mt-2">{renderMatchingOptions(displayRow.opsi)}</div> : null}
+                                {bankForm === "Menjodohkan" ? <div className="mb-2 grid grid-cols-2 gap-2 text-[11px] font-bold text-slate-700"><div className="bg-slate-100 border rounded px-2 py-1">Premis / Kolom A</div><div className="bg-slate-100 border rounded px-2 py-1">Respon / Kolom B</div></div> : null}
+                                <textarea className="table-input resize-y min-h-[120px] leading-relaxed whitespace-pre-wrap" rows="5" value={displayRow.opsi} onChange={(e) => handleTableChange('bankSoal', index, 'opsi', e.target.value)} placeholder={bankForm === "Menjodohkan" ? "Premis / Kolom A:\n1. ...\n2. ...\n3. ...\n4. ...\n\nRespon / Kolom B:\nA. ...\nB. ...\nC. ...\nD. ..." : "PG/PG Kompleks:\nA. ...\nB. ...\nC. ...\nD. ...\n\nIsian/Uraian/Praktik/Proyek:\nPedoman jawab atau rambu pengerjaan..."}></textarea>
+                                {bankForm === "Menjodohkan" ? <div className="mt-2">{renderMatchingOptions(displayRow.opsi)}</div> : null}
                               </td>
                               <td className="p-1 border-r align-top"><input type="text" className="table-input font-bold text-center mt-2 text-blue-700" value={row.kunci} onChange={(e) => handleTableChange('bankSoal', index, 'kunci', e.target.value)} placeholder="Kunci" /></td>
-                              <td className="p-2 text-center align-top"><button onClick={() => removeTableRow('bankSoal', row.id)} className="text-red-400 hover:text-red-600 mt-2 p-2"><i className="fas fa-trash"></i></button></td>
+                              <td className="p-2 text-center align-top">
+                                <div className="flex items-center justify-center gap-1 mt-2">
+                                  <button onClick={() => handleRegenerateBankItem(index)} disabled={!!individualLoading[`bankSoal_${index}`]} className={`p-2 rounded ${individualLoading[`bankSoal_${index}`] ? 'text-slate-400 cursor-not-allowed' : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50'}`} title={`Generate ulang soal nomor ${index + 1}`}><i className={`fas fa-sync-alt ${individualLoading[`bankSoal_${index}`] ? 'fa-spin' : ''}`}></i></button>
+                                  <button onClick={() => removeTableRow('bankSoal', row.id)} className="text-red-400 hover:text-red-600 hover:bg-red-50 rounded p-2" title="Hapus soal"><i className="fas fa-trash"></i></button>
+                                </div>
+                              </td>
                             </tr>
                             );
                           })}
@@ -1284,7 +1657,7 @@ Keluarkan format JSON murni.`;
                   <div className="p-4 sm:p-5 bg-white">
                     <h3 className="font-bold text-slate-800 text-base sm:text-lg mb-4 border-b pb-2">Informasi Umum</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 text-sm sm:text-base text-slate-700">
-                      <div className="col-span-1 sm:col-span-2 md:col-span-1 border-l-4 border-blue-500 bg-blue-50 p-3 rounded-r-lg"><strong className="block text-slate-500 text-xs sm:text-sm uppercase mb-1">Mata Pelajaran</strong><span className="font-bold text-blue-900 text-base sm:text-lg">{rppData.mapel} <span className="text-xs sm:text-sm text-blue-600">({rppData.kelas})</span></span></div>
+                      <div className="col-span-1 sm:col-span-2 md:col-span-1 border-l-4 border-blue-500 bg-blue-50 p-3 rounded-r-lg"><strong className="block text-slate-500 text-xs sm:text-sm uppercase mb-1">Mata Pelajaran</strong><span className="block font-bold text-blue-900 text-base sm:text-lg leading-snug">{rppData.mapel}</span><span className="block text-xs sm:text-sm text-blue-600 font-semibold mt-1">{rppData.kelas}</span></div>
                       <div className="col-span-1 sm:col-span-2 md:col-span-1 border-l-4 border-indigo-500 bg-indigo-50 p-3 rounded-r-lg"><strong className="block text-slate-500 text-xs sm:text-sm uppercase mb-1">Topik Pembelajaran</strong><span className="font-bold text-indigo-900 text-base sm:text-lg">{rppData.topik}</span></div>
                       <div><strong className="block text-slate-500 text-xs sm:text-sm uppercase mb-1">Penyusun</strong>{rppData.namaGuru}</div><div><strong className="block text-slate-500 text-xs sm:text-sm uppercase mb-1">Sekolah</strong>{rppData.namaSekolah}</div>
                       <div><strong className="block text-slate-500 text-xs sm:text-sm uppercase mb-1">Waktu / Pertemuan</strong>{rppData.waktu} / {rppData.jumlahPertemuan}</div><div><strong className="block text-slate-500 text-xs sm:text-sm uppercase mb-1">Tahun Pelajaran</strong>{rppData.tahunPelajaran}</div>
@@ -1357,7 +1730,7 @@ Keluarkan format JSON murni.`;
                     <h3 className="font-bold text-orange-800 text-base sm:text-lg mb-4 border-b pb-2">Instrumen Penilaian (Bank Soal)</h3>
                     <div className="w-full overflow-x-auto border border-slate-300 rounded pb-2">
                       <table className="w-full text-left text-xs sm:text-sm border-collapse min-w-[600px] sm:min-w-[800px]">
-                        <thead className="bg-slate-100 text-slate-700 border-b border-slate-300"><tr><th className="p-2 border-r w-10 text-center shrink-0">No</th><th className="p-2 border-r min-w-[300px]">Butir Soal & Stimulus</th><th className="p-2 min-w-[260px]">Pilihan Jawaban / Pernyataan</th></tr></thead>
+                        <thead className="bg-slate-100 text-slate-700 border-b border-slate-300"><tr><th className="p-2 border-r w-10 text-center shrink-0">No</th><th className="p-2 border-r min-w-[300px]">Butir Soal & Stimulus</th><th className="p-2 min-w-[260px]">Pilihan Jawaban / Pedoman Jawab</th></tr></thead>
                         <tbody>{rppData.bankSoal.map((r, i) => {
                           const row = getBankRowForDisplay(r, i);
                           return <tr key={r.id} className="border-b"><td className="p-2 sm:p-3 border-r text-center align-top">{i+1}</td><td className="p-2 sm:p-3 border-r align-top"><div className="whitespace-pre-wrap font-medium leading-relaxed">{row.soal}</div></td><td className="p-2 sm:p-3 align-top"><div className="text-slate-700 bg-slate-50 p-2 rounded border leading-relaxed">{renderStudentOptions(row, i)}</div></td></tr>;
@@ -1402,7 +1775,7 @@ Keluarkan format JSON murni.`;
           </div>
         </div>
 
-        <div className="w-full md:w-72 shrink-0 order-1 md:order-2 relative md:sticky top-6 z-40">
+        <div className="w-full md:w-72 lg:w-80 shrink-0 order-1 md:order-2 relative md:sticky top-4 md:top-6 z-40 mb-4 md:mb-0">
 
           <div className="bg-white p-4 sm:p-5 rounded-2xl shadow-lg border-2 border-blue-100 flex flex-col space-y-3">
             <div className="pb-3 border-b"><h4 className="font-bold flex items-center text-sm sm:text-base"><i className="fas fa-cog text-blue-500 mr-2"></i> Kontrol Form</h4><p className="text-xs sm:text-sm mt-1 text-slate-500">Status: {isEditing ? <span className="text-orange-500 font-bold">Mengedit</span> : <span className="text-green-500 font-bold">Tersimpan</span>}</p></div>
@@ -1449,9 +1822,15 @@ Keluarkan format JSON murni.`;
             <h3 className="font-black text-2xl text-slate-800 mb-2 tracking-tight">AI Sedang Meracik...</h3>
             
             <p className="text-sm font-semibold text-slate-500 mb-6 h-10 px-4 leading-snug">
-               {countdown > 10 ? "Menganalisis Instruksi Khusus dan Konteks Latar Belakang Siswa..." : 
-                countdown > 4 ? "Memformulasikan kegiatan PM, asesmen, dan rubrik..." : 
-                "Menyelaraskan Kisi-kisi, Bank Soal, dan Format Dokumen..."}
+               {activeGenerateMode === "asesmen" ? (
+                 countdown > 10 ? "Menganalisis CP, TP, kisi-kisi, dan rencana jumlah soal..." :
+                 countdown > 4 ? "Menyusun stimulus HOTS, pilihan jawaban, dan pedoman jawab..." :
+                 "Menyelaraskan bank soal dengan rubrik penilaian..."
+               ) : (
+                 countdown > 10 ? "Menganalisis Instruksi Khusus dan Konteks Latar Belakang Siswa..." : 
+                 countdown > 4 ? "Memformulasikan kegiatan PM dan asesmen kelas..." : 
+                 "Menyelaraskan CP, TP, pengalaman belajar, dan refleksi..."
+               )}
             </p>
             
             <div className="flex items-center justify-center space-x-2 text-white font-bold bg-slate-800 px-5 py-2.5 rounded-full shadow-md w-full">
