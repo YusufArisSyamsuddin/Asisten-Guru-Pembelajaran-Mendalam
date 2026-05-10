@@ -223,8 +223,8 @@ function App() {
     Menjodohkan: "4 = 4 pasangan benar\n3 = 3 pasangan benar\n2 = 2 pasangan benar\n1 = 1 pasangan benar\n0 = tidak ada pasangan benar",
     "Isian Singkat": "2 = jawaban tepat\n1 = sebagian tepat\n0 = salah/kosong",
     Uraian: "5 = lengkap, benar, beralasan, dan memakai bukti\n4 = benar tetapi kurang rinci\n3 = cukup tepat tetapi bukti terbatas\n2 = sebagian konsep benar\n1 = sangat terbatas\n0 = salah/kosong",
-    Praktik: "4 = sangat baik\n3 = baik\n2 = cukup\n1 = perlu bimbingan\n0 = tidak menunjukkan evidensi",
-    Proyek: "4 = sangat baik\n3 = baik\n2 = cukup\n1 = perlu bimbingan\n0 = tidak menunjukkan evidensi"
+    Praktik: "9-10 = kinerja sangat kreatif, akurat, mandiri, dan demonstrasi jelas\n7-8 = kinerja baik, konsep tepat, tetapi detail/kelancaran masih dapat ditingkatkan\n5-6 = kinerja cukup, sebagian prosedur tepat, tetapi bukti dan penjelasan belum kuat\n1-4 = kinerja sangat terbatas dan membutuhkan banyak bimbingan\n0 = tidak menunjukkan evidensi",
+    Proyek: "9-10 = produk sangat kreatif, berfungsi sangat baik, demonstrasi jelas, dan penjelasan konsep sangat akurat\n7-8 = produk baik dan berfungsi, tetapi pengembangan ide atau penjelasan konsep belum mendalam\n5-6 = produk cukup, sebagian kriteria terpenuhi, tetapi fungsi/bukti masih terbatas\n1-4 = produk belum memenuhi sebagian besar kriteria dan membutuhkan banyak perbaikan\n0 = tidak mengumpulkan produk/evidensi"
   };
   const defaultAssessmentPlan = [
     { id: "plan-pg-c3", bentuk: "PG", jumlah: 2, level: "C3" },
@@ -496,11 +496,35 @@ function App() {
     return form === "Praktik" || form === "Proyek" ? "4" : "-";
   };
 
-  const buildRubrikDescription = (rangeText, criteriaText) => {
+  const getRubrikRangeByFormOrText = (form, scoreText = "") => {
+    const fixedRange = { "PG": "0-1", "PG Kompleks": "0-2", "Menjodohkan": "0-4", "Isian Singkat": "0-2", "Uraian": "0-5", "Praktik": "0-10", "Proyek": "0-10" };
+    const raw = cleanStr(scoreText);
+    const directRange = raw.match(/\b\d+\s*-\s*\d+\b/);
+    if (directRange && raw.split(/\n+/).length === 1) return directRange[0].replace(/\s*/g, '');
+    if (fixedRange[form]) return fixedRange[form];
+    const nums = (raw.match(/\d+/g) || []).map(Number);
+    return nums.length ? `0-${Math.max(...nums)}` : "0-4";
+  };
+
+  const buildScoreRepresentation = (rangeText, criteriaText, form = "") => {
     const range = cleanStr(rangeText);
-    const criteria = stripRubrikLabels(criteriaText);
-    if (/^Rentang\s+Nilai\s*:/i.test(criteria)) return stripRubrikLabels(criteria);
-    return [`Rentang Nilai:\n${range}`, criteria].filter(Boolean).join('\n');
+    let criteria = stripRubrikLabels(criteriaText);
+    if (/Skor\s+\d+(?:\s*-\s*\d+)?\s*:/i.test(criteria)) return criteria;
+    let source = range || skorBentuk[form] || "";
+    if (/^Rentang\s+Nilai\s*:/i.test(criteria)) {
+      source = criteria.replace(/^Rentang\s+Nilai\s*:\s*/i, '');
+      criteria = "";
+    }
+    const lines = source.replace(/^Rentang\s+Nilai\s*:\s*/i, '').split(/\n+/).map(line => line.trim()).filter(Boolean);
+    const converted = lines.map(line => {
+      const match = line.match(/^(?:Skor\s*)?(\d+(?:\s*-\s*\d+)?)\s*(?:=|:|-)\s*(.+)$/i);
+      if (!match) return line;
+      const score = match[1].replace(/\s+/g, '');
+      const desc = match[2].trim();
+      return `Skor ${score}: ${desc.charAt(0).toUpperCase() + desc.slice(1)}`;
+    }).filter(Boolean);
+    if (converted.length) return converted.join('\n');
+    return criteria || `Skor ${getRubrikRangeByFormOrText(form, range)}: Deskripsi capaian disesuaikan dengan indikator penilaian.`;
   };
 
   const normalizeRubrikRow = (row = {}, fallbackForm = "") => {
@@ -516,8 +540,8 @@ function App() {
     return {
       id: row.id || Date.now() + 'r',
       bentukPenilaian: bentuk || fallback.bentukPenilaian,
-      skor: getMaxScoreByFormOrText(bentuk, rawScore || fallback.skor),
-      kriteria: buildRubrikDescription(sourceRange, sourceCriteria)
+      skor: getRubrikRangeByFormOrText(bentuk, rawScore || fallback.skor),
+      kriteria: buildScoreRepresentation(sourceRange, sourceCriteria, bentuk)
     };
   };
 
@@ -774,6 +798,7 @@ function App() {
     if (form === "Menjodohkan") return /\b4\b/.test(score) && /\b3\b/.test(score) && /\b2\b/.test(score) && /\b1\b/.test(score) && /\b0\b/.test(score);
     if (form === "Isian Singkat") return /\b2\b/.test(score) && /\b1\b/.test(score) && /\b0\b/.test(score);
     if (form === "Uraian") return /\b5\b/.test(score) && /\b4\b/.test(score) && /\b3\b/.test(score) && /\b2\b/.test(score) && /\b1\b/.test(score) && /\b0\b/.test(score);
+    if (form === "Praktik" || form === "Proyek") return /\b10\b/.test(score) && /\b0\b/.test(score);
     return /\b4\b/.test(score) && /\b3\b/.test(score) && /\b2\b/.test(score) && /\b1\b/.test(score);
   };
 
@@ -999,7 +1024,7 @@ ATURAN TETAP ASESMEN:
    - Uraian: kolom opsi berisi kunci/pedoman jawaban ringkas TANPA label "Pedoman Jawaban:", dan kolom kunci isi "-".
    - Praktik/Proyek: kolom opsi berisi rambu pengerjaan/produk/bukti dan kolom kunci isi "-".
 7. PG Kompleks wajib tepat 2 jawaban benar. Menjodohkan wajib punya minimal 4 pasangan dan tidak urut 1-A, 2-B, 3-C, 4-D.
-8. Rubrik wajib 1 baris untuk setiap bentuk penilaian unik yang muncul di kisi-kisi. Kolom skor hanya skor maksimal; rentang nilai dan deskripsi operasional ditulis di kolom kriteria tanpa label "Kriteria:".
+8. Rubrik wajib 1 baris untuk setiap bentuk penilaian unik yang muncul di kisi-kisi. Kolom skor berisi rentang nilai singkat, misalnya 0-1, 0-5, atau 0-10. Kolom kriteria berisi representasi skor per baris, misalnya "Skor 9-10: Model sangat kreatif, berfungsi sangat baik, demonstrasi jelas, dan penjelasan konsep akurat.", tanpa label "Kriteria:".
 
 KONTEKS MODUL:
 - Mapel: ${rppData.mapel}
@@ -1092,7 +1117,7 @@ Keluarkan JSON murni dengan field kisiKisi, bankSoal, rubrikPenilaian. Jangan me
     else if (fieldKey === 'kegiatanPenutup') { sequentialContext += `Kegiatan Inti Sebelumnya: ${rppData.kegiatanInti}\n`; fieldSpecificInstruction += "\nBuat minimal 4 langkah penutup: sintesis, refleksi strategi berpikir, umpan balik, tindak lanjut/remedial-pengayaan, dan koneksi pertemuan berikutnya."; }
     else if (fieldKey === 'kisiKisi') { fieldSpecificInstruction += `\nWAJIB mengikuti rencana jumlah soal berikut: ${getAssessmentPlanText()}. Buat tepat ${expectedAssessmentTotal} baris. Kolom 'level' HANYA isi dengan: C1-C6 dan minimal 60% indikator C4-C6. Bentuk Praktik/Proyek boleh dipakai bila ada pada rencana asesmen atau TP membutuhkan evidensi otentik.`; }
     else if (fieldKey === 'bankSoal') { const stringKisi = rppData.kisiKisi.map(k => `No.${k.nomor} (Level: ${k.level}, Bentuk: ${k.bentuk}): ${k.indikator}`).join(' | '); sequentialContext += `KISI-KISI SEBAGAI ACUAN MUTLAK:\n[ ${stringKisi || 'Acak'} ]\n`; fieldSpecificInstruction += `\nWAJIB membuat bank soal HOTS dan/atau LITERASI-NUMERASI sesuai semua baris kisi-kisi di atas. Kolom soal HANYA berisi stimulus minimal 3 kalimat atau 2 kalimat panjang yang memuat konteks, data/fakta/angka, masalah, dan pertanyaan/perintah; jangan menaruh opsi A-D, premis-respon, pedoman jawaban, atau kunci di kolom soal.\nKolom opsi wajib: PG/PG Kompleks hanya opsi A-D; Menjodohkan format "Premis / Kolom A:" 1-4 lalu "Respon / Kolom B:" A-D; Isian Singkat isi "-"; Uraian berisi kunci/pedoman ringkas TANPA label "Pedoman Jawaban:" dan kunci "-"; Praktik/Proyek berisi rambu produk/bukti dan kunci "-".\nKHUSUS PG Kompleks: Opsi A, B, C, D dan WAJIB TEPAT 2 OPSI BENAR (Kunci: contoh B dan D). Jangan memakai format Premis/Kolom A.\nKHUSUS MENJODOHKAN: BUKAN pilihan ganda. Kunci minimal 4 pasangan acak, contoh: 1-B, 2-D, 3-A, 4-C.\nPENTING: prioritaskan kepatuhan mutlak pada kisi-kisi, stimulus HOTS, literasi, numerasi, dan evidensi Praktik/Proyek.`; }
-    else if (fieldKey === 'rubrikPenilaian') { const bentukRubrik = getBentukPenilaianList().join(', '); const aturanSkor = getBentukPenilaianList().map(b => `${b}: ${skorBentuk[b] || 'skor disesuaikan indikator'}`).join(' | '); sequentialContext += `Bentuk penilaian dari kisi-kisi: ${bentukRubrik}\nAturan skor: ${aturanSkor}\n`; fieldSpecificInstruction += `\nBuat tepat 1 rubrik untuk setiap bentuk penilaian dari kisi-kisi: ${bentukRubrik}. Kolom skor hanya berisi skor maksimal berupa angka. Kolom kriteria berisi "Rentang Nilai:" lalu aturan skor dan deskripsi operasional tanpa label "Kriteria:".`; }
+    else if (fieldKey === 'rubrikPenilaian') { const bentukRubrik = getBentukPenilaianList().join(', '); const aturanSkor = getBentukPenilaianList().map(b => `${b}: ${skorBentuk[b] || 'skor disesuaikan indikator'}`).join(' | '); sequentialContext += `Bentuk penilaian dari kisi-kisi: ${bentukRubrik}\nAturan skor: ${aturanSkor}\n`; fieldSpecificInstruction += `\nBuat tepat 1 rubrik untuk setiap bentuk penilaian dari kisi-kisi: ${bentukRubrik}. Kolom skor hanya berisi rentang nilai singkat, misalnya 0-1, 0-5, atau 0-10. Kolom kriteria berisi representasi skor per baris dengan format "Skor 9-10: ...", "Skor 7-8: ...", tanpa label "Kriteria:" atau "Rentang Nilai:".`; }
 
     let prompt = `Tugas Anda: Merancang spesifik bagian "${fieldTitle}" tanpa basa-basi.\n${sequentialContext}\nATURAN KETAT: ${fieldSpecificInstruction}`;
     let payload = { contents: [{ parts: [{ text: prompt }] }], systemInstruction: { parts: [{ text: "Keluarkan output sesuai permintaan, dilarang memberi pengantar. Gunakan 1 kali enter/newline (\\n) agar poin rapi ke bawah. Patuhi instruksi sinkronisasi." }] }, generationConfig: stableGenerationConfig() };
@@ -1231,13 +1256,13 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
     if (!lines.length) return '';
     const getMarker = (line) => {
       let match = line.match(/^(\d+)[\.)]\s+(.+)$/);
-      if (match) return { type: 'num', tag: 'ol', attr: `class="num-list" style="margin-top:0;margin-bottom:0;margin-left:0pt;padding-left:14pt;text-align:justify" start="${parseInt(match[1], 10) || 1}"`, text: match[2] };
+      if (match) return { type: 'num', tag: 'ol', attr: `class="num-list" style="margin-top:0;margin-bottom:0;margin-left:0pt;padding-left:8pt;text-align:justify" start="${parseInt(match[1], 10) || 1}"`, text: match[2] };
       match = line.match(/^([A-Z])[\.)]\s+(.+)$/);
-      if (match) return { type: 'upper', tag: 'ol', attr: `class="letter-list" style="margin-top:0;margin-bottom:0;margin-left:0pt;padding-left:14pt;text-align:justify" type="A" start="${match[1].charCodeAt(0) - 64}"`, text: match[2] };
+      if (match) return { type: 'upper', tag: 'ol', attr: `class="letter-list" style="margin-top:0;margin-bottom:0;margin-left:0pt;padding-left:8pt;text-align:justify" type="A" start="${match[1].charCodeAt(0) - 64}"`, text: match[2] };
       match = line.match(/^([a-z])[\.)]\s+(.+)$/);
-      if (match) return { type: 'lower', tag: 'ol', attr: `class="lower-letter-list" style="margin-top:0;margin-bottom:0;margin-left:0pt;padding-left:14pt;text-align:justify" type="a" start="${match[1].charCodeAt(0) - 96}"`, text: match[2] };
+      if (match) return { type: 'lower', tag: 'ol', attr: `class="lower-letter-list" style="margin-top:0;margin-bottom:0;margin-left:0pt;padding-left:8pt;text-align:justify" type="a" start="${match[1].charCodeAt(0) - 96}"`, text: match[2] };
       match = line.match(/^[-•]\s+(.+)$/);
-      if (match) return { type: 'bullet', tag: 'ul', attr: 'class="bullet-list" style="margin-top:0;margin-bottom:0;margin-left:0pt;padding-left:14pt;text-align:justify"', text: match[1] };
+      if (match) return { type: 'bullet', tag: 'ul', attr: 'class="bullet-list" style="margin-top:0;margin-bottom:0;margin-left:0pt;padding-left:8pt;text-align:justify"', text: match[1] };
       return null;
     };
     const html = [];
@@ -1279,7 +1304,7 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
       const body = cleanStr(value.slice(start, end).replace(/^\s*[\n;,-]+/, ''));
       return { label: canonical, body };
     }).filter(item => item.body);
-    return `<ol class="num-list" style="margin-top:0;margin-bottom:0;margin-left:0pt;padding-left:14pt;text-align:justify">${items.map(item => `<li style="margin:0 0 1pt 0;text-align:justify;line-height:1.05;mso-line-height-rule:exactly"><strong>${item.label}:</strong> ${escapeHtml(item.body)}</li>`).join('')}</ol>`;
+    return `<ol class="num-list" style="margin-top:0;margin-bottom:0;margin-left:0pt;padding-left:8pt;text-align:justify">${items.map(item => `<li style="margin:0 0 1pt 0;text-align:justify;line-height:1.05;mso-line-height-rule:exactly"><strong>${item.label}:</strong> ${escapeHtml(item.body)}</li>`).join('')}</ol>`;
   };
   const formatBlock = (title, text, options = {}) => `<p class="cell-title">${escapeHtml(title)}</p>${options.assessment ? formatAssessmentText(text) : formatText(text)}`;
   const getHtmlCheckbox = (val, label) => `${val ? '&#9745;' : '&#9744;'} ${label}`;
@@ -1288,9 +1313,9 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
     for (let i = 0; i < keys.length; i += 2) {
       const left = getHtmlCheckbox(values[keys[i]], labels[keys[i]]);
       const right = keys[i + 1] ? getHtmlCheckbox(values[keys[i + 1]], labels[keys[i + 1]]) : "";
-      rows.push(`<tr style="height:11pt;mso-yfti-irow:${i / 2}"><td style="border:none;padding:0 6px 0 0;width:50%;font-size:10.5pt;line-height:0.95;mso-line-height-rule:exactly;margin:0;mso-para-margin:0;mso-margin-top-alt:0cm;mso-margin-bottom-alt:0cm;text-align:left;vertical-align:top;${color ? `color:${color};` : ''}"><span style="margin:0;line-height:0.95;mso-line-height-rule:exactly">${left}</span></td><td style="border:none;padding:0 0 0 6px;width:50%;font-size:10.5pt;line-height:0.95;mso-line-height-rule:exactly;margin:0;mso-para-margin:0;mso-margin-top-alt:0cm;mso-margin-bottom-alt:0cm;text-align:left;vertical-align:top;${color ? `color:${color};` : ''}"><span style="margin:0;line-height:0.95;mso-line-height-rule:exactly">${right}</span></td></tr>`);
+      rows.push(`<tr><td style="border:none;padding:1px 8px 1px 0;width:50%;font-size:10.5pt;line-height:1.1;text-align:left;vertical-align:top;${color ? `color:${color};` : ''}">${left}</td><td style="border:none;padding:1px 0 1px 8px;width:50%;font-size:10.5pt;line-height:1.1;text-align:left;vertical-align:top;${color ? `color:${color};` : ''}">${right}</td></tr>`);
     }
-    return `<table cellspacing="0" cellpadding="0" style="width:100%;border:none;border-collapse:collapse;margin:0;padding:0;mso-table-lspace:0pt;mso-table-rspace:0pt;mso-para-margin:0;mso-padding-alt:0">${rows.join('')}</table>`;
+    return `<table cellspacing="0" cellpadding="0" style="width:100%;border:none;border-collapse:collapse;margin:0;padding:0;mso-table-lspace:0pt;mso-table-rspace:0pt">${rows.join('')}</table>`;
   };
 
   const isChoiceLikeForm = (form) => ["PG", "PG Kompleks", "Menjodohkan"].includes(normalizeBentuk(form));
@@ -1300,7 +1325,7 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
     const items = [...value.matchAll(/(^|\n)\s*([A-D])\s*[\).:-]\s*([^\n]+)/gi)];
     if (!items.length) return formatText(value);
     const start = Math.max(1, items[0][2].toUpperCase().charCodeAt(0) - 64);
-    return `<ol class="letter-list choice-list" type="A" start="${start}" style="margin-top:0;margin-bottom:0;margin-left:0pt;padding-left:14pt;text-align:left">${items.map(match => `<li style="margin:0 0 1pt 0;text-align:left;line-height:1.05;mso-line-height-rule:exactly">${escapeHtml(normalizeInlineWordText(match[3]))}</li>`).join('')}</ol>`;
+    return `<ol class="letter-list choice-list" type="A" start="${start}" style="margin-top:0;margin-bottom:0;margin-left:0pt;padding-left:8pt;text-align:left">${items.map(match => `<li style="margin:0 0 1pt 0;text-align:left;line-height:1.05;mso-line-height-rule:exactly">${escapeHtml(normalizeInlineWordText(match[3]))}</li>`).join('')}</ol>`;
   };
 
   const formatOptionsForWord = (text, form) => {
@@ -1323,17 +1348,17 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
 
   const getRubrikMaxScore = (row) => {
     const form = normalizeBentuk(row?.bentukPenilaian);
-    return getMaxScoreByFormOrText(form, row?.skor || row?.kriteria);
+    return getRubrikRangeByFormOrText(form, row?.skor || row?.kriteria);
   };
 
   const getRubrikDescriptionForExport = (row) => {
     const skor = cleanStr(row?.skor);
     const kriteria = cleanStr(row?.kriteria);
-    if (/^Rentang\s+Nilai\s*:/i.test(kriteria)) return stripRubrikLabels(kriteria);
+    if (/Skor\s+\d+(?:\s*-\s*\d+)?\s*:/i.test(kriteria)) return stripRubrikLabels(kriteria);
     const form = normalizeBentuk(row?.bentukPenilaian);
     const fallback = buildDefaultRubrik(form || "Tertulis");
     const range = (skor && (/[=:-]/.test(skor) || skor.split(/\n+/).length > 1)) ? skor : fallback.skor;
-    return buildRubrikDescription(range, kriteria || fallback.kriteria);
+    return buildScoreRepresentation(range, kriteria || fallback.kriteria, form);
   };
 
   const renderMatchingOptions = (text) => {
@@ -1399,8 +1424,8 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
 </tr>
 <tr><td class="t-label">Karakter Materi</td><td colspan="3" class="t-content">${formatText(rppData.karakteristikMateri)}</td></tr>
 <tr><td class="t-label">Konteks Nyata Siswa</td><td colspan="3" class="t-content">${formatText(rppData.situasiNyataSiswa)}</td></tr>
-<tr><td class="t-label">Dimensi Lulusan</td><td colspan="3" class="t-content" style="padding:0 2px;line-height:0.95;mso-line-height-rule:exactly;mso-para-margin:0">${profilHtml}</td></tr>
-<tr><td class="t-label" style="color:#1e40af">Komp. Sosial Emos.</td><td colspan="3" class="t-content" style="padding:0 2px;line-height:0.95;mso-line-height-rule:exactly;mso-para-margin:0;background-color:#eff6ff">${kseHtml}</td></tr>
+<tr><td class="t-label">Dimensi Lulusan</td><td colspan="3" class="t-content" style="padding:2px 3px;line-height:1.1">${profilHtml}</td></tr>
+<tr><td class="t-label" style="color:#1e40af">Komp. Sosial Emos.</td><td colspan="3" class="t-content" style="padding:2px 3px;line-height:1.1;background-color:#eff6ff">${kseHtml}</td></tr>
 <tr><td colspan="4" class="section-head" style="text-align:left">2. DESAIN PEMBELAJARAN</td></tr>
 <tr><td class="t-label">Capaian Pemb.</td><td colspan="3" class="t-content">${formatText(rppData.cp)}</td></tr>
 <tr><td class="t-label">Tujuan Pemb.</td><td colspan="3" class="t-content">${formatText(rppData.tp)}</td></tr>
@@ -1436,7 +1461,7 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
 <table style="width:100%;border-collapse:collapse;margin-bottom:8pt;"><thead style="display:table-header-group"><tr><th width="5%" style="${thStyle}">No</th><th width="45%" style="${thStyle}">Butir Soal & Stimulus Kontekstual</th><th width="40%" style="${thStyle}">Pilihan Jawaban / Pedoman Jawab</th><th width="10%" style="${thStyle}">Kunci</th></tr></thead><tbody>${bRows}</tbody></table>
 <p style="margin:0;line-height:8pt;font-size:8pt;text-align:left">&nbsp;</p>
 <p style="margin:0 0 3pt 0;font-size:11pt;text-align:left"><strong>C. Rubrik Penilaian Kinerja/Uraian</strong></p>
-<table style="width:100%;border-collapse:collapse;margin-bottom:10pt;"><thead style="display:table-header-group"><tr><th width="14%" style="${thStyle}">Bentuk Penilaian</th><th width="10%" style="${thStyle}">Skor Maks.</th><th width="76%" style="${thStyle}">Deskripsi Indikator Penilaian / Rentang Nilai</th></tr></thead><tbody>${rRowsTable}</tbody></table>
+<table style="width:100%;border-collapse:collapse;margin-bottom:10pt;"><thead style="display:table-header-group"><tr><th width="14%" style="${thStyle}">Bentuk Penilaian</th><th width="12%" style="${thStyle}">Rentang Nilai</th><th width="74%" style="${thStyle}">Deskripsi Indikator Penilaian</th></tr></thead><tbody>${rRowsTable}</tbody></table>
 </div></body></html>`;
   };
 
@@ -1536,7 +1561,7 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
           name: "Rubrik Penilaian",
           minWidths: [5, 18, 24, 52],
           maxWidths: [6, 24, 34, 76],
-          rows: rubrikRowsForExcel.map((r, i) => ({ "No": i + 1, "Bentuk Penilaian": r.bentukPenilaian, "Skor Maks.": getRubrikMaxScore(r), "Deskripsi Indikator Penilaian / Rentang Nilai": getRubrikDescriptionForExport(r) }))
+          rows: rubrikRowsForExcel.map((r, i) => ({ "No": i + 1, "Bentuk Penilaian": r.bentukPenilaian, "Rentang Nilai": getRubrikMaxScore(r), "Deskripsi Indikator Penilaian": getRubrikDescriptionForExport(r) }))
         }
       ];
 
@@ -2019,14 +2044,14 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
                     <div className="w-full overflow-x-auto border border-slate-300 rounded scrollbar-hide pb-2">
                       <table className="w-full text-left text-sm border-collapse min-w-[920px]">
                         <thead className="bg-slate-100 text-slate-700 border-b border-slate-300">
-                          <tr><th className="p-2 border-r min-w-[120px] w-[14%]">Bentuk Penilaian</th><th className="p-2 border-r min-w-[110px] w-[12%] text-center">Skor Maks.</th><th className="p-2 border-r min-w-[600px] w-[68%]">Deskripsi Indikator Penilaian / Rentang Nilai</th><th className="p-2 w-10 text-center shrink-0"></th></tr>
+                          <tr><th className="p-2 border-r min-w-[120px] w-[14%]">Bentuk Penilaian</th><th className="p-2 border-r min-w-[120px] w-[14%] text-center">Rentang Nilai</th><th className="p-2 border-r min-w-[600px] w-[66%]">Deskripsi Indikator Penilaian</th><th className="p-2 w-10 text-center shrink-0"></th></tr>
                         </thead>
                         <tbody>
                           {rppData.rubrikPenilaian.map((row, index) => (
                             <tr key={row.id} className="border-b hover:bg-slate-50">
                               <td className="p-1 border-r align-top"><input type="text" className="table-input font-bold text-center text-orange-700" value={row.bentukPenilaian || ""} onChange={(e) => handleTableChange('rubrikPenilaian', index, 'bentukPenilaian', e.target.value)} placeholder="PG / Uraian / Proyek" /></td>
-                              <td className="p-1 border-r align-top"><input type="text" className="table-input font-bold text-center text-blue-700" value={row.skor} onChange={(e) => handleTableChange('rubrikPenilaian', index, 'skor', e.target.value)} placeholder="4" /></td>
-                              <td className="p-1 border-r align-top"><textarea className="table-input resize-y min-h-[80px] leading-relaxed whitespace-pre-wrap" rows="4" value={row.kriteria} onChange={(e) => handleTableChange('rubrikPenilaian', index, 'kriteria', e.target.value)} placeholder="Rentang Nilai:\n4 = ...\n3 = ...\n\nDeskripsi operasional penilaian..."></textarea></td>
+                              <td className="p-1 border-r align-top"><input type="text" className="table-input font-bold text-center text-blue-700" value={row.skor} onChange={(e) => handleTableChange('rubrikPenilaian', index, 'skor', e.target.value)} placeholder="0-10" /></td>
+                              <td className="p-1 border-r align-top"><textarea className="table-input resize-y min-h-[80px] leading-relaxed whitespace-pre-wrap" rows="4" value={row.kriteria} onChange={(e) => handleTableChange('rubrikPenilaian', index, 'kriteria', e.target.value)} placeholder="Skor 9-10: ...\nSkor 7-8: ...\nSkor 5-6: ...\nSkor 0-4: ..."></textarea></td>
                               <td className="p-2 text-center align-top"><button onClick={() => removeTableRow('rubrikPenilaian', row.id)} className="text-red-400 hover:text-red-600 mt-1 p-2"><i className="fas fa-trash"></i></button></td>
                             </tr>
                           ))}
@@ -2140,7 +2165,7 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
                     <div className="w-full overflow-x-auto border border-slate-300 rounded pb-2">
                       <table className="w-full text-left text-xs sm:text-sm border-collapse min-w-[760px]">
                         <thead className="bg-slate-100 text-slate-700 border-b border-slate-300">
-                          <tr><th className="p-2 border-r min-w-[120px] w-[14%]">Bentuk Penilaian</th><th className="p-2 border-r min-w-[110px] w-[12%] text-center">Skor Maks.</th><th className="p-2 min-w-[500px] w-[74%]">Deskripsi Indikator Penilaian / Rentang Nilai</th></tr>
+                          <tr><th className="p-2 border-r min-w-[120px] w-[14%]">Bentuk Penilaian</th><th className="p-2 border-r min-w-[120px] w-[14%] text-center">Rentang Nilai</th><th className="p-2 min-w-[500px] w-[72%]">Deskripsi Indikator Penilaian</th></tr>
                         </thead>
                         <tbody>
                           {(rppData.kisiKisi.length ? mapRubrikByKisi(rppData.rubrikPenilaian, rppData.kisiKisi) : rppData.rubrikPenilaian).map((r, i) => (
