@@ -147,7 +147,7 @@ function App() {
   const [instruksiKhusus, setInstruksiKhusus] = useState(() => localStorage.getItem('asistenGuru_instruksiKhusus_v43') || ""); 
   
   const [showApiModal, setShowApiModal] = useState(false);
-  const [geminiApiKey, setGeminiApiKey] = useState(() => sessionStorage.getItem('gemini_api_key_eksternal_v2') || "");
+  const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('gemini_api_key_eksternal_v2') || sessionStorage.getItem('gemini_api_key_eksternal_v2') || "");
   const [tempApiKey, setTempApiKey] = useState("");
   const [popup, setPopup] = useState(null);
 
@@ -164,11 +164,11 @@ function App() {
       notify("API Key Dikosongkan", "Generate AI belum bisa berjalan sampai API key Gemini diisi kembali.", "warning");
       return;
     }
-    sessionStorage.setItem('gemini_api_key_eksternal_v2', cleanedKey);
-    localStorage.removeItem('gemini_api_key_eksternal_v2');
+    localStorage.setItem('gemini_api_key_eksternal_v2', cleanedKey);
+    sessionStorage.removeItem('gemini_api_key_eksternal_v2');
     setGeminiApiKey(cleanedKey);
     setShowApiModal(false);
-    notify("API Key Tersimpan", "API key berhasil disimpan sementara di tab browser ini. Generate AI sekarang memakai key tersebut.", "success");
+    notify("API Key Tersimpan", "API key berhasil disimpan di localStorage perangkat ini. Generate AI sekarang memakai key tersebut.", "success");
   };
 
   const getInjectedApiKey = () => {
@@ -188,7 +188,6 @@ function App() {
   const isAnyLoading = isGenerating || Object.values(individualLoading).some(v => v === true);
 
   useEffect(() => { localStorage.setItem('asistenGuru_instruksiKhusus_v43', instruksiKhusus); }, [instruksiKhusus]);
-  useEffect(() => { localStorage.removeItem('gemini_api_key_eksternal_v2'); }, []);
 
   useEffect(() => {
     let timer;
@@ -247,19 +246,128 @@ function App() {
     kisiKisi: [], bankSoal: [], rubrikPenilaian: []
   };
 
-  const [rppData, setRppData] = useState(() => {
+  const cloneData = (data) => JSON.parse(JSON.stringify(data || defaultDataObj));
+  const normalizeActivityData = (data = {}) => {
+    let p = { ...defaultDataObj, ...(data || {}) };
+    if (Array.isArray(p.praktikPedagogis)) p.praktikPedagogis = p.praktikPedagogis.join(', ');
+    return {
+      ...p,
+      profilLulusan: { ...defaultDataObj.profilLulusan, ...(p.profilLulusan || {}) },
+      kseLulusan: { ...defaultDataObj.kseLulusan, ...(p.kseLulusan || {}) },
+      rencanaAsesmen: Array.isArray(p.rencanaAsesmen) && p.rencanaAsesmen.length ? p.rencanaAsesmen : defaultAssessmentPlan.map(row => ({ ...row })),
+      kisiKisi: Array.isArray(p.kisiKisi) ? p.kisiKisi : [],
+      bankSoal: Array.isArray(p.bankSoal) ? p.bankSoal : [],
+      rubrikPenilaian: Array.isArray(p.rubrikPenilaian) ? p.rubrikPenilaian : []
+    };
+  };
+  const getActivityTitle = (data, index = 1) => {
+    const topic = String(data?.topik || "").trim();
+    return topic ? (topic.length > 42 ? `${topic.slice(0, 39)}...` : topic) : `Kegiatan ${index}`;
+  };
+  const makeActivityTab = (data, index = 1, title = "") => ({
+    id: `tab-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    title: title || getActivityTitle(data, index),
+    data: cloneData(normalizeActivityData(data)),
+    updatedAt: new Date().toISOString()
+  });
+  const loadInitialActivities = () => {
+    try {
+      const savedTabs = JSON.parse(localStorage.getItem('asistenGuruTabs_v1') || "[]");
+      if (Array.isArray(savedTabs) && savedTabs.length) {
+        const tabs = savedTabs.map((tab, index) => ({
+          ...tab,
+          id: tab.id || `tab-migrated-${index + 1}`,
+          title: tab.title || getActivityTitle(tab.data, index + 1),
+          data: normalizeActivityData(tab.data)
+        }));
+        const savedActive = localStorage.getItem('asistenGuruActiveTab_v1');
+        const activeTabId = tabs.some(tab => tab.id === savedActive) ? savedActive : tabs[0].id;
+        return { tabs, activeTabId, activeData: normalizeActivityData(tabs.find(tab => tab.id === activeTabId)?.data || tabs[0].data) };
+      }
+    } catch (e) {}
+    let legacy = null;
     const saved = localStorage.getItem('asistenGuruData_v42');
     if (saved) {
       try {
-        let p = JSON.parse(saved);
-        if (Array.isArray(p.praktikPedagogis)) p.praktikPedagogis = p.praktikPedagogis.join(', ');
-        return { ...defaultDataObj, ...p };
+        legacy = normalizeActivityData(JSON.parse(saved));
       } catch (e) {}
     }
-    return defaultDataObj;
-  });
+    const first = makeActivityTab(legacy || defaultDataObj, 1, getActivityTitle(legacy || defaultDataObj, 1));
+    return { tabs: [first], activeTabId: first.id, activeData: first.data };
+  };
+  const initialActivitiesRef = useRef(null);
+  if (!initialActivitiesRef.current) initialActivitiesRef.current = loadInitialActivities();
+  const [activityTabs, setActivityTabs] = useState(initialActivitiesRef.current.tabs);
+  const [activeTabId, setActiveTabId] = useState(initialActivitiesRef.current.activeTabId);
+  const [rppData, setRppData] = useState(initialActivitiesRef.current.activeData);
 
-  useEffect(() => { localStorage.setItem('asistenGuruData_v42', JSON.stringify(rppData)); }, [rppData]);
+  useEffect(() => {
+    setActivityTabs(prev => {
+      const next = (prev.length ? prev : [makeActivityTab(rppData, 1)]).map((tab, index) => tab.id === activeTabId ? {
+        ...tab,
+        title: getActivityTitle(rppData, index + 1),
+        data: cloneData(normalizeActivityData(rppData)),
+        updatedAt: new Date().toISOString()
+      } : tab);
+      localStorage.setItem('asistenGuruTabs_v1', JSON.stringify(next));
+      localStorage.setItem('asistenGuruActiveTab_v1', activeTabId);
+      localStorage.setItem('asistenGuruData_v42', JSON.stringify(rppData));
+      return next;
+    });
+  }, [rppData, activeTabId]);
+
+  const switchActivityTab = (id) => {
+    const target = activityTabs.find(tab => tab.id === id);
+    if (!target || target.id === activeTabId) return;
+    setActiveTabId(target.id);
+    setRppData(normalizeActivityData(target.data));
+    setCompletedSteps({});
+    setAiHistory([]);
+    setIsEditing(false);
+  };
+  const addActivityTab = () => {
+    const carry = {
+      namaSekolah: rppData.namaSekolah,
+      namaGuru: rppData.namaGuru,
+      tahunPelajaran: rppData.tahunPelajaran,
+      nipGuru: rppData.nipGuru,
+      namaKepsek: rppData.namaKepsek,
+      nipKepsek: rppData.nipKepsek,
+      mapel: rppData.mapel,
+      kelas: rppData.kelas,
+      waktu: rppData.waktu,
+      jumlahPertemuan: rppData.jumlahPertemuan
+    };
+    const newData = normalizeActivityData({ ...defaultDataObj, ...carry });
+    const newTab = makeActivityTab(newData, activityTabs.length + 1, `Kegiatan ${activityTabs.length + 1}`);
+    setActivityTabs(prev => [...prev, newTab]);
+    setActiveTabId(newTab.id);
+    setRppData(newTab.data);
+    setCompletedSteps({});
+    setAiHistory([]);
+    setIsEditing(true);
+    notify("Tab Kegiatan Ditambahkan", "Rancangan sebelumnya tetap tersimpan. Silakan isi subbab/kegiatan baru pada tab ini.", "success");
+  };
+  const removeActivityTab = (id) => {
+    if (activityTabs.length <= 1) {
+      notify("Tab Terakhir", "Minimal harus ada satu tab kegiatan.", "warning");
+      return;
+    }
+    const target = activityTabs.find(tab => tab.id === id);
+    confirmPopup("Hapus Tab Kegiatan?", `Tab "${target?.title || 'Kegiatan'}" akan dihapus dari penyimpanan lokal. Lanjutkan?`, () => {
+      const remaining = activityTabs.filter(tab => tab.id !== id);
+      const fallback = remaining[0];
+      localStorage.setItem('asistenGuruTabs_v1', JSON.stringify(remaining));
+      localStorage.setItem('asistenGuruActiveTab_v1', id === activeTabId ? fallback.id : activeTabId);
+      setActivityTabs(remaining);
+      if (id === activeTabId) {
+        setActiveTabId(fallback.id);
+        setRppData(normalizeActivityData(fallback.data));
+        setCompletedSteps({});
+        setAiHistory([]);
+      }
+    });
+  };
 
   const getAssessmentBlueprint = (data = rppData) => {
     const source = Array.isArray(data.rencanaAsesmen) && data.rencanaAsesmen.length ? data.rencanaAsesmen : defaultAssessmentPlan;
@@ -312,6 +420,28 @@ function App() {
     return cleaned.trim();
   };
 
+  const countMeaningfulLines = (value) => cleanStr(value).split(/\n+/).filter(line => line.replace(/^[-\d\.\)\s]+/, '').trim().length > 18).length;
+
+  const ensureSituasiNyata = (value, data = rppData) => {
+    const text = cleanStr(value);
+    if (countMeaningfulLines(text) >= 3 && /(lingkungan|sekolah|rumah|sekitar|lokal|siswa|data|fakta|pengamatan|kasus|fenomena)/i.test(text)) return text;
+    const topic = cleanStr(data.topik) || "topik pembelajaran";
+    const school = cleanStr(data.namaSekolah) || "sekolah";
+    return cleanStr(`${text ? `${text}\n` : ""}1. Konteks lokal: Siswa mengaitkan ${topic} dengan fenomena yang dapat diamati di ${school}, rumah, atau lingkungan sekitar.\n2. Masalah nyata: Siswa menelaah peristiwa/kasus sederhana yang dekat dengan pengalaman mereka sehingga konsep tidak dipelajari secara abstrak.\n3. Bukti awal: Siswa memakai pengamatan, cerita, data sederhana, foto, peta, tabel, atau hasil diskusi sebagai jangkar pembelajaran bermakna.`);
+  };
+
+  const ensureExperienceText = (value, label, data = rppData) => {
+    const text = cleanStr(value);
+    if (countMeaningfulLines(text) >= 3 && /(konsep|bukti|data|kasus|strategi|refleksi|menerapkan|menganalisis|menyimpulkan|mengevaluasi|merancang)/i.test(text)) return text;
+    const topic = cleanStr(data.topik) || "materi";
+    const templates = {
+      memahami: `1. Siswa mengaktifkan pengetahuan awal tentang ${topic} melalui pertanyaan pemantik dan contoh nyata.\n2. Siswa mengeksplorasi konsep kunci dengan membaca/mengamati data, gambar, kasus, atau demonstrasi singkat.\n3. Siswa menjelaskan makna konsep dengan bahasanya sendiri dan memeriksa miskonsepsi bersama guru.`,
+      mengaplikasi: `1. Siswa menerapkan konsep ${topic} pada kasus baru yang dekat dengan kehidupan mereka.\n2. Siswa memakai bukti/data sederhana untuk memilih strategi, menyusun alasan, dan membuat produk/kinerja.\n3. Siswa membandingkan hasil kerja dengan kriteria keberhasilan dan memperbaiki jawabannya melalui umpan balik.`,
+      merefleksi: `1. Siswa menuliskan strategi berpikir yang paling membantu saat memahami ${topic}.\n2. Siswa menilai bukti pemahaman dirinya, kesulitan yang tersisa, dan bantuan yang dibutuhkan.\n3. Siswa merumuskan rencana perbaikan belajar untuk pertemuan atau tugas berikutnya.`
+    };
+    return cleanStr(`${text ? `${text}\n` : ""}${templates[label] || templates.memahami}`);
+  };
+
   const normalizeBentuk = (value) => {
     const v = cleanStr(value).toLowerCase();
     if (v.includes("kompleks")) return "PG Kompleks";
@@ -343,6 +473,53 @@ function App() {
       bentuk === "Uraian" ? "Skor 5: jawaban lengkap, konsep tepat, alasan kuat, dan memakai bukti/konteks.\nSkor 3-4: konsep tepat tetapi alasan/bukti belum lengkap.\nSkor 1-2: sebagian konsep benar tetapi penalaran lemah.\nSkor 0: tidak menjawab atau tidak sesuai indikator." :
       `Kriteria disusun sesuai evidensi ${bentuk}: proses, produk/kinerja, ketepatan konsep, penggunaan bukti, dan refleksi siswa.`
   });
+
+  const stripLeadingLabel = (text, labels = []) => {
+    let value = cleanStr(text);
+    labels.forEach(label => {
+      value = value.replace(new RegExp(`^\\s*${label}\\s*[:=\\-]\\s*`, "i"), "");
+    });
+    return cleanStr(value);
+  };
+
+  const stripRubrikLabels = (text) => cleanStr(text)
+    .replace(/(^|\n)\s*Kriteria\s*[:=]\s*/gi, '$1')
+    .replace(/(^|\n)\s*Deskripsi\s*Indikator\s*Penilaian\s*[:=]\s*/gi, '$1')
+    .replace(/\n\s*\n/g, '\n')
+    .trim();
+
+  const getMaxScoreByFormOrText = (form, scoreText = "") => {
+    const fixedMax = { "PG": "1", "PG Kompleks": "2", "Menjodohkan": "4", "Isian Singkat": "2", "Uraian": "5" };
+    if (fixedMax[form]) return fixedMax[form];
+    const nums = (cleanStr(scoreText).match(/\d+/g) || []).map(Number);
+    if (nums.length) return String(Math.max(...nums));
+    return form === "Praktik" || form === "Proyek" ? "4" : "-";
+  };
+
+  const buildRubrikDescription = (rangeText, criteriaText) => {
+    const range = cleanStr(rangeText);
+    const criteria = stripRubrikLabels(criteriaText);
+    if (/^Rentang\s+Nilai\s*:/i.test(criteria)) return stripRubrikLabels(criteria);
+    return [`Rentang Nilai:\n${range}`, criteria].filter(Boolean).join('\n');
+  };
+
+  const normalizeRubrikRow = (row = {}, fallbackForm = "") => {
+    if (!fallbackForm && !cleanStr(row.bentukPenilaian) && !cleanStr(row.skor) && !cleanStr(row.kriteria)) {
+      return { id: row.id || Date.now() + 'r', bentukPenilaian: "", skor: "", kriteria: "" };
+    }
+    const bentuk = normalizeBentuk(row.bentukPenilaian || row.bentuk || row.jenis || fallbackForm);
+    const fallback = buildDefaultRubrik(bentuk || fallbackForm || "Tertulis");
+    const rawScore = cleanStr(row.skor);
+    const rawCriteria = cleanStr(row.kriteria);
+    const sourceRange = (rawScore && (/[=:-]/.test(rawScore) || rawScore.split(/\n+/).length > 1)) ? rawScore : fallback.skor;
+    const sourceCriteria = rawCriteria || fallback.kriteria;
+    return {
+      id: row.id || Date.now() + 'r',
+      bentukPenilaian: bentuk || fallback.bentukPenilaian,
+      skor: getMaxScoreByFormOrText(bentuk, rawScore || fallback.skor),
+      kriteria: buildRubrikDescription(sourceRange, sourceCriteria)
+    };
+  };
 
   const kkoByLevel = { C1: "mengidentifikasi", C2: "menjelaskan", C3: "menerapkan", C4: "menganalisis", C5: "mengevaluasi", C6: "merancang" };
   const getExpectedAssessmentSequence = (planData = rppData) => {
@@ -404,10 +581,61 @@ function App() {
     const question = cleanStr(soal);
     const options = cleanStr(opsi);
     if (/(premis|kelompok\s*a|kolom\s*a).*(respon|kelompok\s*b|kolom\s*b)/is.test(options)) return { soal: question, opsi: options };
-    const match = question.match(/(?:^|\n)\s*((?:premis(?:\s*\/\s*kolom\s*a)?|kelompok\s*a|kolom\s*a)\s*:?\s*[\s\S]*)/i);
-    if (!match) return { soal: question, opsi: options };
+    const match = question.match(/((?:premis\s*\/\s*kolom\s*a|kelompok\s*a|kolom\s*a)\s*:?\s*[\s\S]*)/i);
+    if (!match || !/(respon|kelompok\s*b|kolom\s*b)/i.test(match[1])) return { soal: question, opsi: options };
     return { soal: cleanStr(question.slice(0, match.index)), opsi: options || cleanStr(match[1]) };
   };
+
+  const normalizeChoiceOptionsText = (text) => {
+    let value = cleanStr(text);
+    if (/(premis|kelompok\s*a|kolom\s*a).*(respon|kelompok\s*b|kolom\s*b)/is.test(value)) {
+      value = value.replace(/(?:premis|kelompok\s*a|kolom\s*a)\s*:?\s*[\s\S]*?(?:respon\s*\/\s*)?(?:kelompok\s*b|kolom\s*b)\s*:?\s*/i, '');
+    }
+    value = value.replace(/,\s*(?=\n\s*[A-D]\s*[\).:-])/gi, '\n').replace(/,\s*$/gm, '');
+    const matches = [...value.matchAll(/(^|\n|,|;)\s*([A-D])\s*[\).:-]\s*([\s\S]*?)(?=(?:\n|,|;)\s*[A-D]\s*[\).:-]|$)/gi)];
+    if (matches.length >= 4) {
+      return matches.slice(0, 4).map(match => `${match[2].toUpperCase()}. ${cleanStr(match[3]).replace(/,\s*$/g, '')}`).join('\n');
+    }
+    return value;
+  };
+
+  const normalizeMatchingOptionsText = (text) => {
+    let value = cleanStr(text);
+    value = value
+      .replace(/((?:^|\n)\s*\d+\s*[\).:-][^\n]*?)\s*\/\s*(?:Respon\s*\/\s*)?(?:Kolom|Kelompok)\s*B\s*:?\s*/gi, '$1\nRespon / Kolom B:\n')
+      .replace(/(?:^|\n)\s*(?:Respon\s*\/\s*)?(?:Kolom|Kelompok)\s*B\s*:?\s*/gi, '\nRespon / Kolom B:\n')
+      .replace(/Respon\s*\n+\s*Respon\s*\/\s*(?:Kolom|Kelompok)\s*B\s*:/gi, 'Respon / Kolom B:')
+      .replace(/(?:Respon\s*\/\s*(?:Kolom|Kelompok)\s*B\s*:?\s*){2,}/gi, 'Respon / Kolom B:\n')
+      .replace(/,\s*(?=\n\s*(?:\d+|[A-H])\s*[\).:-])/gi, '\n')
+      .replace(/,\s*$/gm, '');
+    return cleanStr(value);
+  };
+
+  const hasClearStimulus = (text) => {
+    const value = cleanStr(text);
+    return value.length >= 110 && /(data|kasus|tabel|grafik|cerita|situasi|pengamatan|informasi|hasil|lingkungan|siswa|sekolah|angka|jumlah|fakta|laporan|observasi)/i.test(value);
+  };
+
+  const ensureStimulusQuality = (text, kisiRow, index, form) => {
+    const value = cleanStr(text);
+    if (hasClearStimulus(value)) return value;
+    const materi = cleanStr(kisiRow?.materi) || cleanStr(rppData.topik) || "materi pembelajaran";
+    const indikator = cleanStr(kisiRow?.indikator) || `indikator soal nomor ${index + 1}`;
+    const context = cleanStr(rppData.situasiNyataSiswa) || "lingkungan sekolah dan kehidupan sehari-hari siswa";
+    const level = cleanStr(kisiRow?.level) || "C4";
+    const intro = `Dalam konteks ${context}, siswa mempelajari ${materi} melalui informasi/kasus yang memuat data atau fakta sederhana. Gunakan informasi tersebut untuk ${level} sesuai indikator: ${indikator}.`;
+    const task = value || `Tentukan jawaban yang paling tepat berdasarkan stimulus tersebut.`;
+    return cleanStr(`${intro}\n${task}`);
+  };
+
+  const normalizeAnswerGuideText = (text) => stripLeadingLabel(text, [
+    "Pedoman\\s+Jawaban",
+    "Pedoman\\s+jawab",
+    "Kunci\\s+Jawaban",
+    "Jawaban\\s+Uraian",
+    "Jawaban",
+    "Rubrik\\s+ringkas"
+  ]);
 
   const buildMatchingTemplate = (kisiRow, index) => {
     const materi = cleanStr(kisiRow?.materi) || cleanStr(rppData.topik) || "materi";
@@ -420,13 +648,35 @@ function App() {
     const form = normalizeBentuk(kisiRow?.bentuk || bentukSoalUrut[index] || "");
     let split = splitChoiceOptionsFromSoal(b.soal, b.opsi, form);
     if (form === "Menjodohkan") split = splitMatchingOptionsFromSoal(split.soal, split.opsi);
-    const needsMatchingTemplate = form === "Menjodohkan" && (countMatchingParts(split.opsi).premis < 4 || countMatchingParts(split.opsi).respon < 4);
     const fallbackSoal = `Bacalah stimulus kontekstual tentang ${cleanStr(kisiRow?.materi) || cleanStr(rppData.topik) || "materi"} berikut. Hubungkan setiap premis dengan respon yang paling tepat berdasarkan indikator: ${cleanStr(kisiRow?.indikator) || "indikator pembelajaran"}.`;
+    let soal = ensureStimulusQuality(split.soal || fallbackSoal, kisiRow, index, form);
+    let opsi = cleanStr(split.opsi);
+    let kunci = cleanStr(b.kunci);
+    if (form === "PG" || form === "PG Kompleks") opsi = normalizeChoiceOptionsText(opsi);
+    if (form === "Menjodohkan") {
+      opsi = normalizeMatchingOptionsText(opsi);
+      const needsMatchingTemplate = countMatchingParts(opsi).premis < 4 || countMatchingParts(opsi).respon < 4;
+      if (needsMatchingTemplate) opsi = buildMatchingTemplate(kisiRow, index);
+      if (!kunci && needsMatchingTemplate) kunci = "1-B, 2-D, 3-A, 4-C";
+    }
+    if (form === "Isian Singkat") {
+      if (!kunci && opsi && opsi !== "-") kunci = normalizeAnswerGuideText(opsi);
+      opsi = "-";
+    }
+    if (form === "Uraian") {
+      const guide = normalizeAnswerGuideText(opsi) || normalizeAnswerGuideText(kunci);
+      opsi = guide || "-";
+      kunci = "-";
+    }
+    if (form === "Praktik" || form === "Proyek") {
+      opsi = normalizeAnswerGuideText(opsi) || normalizeAnswerGuideText(kunci) || "-";
+      kunci = "-";
+    }
     return {
       id: Date.now() + 'b' + index,
-      soal: split.soal || fallbackSoal,
-      opsi: needsMatchingTemplate ? buildMatchingTemplate(kisiRow, index) : split.opsi,
-      kunci: cleanStr(b.kunci) || (needsMatchingTemplate ? "1-B, 2-D, 3-A, 4-C" : "")
+      soal,
+      opsi,
+      kunci: normalizeBankKey(kunci, form)
     };
   };
 
@@ -436,23 +686,28 @@ function App() {
   };
 
   const getBankRowForDisplay = (row, index) => {
-    const form = rppData.kisiKisi[index]?.bentuk || bentukSoalUrut[index] || "";
-    let split = splitChoiceOptionsFromSoal(row.soal, row.opsi, form);
-    if (normalizeBentuk(form) === "Menjodohkan") split = splitMatchingOptionsFromSoal(split.soal, split.opsi);
-    return { ...row, soal: split.soal, opsi: split.opsi };
+    const kisi = rppData.kisiKisi[index] || { bentuk: bentukSoalUrut[index] || "" };
+    const normalized = normalizeBankRowByKisi(row, kisi, index);
+    return { ...row, soal: normalized.soal, opsi: normalized.opsi, kunci: normalized.kunci };
   };
 
   useEffect(() => {
     if (!rppData.bankSoal.length) return;
-    const normalizedRows = rppData.bankSoal.map((row, index) => {
-      const form = rppData.kisiKisi[index]?.bentuk || bentukSoalUrut[index] || "";
-      let split = splitChoiceOptionsFromSoal(row.soal, row.opsi, form);
-      if (normalizeBentuk(form) === "Menjodohkan") split = splitMatchingOptionsFromSoal(split.soal, split.opsi);
-      return { ...row, soal: split.soal, opsi: split.opsi };
-    });
-    const hasMovedOptions = normalizedRows.some((row, index) => row.soal !== rppData.bankSoal[index].soal || row.opsi !== rppData.bankSoal[index].opsi);
+    const normalizedRows = rppData.bankSoal.map((row, index) => ({ ...row, ...normalizeBankRowByKisi(row, rppData.kisiKisi[index] || { bentuk: bentukSoalUrut[index] || "" }, index), id: row.id }));
+    const hasMovedOptions = normalizedRows.some((row, index) => row.soal !== rppData.bankSoal[index].soal || row.opsi !== rppData.bankSoal[index].opsi || row.kunci !== rppData.bankSoal[index].kunci);
     if (hasMovedOptions) setRppData(prev => ({ ...prev, bankSoal: normalizedRows }));
   }, [rppData.bankSoal, rppData.kisiKisi]);
+
+  useEffect(() => {
+    if (!rppData.rubrikPenilaian.length) return;
+    const normalizedRows = rppData.rubrikPenilaian.map(row => ({ ...normalizeRubrikRow(row), id: row.id }));
+    const changed = normalizedRows.some((row, index) =>
+      row.bentukPenilaian !== rppData.rubrikPenilaian[index].bentukPenilaian ||
+      row.skor !== rppData.rubrikPenilaian[index].skor ||
+      row.kriteria !== rppData.rubrikPenilaian[index].kriteria
+    );
+    if (changed) setRppData(prev => ({ ...prev, rubrikPenilaian: normalizedRows }));
+  }, [rppData.rubrikPenilaian]);
 
   const countMatchingParts = (text) => {
     const clean = cleanStr(text);
@@ -472,6 +727,21 @@ function App() {
     return [];
   };
 
+  const normalizeBankKey = (text, form) => {
+    const normalizedForm = normalizeBentuk(form);
+    const raw = cleanStr(text);
+    if (!raw) return "";
+    if (normalizedForm === "PG") {
+      const letters = extractKeyLetters(raw);
+      return letters.length === 1 ? letters[0] : raw;
+    }
+    if (normalizedForm === "PG Kompleks") {
+      const letters = extractKeyLetters(raw).sort();
+      return letters.length === 2 ? `${letters[0]} dan ${letters[1]}` : raw;
+    }
+    return raw;
+  };
+
   const extractListItems = (text, markerPattern) => {
     const source = cleanStr(text).replace(/\s*\|\s*/g, '\n');
     const marker = new RegExp(`(^|\\n|,|;)\\s*${markerPattern}\\s*[\\).:-]\\s*`, 'gi');
@@ -480,13 +750,13 @@ function App() {
       const label = m[2];
       const start = m.index + m[0].length;
       const end = idx + 1 < matches.length ? matches[idx + 1].index : source.length;
-      const value = source.slice(start, end).replace(/^[\s,;|:-]+|[\s,;|:-]+$/g, '');
+      const value = source.slice(start, end).replace(/^[\s,;|:\-]+|[\s,;|:\-]+$/g, '');
       return { label, value };
     }).filter(item => item.value);
   };
 
   const parseMatchingOptions = (text) => {
-    const source = cleanStr(text);
+    const source = normalizeMatchingOptionsText(text);
     const split = source.match(/(?:premis|kelompok\s*a|kolom\s*a)\s*:?\s*([\s\S]*?)(?:respon|kelompok\s*b|kolom\s*b)\s*:?\s*([\s\S]*)/i);
     const premisSource = split ? split[1] : source;
     const responSource = split ? split[2] : source;
@@ -496,8 +766,8 @@ function App() {
     };
   };
 
-  const hasRubrikScoreLogic = (form, scoreText) => {
-    const score = cleanStr(scoreText);
+  const hasRubrikScoreLogic = (form, scoreText, criteriaText = "") => {
+    const score = cleanStr(`${scoreText || ""}\n${criteriaText || ""}`);
     if (!score) return false;
     if (form === "PG") return /\b1\b/.test(score) && /\b0\b/.test(score);
     if (form === "PG Kompleks") return /\b2\b/.test(score) && /\b0\b/.test(score);
@@ -516,19 +786,13 @@ function App() {
     });
     return forms.map((bentuk, i) => {
       const src = byForm[bentuk] || {};
-      const fallback = buildDefaultRubrik(bentuk);
-      return {
-        id: Date.now() + 'r' + i,
-        bentukPenilaian: bentuk,
-        skor: fallback.skor,
-        kriteria: cleanStr(src.kriteria) || fallback.kriteria
-      };
+      return { ...normalizeRubrikRow(src, bentuk), id: src.id || Date.now() + 'r' + i, bentukPenilaian: bentuk };
     });
   };
 
   const syncRubrikFromKisi = () => {
     setRppData(prev => ({ ...prev, rubrikPenilaian: mapRubrikByKisi([], prev.kisiKisi) }));
-    notify("Rubrik Disinkronkan", "Rubrik sudah dibuat ulang berdasarkan bentuk penilaian unik di kisi-kisi, lengkap dengan skor berbaris otomatis.", "success");
+    notify("Rubrik Disinkronkan", "Rubrik sudah dibuat ulang berdasarkan bentuk penilaian unik di kisi-kisi. Kolom skor hanya berisi skor maksimal, sedangkan rentang nilai masuk ke deskripsi.", "success");
   };
 
   const validateAssessmentStructure = (data = rppData) => {
@@ -553,23 +817,23 @@ function App() {
     if (bank.length !== expectedTotal) warnings.push(`Bank soal harus tepat ${expectedTotal} butir sesuai rencana jumlah soal, saat ini ${bank.length}.`);
     bank.forEach((b, i) => {
       const bentuk = normalizeBentuk(kisi[i]?.bentuk || expectedSequence[i]?.bentuk);
-      const normalizedBankRow = splitChoiceOptionsFromSoal(b.soal, b.opsi, bentuk);
+      const normalizedBankRow = normalizeBankRowByKisi(b, kisi[i] || expectedSequence[i], i);
       const opsi = cleanStr(normalizedBankRow.opsi);
-      const kunci = cleanStr(b.kunci).toUpperCase();
+      const kunci = cleanStr(normalizedBankRow.kunci).toUpperCase();
       const letters = extractKeyLetters(kunci);
-      if (cleanStr(normalizedBankRow.soal).length < 80 || !/(data|kasus|tabel|grafik|cerita|situasi|pengamatan|informasi|hasil|lingkungan|siswa|sekolah|angka|jumlah)/i.test(normalizedBankRow.soal)) warnings.push(`Soal ${i + 1}: stimulus HOTS/literasi-numerasi perlu dibuat lebih jelas.`);
+      if (!hasClearStimulus(normalizedBankRow.soal)) warnings.push(`Soal ${i + 1}: stimulus HOTS/literasi-numerasi perlu dibuat lebih jelas.`);
       if ((bentuk === "PG" || bentuk === "PG Kompleks") && !["A","B","C","D"].every(l => new RegExp(`(^|\\n|\\s)${l}[\\).:-]`, "i").test(opsi))) warnings.push(`Soal ${i + 1}: opsi A-D belum lengkap.`);
       if (bentuk === "PG" && letters.length !== 1) warnings.push(`Soal ${i + 1}: PG biasa harus punya 1 kunci.`);
       if (bentuk === "PG Kompleks" && letters.length !== 2) warnings.push(`Soal ${i + 1}: PG Kompleks harus tepat 2 kunci benar.`);
       if (bentuk === "Menjodohkan") {
         const parts = countMatchingParts(opsi);
-        const keys = countMatchingKeys(b.kunci);
+        const keys = countMatchingKeys(normalizedBankRow.kunci);
         if (!/(premis|kelompok\s*a|kolom\s*a).*(respon|kelompok\s*b|kolom\s*b)/is.test(opsi)) warnings.push(`Soal ${i + 1}: menjodohkan harus memuat Premis/Kelompok A dan Respon/Kelompok B.`);
         if (parts.premis < 4 || parts.respon < 4 || keys < 4) warnings.push(`Soal ${i + 1}: menjodohkan minimal 4 premis, 4 respon, dan 4 pasangan kunci.`);
         if (/1\s*[-=]\s*A.*2\s*[-=]\s*B.*3\s*[-=]\s*C.*4\s*[-=]\s*D/is.test(b.kunci)) warnings.push(`Soal ${i + 1}: pasangan menjodohkan masih terlalu berurutan, acak posisi respon agar tidak mudah ditebak.`);
       }
-      if (bentuk === "Uraian" && !/(pedoman|rubrik|kriteria|jawaban)/i.test(opsi)) warnings.push(`Soal ${i + 1}: uraian perlu pedoman jawaban/rubrik ringkas.`);
-      if (bentuk === "Isian Singkat" && !cleanStr(b.kunci)) warnings.push(`Soal ${i + 1}: isian singkat perlu kunci jawaban singkat yang pasti.`);
+      if (bentuk === "Uraian" && (!opsi || opsi === "-")) warnings.push(`Soal ${i + 1}: uraian perlu pedoman/kunci jawaban ringkas di kolom pedoman jawab.`);
+      if (bentuk === "Isian Singkat" && !cleanStr(normalizedBankRow.kunci)) warnings.push(`Soal ${i + 1}: isian singkat perlu kunci jawaban singkat yang pasti.`);
       if ((bentuk === "Praktik" || bentuk === "Proyek") && !/(rambu|pedoman|langkah|produk|kinerja|kriteria|rubrik)/i.test(opsi)) warnings.push(`Soal ${i + 1}: ${bentuk} perlu rambu/pedoman pengerjaan di kolom pedoman jawab.`);
     });
     requiredForms.forEach(form => {
@@ -578,7 +842,7 @@ function App() {
     rubrik.forEach((r, i) => {
       const form = normalizeBentuk(r.bentukPenilaian);
       if (!cleanStr(r.bentukPenilaian)) warnings.push(`Rubrik nomor ${i + 1}: bentuk penilaian belum diisi.`);
-      if (!hasRubrikScoreLogic(form, r.skor)) warnings.push(`Rubrik ${r.bentukPenilaian || i + 1}: aturan skor belum sesuai bentuk penilaian.`);
+      if (!hasRubrikScoreLogic(form, r.skor, r.kriteria)) warnings.push(`Rubrik ${r.bentukPenilaian || i + 1}: aturan skor belum sesuai bentuk penilaian.`);
     });
     return warnings;
   };
@@ -633,10 +897,11 @@ ATURAN TETAP KURIKULER:
 4. Kompetensi awal harus berupa prasyarat materi yang spesifik, bukan teks generik. Awali tiap poin dengan kemampuan prasyarat konkret.
 5. Kesiapan peserta didik wajib membedakan kognitif, motivasi, kebiasaan belajar, dan kebutuhan dukungan.
 6. Karakteristik materi wajib menjelaskan sifat faktual, konseptual, prosedural, kontekstual, dan/atau lintas disiplin.
-7. Profil lulusan dan KSE wajib tampak sebagai konsekuensi nyata dalam kegiatan, asesmen, atau refleksi.
-8. Aktivitas kelas harus kaya, operasional, dan dapat dipraktikkan guru: kegiatan awal minimal 5 langkah; kegiatan inti minimal 7 langkah; kegiatan penutup minimal 4 langkah.
-9. Target kognitif Memahami, Mengaplikasi, dan Merefleksi masing-masing minimal 3 poin yang menunjukkan proses berpikir siswa, bukan sekadar aktivitas fisik.
-10. Asesmen awal, proses, dan akhir masing-masing harus memuat teknik, bukti yang dikumpulkan, cara guru membaca hasil, dan tindak lanjut.
+7. Situasi nyata lingkungan siswa wajib eksplisit minimal 3 poin: konteks lokal, masalah/fenomena nyata, dan bukti/data sederhana yang dapat diamati siswa.
+8. Profil lulusan dan KSE wajib tampak sebagai konsekuensi nyata dalam kegiatan, asesmen, atau refleksi.
+9. Aktivitas kelas harus kaya, operasional, dan dapat dipraktikkan guru: kegiatan awal minimal 5 langkah; kegiatan inti minimal 7 langkah; kegiatan penutup minimal 4 langkah.
+10. Target kognitif Memahami, Mengaplikasi, dan Merefleksi masing-masing minimal 3 poin yang menunjukkan proses berpikir siswa, bukan sekadar aktivitas fisik.
+11. Asesmen awal, proses, dan akhir masing-masing harus ditulis tepat 4 poin bernomor dengan pola: 1. Teknik: ..., 2. Bukti: ..., 3. Cara membaca: ..., 4. Tindak lanjut: ...
 
 KONTEKS KELAS DAN GURU:
 - Mapel: ${rppData.mapel}
@@ -655,7 +920,7 @@ KONTEKS KELAS DAN GURU:
 ${instruksiKhusus ? `- Instruksi khusus guru: ${instruksiKhusus}` : ''}
 
 FORMAT OUTPUT:
-Keluarkan JSON murni. Semua field wajib terisi, spesifik untuk mapel/kelas/topik, berupa 2-5 poin bernomor atau bullet, memakai newline (\\n), tanpa basa-basi. Jangan keluarkan field kisiKisi, bankSoal, atau rubrikPenilaian.`;
+Keluarkan JSON murni. Semua field wajib terisi, spesifik untuk mapel/kelas/topik, berupa poin bernomor memakai newline (\\n), tanpa basa-basi. Untuk kompetensi awal, situasi nyata, pengalaman belajar, kegiatan, dan refleksi, gunakan kalimat operasional yang memuat konteks nyata, bukti belajar, dan tindakan siswa. Jangan keluarkan field kisiKisi, bankSoal, atau rubrikPenilaian.`;
 
     const payload = {
       contents: [{ parts: [{ text: prompt }] }],
@@ -694,13 +959,13 @@ Keluarkan JSON murni. Semua field wajib terisi, spesifik untuk mapel/kelas/topik
       saveAiSnapshot("Generate Modul Ajar PM");
       setRppData(prev => ({
         ...prev,
-        kompetensiAwal: cleanStr(aiData.kompetensiAwal) || prev.kompetensiAwal, kesiapanSiswa: cleanStr(aiData.kesiapanSiswa) || prev.kesiapanSiswa, karakteristikMateri: cleanStr(aiData.karakteristikMateri) || prev.karakteristikMateri, situasiNyataSiswa: cleanStr(aiData.situasiNyataSiswa) || prev.situasiNyataSiswa,
+        kompetensiAwal: cleanStr(aiData.kompetensiAwal) || prev.kompetensiAwal, kesiapanSiswa: cleanStr(aiData.kesiapanSiswa) || prev.kesiapanSiswa, karakteristikMateri: cleanStr(aiData.karakteristikMateri) || prev.karakteristikMateri, situasiNyataSiswa: ensureSituasiNyata(aiData.situasiNyataSiswa || prev.situasiNyataSiswa, prev),
         profilLulusan: aiData.profilLulusan ? newProfil : prev.profilLulusan, profilAlasan: cleanStr(aiData.profilAlasan) || prev.profilAlasan, kseLulusan: aiData.kseLulusan ? newKse : prev.kseLulusan, kseAlasan: cleanStr(aiData.kseAlasan) || prev.kseAlasan,
         praktikPedagogis: cleanStr(aiData.praktikPedagogis) || prev.praktikPedagogis, cp: cleanStr(aiData.cp) || prev.cp, lintasDisiplin: cleanStr(aiData.lintasDisiplin) || prev.lintasDisiplin, tp: cleanStr(aiData.tp) || prev.tp,
         kemitraanPembelajaran: cleanStr(aiData.kemitraanPembelajaran) || prev.kemitraanPembelajaran, lingkunganPembelajaran: cleanStr(aiData.lingkunganPembelajaran) || prev.lingkunganPembelajaran, pemanfaatanDigital: cleanStr(aiData.pemanfaatanDigital) || prev.pemanfaatanDigital,
-        kegiatanAwal: cleanStr(aiData.kegiatanAwal) || prev.kegiatanAwal, pengalamanMemahami: cleanStr(aiData.pengalamanMemahami) || prev.pengalamanMemahami, asesmenAwal: cleanStr(aiData.asesmenAwal) || prev.asesmenAwal,
-        kegiatanInti: cleanStr(aiData.kegiatanInti) || prev.kegiatanInti, pengalamanMengaplikasi: cleanStr(aiData.pengalamanMengaplikasi) || prev.pengalamanMengaplikasi, asesmenProses: cleanStr(aiData.asesmenProses) || prev.asesmenProses,
-        kegiatanPenutup: cleanStr(aiData.kegiatanPenutup) || prev.kegiatanPenutup, pengalamanMerefleksi: cleanStr(aiData.pengalamanMerefleksi) || prev.pengalamanMerefleksi, asesmenAkhir: cleanStr(aiData.asesmenAkhir) || prev.asesmenAkhir
+        kegiatanAwal: cleanStr(aiData.kegiatanAwal) || prev.kegiatanAwal, pengalamanMemahami: ensureExperienceText(aiData.pengalamanMemahami || prev.pengalamanMemahami, 'memahami', prev), asesmenAwal: cleanStr(aiData.asesmenAwal) || prev.asesmenAwal,
+        kegiatanInti: cleanStr(aiData.kegiatanInti) || prev.kegiatanInti, pengalamanMengaplikasi: ensureExperienceText(aiData.pengalamanMengaplikasi || prev.pengalamanMengaplikasi, 'mengaplikasi', prev), asesmenProses: cleanStr(aiData.asesmenProses) || prev.asesmenProses,
+        kegiatanPenutup: cleanStr(aiData.kegiatanPenutup) || prev.kegiatanPenutup, pengalamanMerefleksi: ensureExperienceText(aiData.pengalamanMerefleksi || prev.pengalamanMerefleksi, 'merefleksi', prev), asesmenAkhir: cleanStr(aiData.asesmenAkhir) || prev.asesmenAkhir
       }));
       notify("Modul Ajar PM Selesai", "Modul Ajar/RPM sudah digenerate. Lampiran instrumen penilaian tetap dipisahkan agar prompt asesmen lebih fokus.", "success");
     } catch (error) {
@@ -725,12 +990,16 @@ ATURAN TETAP ASESMEN:
 1. Kisi-kisi harus menurunkan CP dan TP secara logis.
 2. Kisi-kisi WAJIB mengikuti Rencana Jumlah Soal secara berurutan dan tepat: jumlah, bentuk, level kognitif, dan nomor soal tidak boleh berubah.
 3. Bank soal wajib 100% mengikuti kisi-kisi: nomor, bentuk, level kognitif, materi, dan indikator.
-4. Setiap soal wajib memiliki stimulus HOTS/literasi-numerasi yang jelas: minimal 2 kalimat berisi teks/kasus/data/tabel sederhana/grafik tertulis/deskripsi angka/konteks lokal. Jangan membuat stimulus satu kalimat pendek.
+4. Setiap soal wajib memiliki stimulus HOTS/literasi-numerasi yang jelas: minimal 3 kalimat atau 2 kalimat panjang berisi konteks lokal, data/fakta/angka/tabel sederhana, dan masalah yang perlu dianalisis. Jangan membuat stimulus satu kalimat pendek.
 5. Kolom soal HANYA berisi stimulus dan pertanyaan/perintah. Jangan menaruh opsi A-D, premis-respon, atau pedoman jawaban di kolom soal.
-6. Kolom opsi/pedoman jawab wajib berisi pilihan jawaban untuk PG/PG Kompleks, premis-respon untuk Menjodohkan, pedoman jawaban untuk Isian/Uraian, dan rambu pengerjaan untuk Praktik/Proyek.
-7. PG Kompleks wajib tepat 2 jawaban benar. Menjodohkan wajib memakai format persis di kolom opsi: "Premis / Kolom A:" berisi 1-4 dan "Respon / Kolom B:" berisi A-D. Kunci minimal 4 pasangan dan tidak urut 1-A, 2-B, 3-C, 4-D.
-8. Untuk Praktik/Proyek, kolom soal berisi tugas kinerja/proyek berbasis konteks, kolom opsi berisi rambu pengerjaan/produk/bukti, dan kunci berisi "-".
-9. Rubrik wajib 1 baris untuk setiap bentuk penilaian unik yang muncul di kisi-kisi.
+6. Kolom opsi/pedoman jawab wajib mengikuti bentuk soal:
+   - PG/PG Kompleks: hanya opsi A-D, satu opsi per baris, tanpa Premis/Kolom A/Kolom B.
+   - Menjodohkan: format persis "Premis / Kolom A:" berisi 1-4 lalu baris baru "Respon / Kolom B:" berisi A-D.
+   - Isian Singkat: kolom opsi isi "-" dan kunci berisi jawaban singkat pasti.
+   - Uraian: kolom opsi berisi kunci/pedoman jawaban ringkas TANPA label "Pedoman Jawaban:", dan kolom kunci isi "-".
+   - Praktik/Proyek: kolom opsi berisi rambu pengerjaan/produk/bukti dan kolom kunci isi "-".
+7. PG Kompleks wajib tepat 2 jawaban benar. Menjodohkan wajib punya minimal 4 pasangan dan tidak urut 1-A, 2-B, 3-C, 4-D.
+8. Rubrik wajib 1 baris untuk setiap bentuk penilaian unik yang muncul di kisi-kisi. Kolom skor hanya skor maksimal; rentang nilai dan deskripsi operasional ditulis di kolom kriteria tanpa label "Kriteria:".
 
 KONTEKS MODUL:
 - Mapel: ${rppData.mapel}
@@ -810,19 +1079,20 @@ Keluarkan JSON murni dengan field kisiKisi, bankSoal, rubrikPenilaian. Jangan me
     if (fieldKey === 'cp') { fieldSpecificInstruction += "\nRumuskan CP formal sesuai mapel dan fase. Jangan menjadi tujuan harian. Untuk IPA Fase D, jaga nuansa elemen Pemahaman IPA dan Keterampilan Proses, lalu kaitkan dengan topik secara wajar."; }
     else if (fieldKey === 'tp') { fieldSpecificInstruction += "\nBuat minimal 3 Tujuan Pembelajaran bernomor. Setiap TP harus menurunkan CP, memakai kata kerja operasional terukur, menyebut konteks/topik, dan dapat diukur asesmen."; }
     else if (fieldKey === 'kompetensiAwal') { fieldSpecificInstruction += "\nTulis prasyarat materi secara eksplisit. Hindari teks generik. Setiap poin harus berupa kemampuan awal yang perlu dimiliki siswa sebelum mempelajari topik."; }
+    else if (fieldKey === 'situasiNyataSiswa') { fieldSpecificInstruction += "\nBuat minimal 3 poin: konteks lokal siswa, masalah/fenomena nyata, dan bukti/data sederhana yang dapat diamati. Jangan generik."; }
     else if (fieldKey === 'kesiapanSiswa') { fieldSpecificInstruction += "\nPisahkan aspek: Kognitif, Motivasi, Kebiasaan Belajar, dan Kebutuhan Dukungan. Berikan konteks kelas SMP yang realistis."; }
     else if (fieldKey === 'kegiatanAwal') { fieldSpecificInstruction += "\nBuat minimal 5 langkah operasional untuk memantik kesadaran belajar, tujuan, motivasi intrinsik, aktivasi pengetahuan awal, dan koneksi konteks nyata."; }
     else if (fieldKey === 'pengalamanMemahami') { fieldSpecificInstruction += "\nBuat minimal 3 poin proses berpikir siswa: aktivasi pengetahuan awal, eksplorasi konsep, pemeriksaan miskonsepsi, dan penguatan makna."; }
-    else if (fieldKey === 'asesmenAwal') { fieldSpecificInstruction += "\nJelaskan teknik diagnostik, prasyarat yang diukur, bukti jawaban/kinerja, cara guru membaca hasil, dan tindak lanjut diferensiasi."; }
+    else if (fieldKey === 'asesmenAwal') { fieldSpecificInstruction += "\nTulis tepat 4 poin bernomor dengan format: 1. Teknik: ..., 2. Bukti: ..., 3. Cara membaca: ..., 4. Tindak lanjut: ..."; }
     else if (fieldKey === 'kegiatanInti') { sequentialContext += `Kegiatan Pendahuluan Sebelumnya: ${rppData.kegiatanAwal}\n`; fieldSpecificInstruction += "\nLanjutkan alur secara logis dari Pendahuluan. Buat minimal 7 langkah operasional guru-siswa yang melatih TP melalui kasus nyata, diskusi bukti/data, produk/kinerja, dan umpan balik. DILARANG ADA BASA-BASI PEMBUKA."; }
     else if (fieldKey === 'pengalamanMengaplikasi') { fieldSpecificInstruction += "\nBuat minimal 3 poin transfer pengetahuan ke kasus baru, penggunaan data/bukti, produk/kinerja siswa, dan alasan pengambilan keputusan."; }
-    else if (fieldKey === 'asesmenProses') { fieldSpecificInstruction += "\nJelaskan teknik formatif saat proses berlangsung, bukti yang diamati, alat/catatan guru, umpan balik, dan tindak lanjut saat pembelajaran."; }
+    else if (fieldKey === 'asesmenProses') { fieldSpecificInstruction += "\nTulis tepat 4 poin bernomor dengan format: 1. Teknik: ..., 2. Bukti: ..., 3. Cara membaca: ..., 4. Tindak lanjut: ..."; }
     else if (fieldKey === 'pengalamanMerefleksi') { fieldSpecificInstruction += "\nBuat minimal 3 poin regulasi diri siswa: strategi belajar, bukti pemahaman, kesulitan, perbaikan, dan rencana belajar berikutnya."; }
-    else if (fieldKey === 'asesmenAkhir') { fieldSpecificInstruction += "\nJelaskan asesmen akhir yang mengukur TP secara holistik: bentuk, bukti belajar, kriteria keberhasilan, dan tindak lanjut hasil."; }
+    else if (fieldKey === 'asesmenAkhir') { fieldSpecificInstruction += "\nTulis tepat 4 poin bernomor dengan format: 1. Teknik: ..., 2. Bukti: ..., 3. Cara membaca: ..., 4. Tindak lanjut: ..."; }
     else if (fieldKey === 'kegiatanPenutup') { sequentialContext += `Kegiatan Inti Sebelumnya: ${rppData.kegiatanInti}\n`; fieldSpecificInstruction += "\nBuat minimal 4 langkah penutup: sintesis, refleksi strategi berpikir, umpan balik, tindak lanjut/remedial-pengayaan, dan koneksi pertemuan berikutnya."; }
     else if (fieldKey === 'kisiKisi') { fieldSpecificInstruction += `\nWAJIB mengikuti rencana jumlah soal berikut: ${getAssessmentPlanText()}. Buat tepat ${expectedAssessmentTotal} baris. Kolom 'level' HANYA isi dengan: C1-C6 dan minimal 60% indikator C4-C6. Bentuk Praktik/Proyek boleh dipakai bila ada pada rencana asesmen atau TP membutuhkan evidensi otentik.`; }
-    else if (fieldKey === 'bankSoal') { const stringKisi = rppData.kisiKisi.map(k => `No.${k.nomor} (Level: ${k.level}, Bentuk: ${k.bentuk}): ${k.indikator}`).join(' | '); sequentialContext += `KISI-KISI SEBAGAI ACUAN MUTLAK:\n[ ${stringKisi || 'Acak'} ]\n`; fieldSpecificInstruction += `\nWAJIB membuat bank soal HOTS dan/atau LITERASI-NUMERASI sesuai semua baris kisi-kisi di atas. Kolom soal HANYA berisi stimulus minimal 2 kalimat dan pertanyaan/perintah; jangan menaruh opsi A-D, premis-respon, atau pedoman jawaban di kolom soal. Kolom opsi wajib berisi pilihan jawaban untuk PG/PG Kompleks, premis-respon untuk Menjodohkan, pedoman jawaban untuk Isian/Uraian, dan rambu pengerjaan untuk Praktik/Proyek.\nKHUSUS PG Kompleks: Opsi A, B, C, D dan WAJIB TEPAT 2 OPSI BENAR (Kunci: contoh A dan C).\nKHUSUS MENJODOHKAN: BUKAN pilihan ganda. Format kolom opsi wajib persis: "Premis / Kolom A:" berisi 1-4 dan "Respon / Kolom B:" berisi A-D. Kunci minimal 4 pasangan acak, contoh: 1-B, 2-D, 3-A, 4-C.\nPENTING: prioritaskan kepatuhan mutlak pada kisi-kisi, stimulus HOTS, literasi, numerasi, dan evidensi Praktik/Proyek.`; }
-    else if (fieldKey === 'rubrikPenilaian') { const bentukRubrik = getBentukPenilaianList().join(', '); const aturanSkor = getBentukPenilaianList().map(b => `${b}: ${skorBentuk[b] || 'skor disesuaikan indikator'}`).join(' | '); sequentialContext += `Bentuk penilaian dari kisi-kisi: ${bentukRubrik}\nAturan skor: ${aturanSkor}\n`; fieldSpecificInstruction += `\nBuat tepat 1 rubrik untuk setiap bentuk penilaian dari kisi-kisi: ${bentukRubrik}. Kolom bentukPenilaian wajib diisi. Kolom skor wajib mengikuti aturan skor per bentuk, bukan disamakan semua 4-1. Kolom kriteria berisi deskripsi operasional penilaian.`; }
+    else if (fieldKey === 'bankSoal') { const stringKisi = rppData.kisiKisi.map(k => `No.${k.nomor} (Level: ${k.level}, Bentuk: ${k.bentuk}): ${k.indikator}`).join(' | '); sequentialContext += `KISI-KISI SEBAGAI ACUAN MUTLAK:\n[ ${stringKisi || 'Acak'} ]\n`; fieldSpecificInstruction += `\nWAJIB membuat bank soal HOTS dan/atau LITERASI-NUMERASI sesuai semua baris kisi-kisi di atas. Kolom soal HANYA berisi stimulus minimal 3 kalimat atau 2 kalimat panjang yang memuat konteks, data/fakta/angka, masalah, dan pertanyaan/perintah; jangan menaruh opsi A-D, premis-respon, pedoman jawaban, atau kunci di kolom soal.\nKolom opsi wajib: PG/PG Kompleks hanya opsi A-D; Menjodohkan format "Premis / Kolom A:" 1-4 lalu "Respon / Kolom B:" A-D; Isian Singkat isi "-"; Uraian berisi kunci/pedoman ringkas TANPA label "Pedoman Jawaban:" dan kunci "-"; Praktik/Proyek berisi rambu produk/bukti dan kunci "-".\nKHUSUS PG Kompleks: Opsi A, B, C, D dan WAJIB TEPAT 2 OPSI BENAR (Kunci: contoh B dan D). Jangan memakai format Premis/Kolom A.\nKHUSUS MENJODOHKAN: BUKAN pilihan ganda. Kunci minimal 4 pasangan acak, contoh: 1-B, 2-D, 3-A, 4-C.\nPENTING: prioritaskan kepatuhan mutlak pada kisi-kisi, stimulus HOTS, literasi, numerasi, dan evidensi Praktik/Proyek.`; }
+    else if (fieldKey === 'rubrikPenilaian') { const bentukRubrik = getBentukPenilaianList().join(', '); const aturanSkor = getBentukPenilaianList().map(b => `${b}: ${skorBentuk[b] || 'skor disesuaikan indikator'}`).join(' | '); sequentialContext += `Bentuk penilaian dari kisi-kisi: ${bentukRubrik}\nAturan skor: ${aturanSkor}\n`; fieldSpecificInstruction += `\nBuat tepat 1 rubrik untuk setiap bentuk penilaian dari kisi-kisi: ${bentukRubrik}. Kolom skor hanya berisi skor maksimal berupa angka. Kolom kriteria berisi "Rentang Nilai:" lalu aturan skor dan deskripsi operasional tanpa label "Kriteria:".`; }
 
     let prompt = `Tugas Anda: Merancang spesifik bagian "${fieldTitle}" tanpa basa-basi.\n${sequentialContext}\nATURAN KETAT: ${fieldSpecificInstruction}`;
     let payload = { contents: [{ parts: [{ text: prompt }] }], systemInstruction: { parts: [{ text: "Keluarkan output sesuai permintaan, dilarang memberi pengantar. Gunakan 1 kali enter/newline (\\n) agar poin rapi ke bawah. Patuhi instruksi sinkronisasi." }] }, generationConfig: stableGenerationConfig() };
@@ -842,6 +1112,10 @@ Keluarkan JSON murni dengan field kisiKisi, bankSoal, rubrikPenilaian. Jangan me
       if (!aiText) throw new Error("Respons AI kosong atau tidak berisi data yang dapat dimasukkan ke kolom.");
       if (type === 'string') {
         let cleanedText = cleanStr(aiText).replace(/^(Baik|Berikut|Ini).*?:\n/i, '');
+        if (fieldKey === 'situasiNyataSiswa') cleanedText = ensureSituasiNyata(cleanedText, rppData);
+        if (fieldKey === 'pengalamanMemahami') cleanedText = ensureExperienceText(cleanedText, 'memahami', rppData);
+        if (fieldKey === 'pengalamanMengaplikasi') cleanedText = ensureExperienceText(cleanedText, 'mengaplikasi', rppData);
+        if (fieldKey === 'pengalamanMerefleksi') cleanedText = ensureExperienceText(cleanedText, 'merefleksi', rppData);
         saveAiSnapshot(`Regenerate ${fieldTitle}`);
         setRppData(prev => ({ ...prev, [fieldKey]: cleanedText }));
       } else {
@@ -906,13 +1180,14 @@ KONTEKS:
 - Bentuk soal: ${bentuk || '-'}
 
 ATURAN:
-1. Kolom soal hanya berisi stimulus HOTS/literasi-numerasi minimal 2 kalimat dan pertanyaan/perintah. Stimulus harus memuat konteks, data/fakta/informasi, dan masalah yang perlu dianalisis. Jangan masukkan opsi A-D, premis-respon, pedoman jawaban, atau kunci ke kolom soal.
+1. Kolom soal hanya berisi stimulus HOTS/literasi-numerasi minimal 3 kalimat atau 2 kalimat panjang dan pertanyaan/perintah. Stimulus harus memuat konteks, data/fakta/angka/informasi, dan masalah yang perlu dianalisis. Jangan masukkan opsi A-D, premis-respon, pedoman jawaban, atau kunci ke kolom soal.
 2. Kolom opsi berisi:
-   - PG/PG Kompleks: opsi A-D, satu opsi per baris.
+   - PG/PG Kompleks: hanya opsi A-D, satu opsi per baris, tanpa Premis/Kolom A/Kolom B.
    - Menjodohkan: WAJIB format "Premis / Kolom A:" berisi 1-4 dan "Respon / Kolom B:" berisi A-D. Jangan menjadikan menjodohkan sebagai pilihan ganda terselubung.
-   - Isian/Uraian: pedoman jawaban ringkas.
+   - Isian Singkat: isi "-"; kunci berisi jawaban singkat pasti.
+   - Uraian: kunci/pedoman jawaban ringkas TANPA label "Pedoman Jawaban:"; kunci isi "-".
    - Praktik/Proyek: rambu/pedoman pengerjaan dan bukti produk/kinerja.
-3. Kunci: PG satu huruf; PG Kompleks tepat dua huruf; Menjodohkan minimal 4 pasangan acak, contoh 1-B, 2-D, 3-A, 4-C; Isian jawaban singkat; Uraian/Praktik/Proyek isi "-" bila pedoman sudah ada di opsi.
+3. Kunci: PG satu huruf; PG Kompleks tepat dua huruf memakai "dan", contoh B dan D; Menjodohkan minimal 4 pasangan acak, contoh 1-B, 2-D, 3-A, 4-C; Isian jawaban singkat; Uraian/Praktik/Proyek isi "-".
 
 Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
 
@@ -948,31 +1223,117 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
     } finally { setIndividualLoading(prev => ({ ...prev, [loadingKey]: false })); }
   };
 
-  const formatText = (txt) => txt ? cleanStr(txt).replace(/\n/g, '<br/>') : '';
+  const escapeHtml = (txt) => cleanStr(txt).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  const normalizeInlineWordText = (txt) => cleanStr(txt).replace(/\s*\n+\s*/g, ' ').replace(/\s{2,}/g, ' ').trim();
+  const formatKeyForExport = (key, form) => normalizeBankKey(key, form);
+  const formatText = (txt) => {
+    const lines = cleanStr(txt).split(/\n+/).map(line => line.trim()).filter(Boolean);
+    if (!lines.length) return '';
+    const getMarker = (line) => {
+      let match = line.match(/^(\d+)[\.)]\s+(.+)$/);
+      if (match) return { type: 'num', tag: 'ol', attr: `class="num-list" style="margin-top:0;margin-bottom:0;margin-left:0pt;padding-left:14pt;text-align:justify" start="${parseInt(match[1], 10) || 1}"`, text: match[2] };
+      match = line.match(/^([A-Z])[\.)]\s+(.+)$/);
+      if (match) return { type: 'upper', tag: 'ol', attr: `class="letter-list" style="margin-top:0;margin-bottom:0;margin-left:0pt;padding-left:14pt;text-align:justify" type="A" start="${match[1].charCodeAt(0) - 64}"`, text: match[2] };
+      match = line.match(/^([a-z])[\.)]\s+(.+)$/);
+      if (match) return { type: 'lower', tag: 'ol', attr: `class="lower-letter-list" style="margin-top:0;margin-bottom:0;margin-left:0pt;padding-left:14pt;text-align:justify" type="a" start="${match[1].charCodeAt(0) - 96}"`, text: match[2] };
+      match = line.match(/^[-•]\s+(.+)$/);
+      if (match) return { type: 'bullet', tag: 'ul', attr: 'class="bullet-list" style="margin-top:0;margin-bottom:0;margin-left:0pt;padding-left:14pt;text-align:justify"', text: match[1] };
+      return null;
+    };
+    const html = [];
+    let list = null;
+    const flushList = () => {
+      if (!list) return;
+      html.push(`<${list.tag} ${list.attr}>${list.items.map(item => `<li style="margin:0 0 1pt 0;text-align:justify;line-height:1.05;mso-line-height-rule:exactly">${escapeHtml(item)}</li>`).join('')}</${list.tag}>`);
+      list = null;
+    };
+    lines.forEach(line => {
+      const marker = getMarker(line);
+      if (marker) {
+        const sameList = list && list.type === marker.type && list.tag === marker.tag;
+        if (!sameList) {
+          flushList();
+          list = { type: marker.type, tag: marker.tag, attr: marker.attr, items: [] };
+        }
+        list.items.push(marker.text);
+      } else {
+        flushList();
+        html.push(`<p class="text-line">${escapeHtml(line)}</p>`);
+      }
+    });
+    flushList();
+    return html.join('');
+  };
+  const formatAssessmentText = (txt) => {
+    let value = cleanStr(txt);
+    if (!value) return '';
+    value = value.replace(/(^|\n)\s*(\d+[\.)])\s*\n+\s*(Teknik|Bukti|Cara\s+membaca|Tindak\s+lanjut)\s*:/gi, '$1$2 $3:');
+    const marker = /(?:^|\n|\s)(?:\d+[\.)]\s*)?(Teknik|Bukti|Cara\s+membaca|Tindak\s+lanjut)\s*:/gi;
+    const matches = [...value.matchAll(marker)];
+    if (!matches.length) return formatText(value);
+    const items = matches.map((match, index) => {
+      const labelRaw = match[1].replace(/\s+/g, " ").toLowerCase();
+      const canonical = labelRaw === "cara membaca" ? "Cara membaca" : labelRaw === "tindak lanjut" ? "Tindak lanjut" : labelRaw.charAt(0).toUpperCase() + labelRaw.slice(1);
+      const start = match.index + match[0].length;
+      const end = index + 1 < matches.length ? matches[index + 1].index : value.length;
+      const body = cleanStr(value.slice(start, end).replace(/^\s*[\n;,-]+/, ''));
+      return { label: canonical, body };
+    }).filter(item => item.body);
+    return `<ol class="num-list" style="margin-top:0;margin-bottom:0;margin-left:0pt;padding-left:14pt;text-align:justify">${items.map(item => `<li style="margin:0 0 1pt 0;text-align:justify;line-height:1.05;mso-line-height-rule:exactly"><strong>${item.label}:</strong> ${escapeHtml(item.body)}</li>`).join('')}</ol>`;
+  };
+  const formatBlock = (title, text, options = {}) => `<p class="cell-title">${escapeHtml(title)}</p>${options.assessment ? formatAssessmentText(text) : formatText(text)}`;
   const getHtmlCheckbox = (val, label) => `${val ? '&#9745;' : '&#9744;'} ${label}`;
   const formatChecklistForWord = (keys, labels, values, color = "") => {
     const rows = [];
     for (let i = 0; i < keys.length; i += 2) {
       const left = getHtmlCheckbox(values[keys[i]], labels[keys[i]]);
       const right = keys[i + 1] ? getHtmlCheckbox(values[keys[i + 1]], labels[keys[i + 1]]) : "";
-      rows.push(`<p class="check-row" style="${color ? `color:${color};` : ''}"><span class="check-item">${left}</span><span class="check-item">${right}</span></p>`);
+      rows.push(`<tr style="height:11pt;mso-yfti-irow:${i / 2}"><td style="border:none;padding:0 6px 0 0;width:50%;font-size:10.5pt;line-height:0.95;mso-line-height-rule:exactly;margin:0;mso-para-margin:0;mso-margin-top-alt:0cm;mso-margin-bottom-alt:0cm;text-align:left;vertical-align:top;${color ? `color:${color};` : ''}"><span style="margin:0;line-height:0.95;mso-line-height-rule:exactly">${left}</span></td><td style="border:none;padding:0 0 0 6px;width:50%;font-size:10.5pt;line-height:0.95;mso-line-height-rule:exactly;margin:0;mso-para-margin:0;mso-margin-top-alt:0cm;mso-margin-bottom-alt:0cm;text-align:left;vertical-align:top;${color ? `color:${color};` : ''}"><span style="margin:0;line-height:0.95;mso-line-height-rule:exactly">${right}</span></td></tr>`);
     }
-    return rows.join('');
+    return `<table cellspacing="0" cellpadding="0" style="width:100%;border:none;border-collapse:collapse;margin:0;padding:0;mso-table-lspace:0pt;mso-table-rspace:0pt;mso-para-margin:0;mso-padding-alt:0">${rows.join('')}</table>`;
   };
 
   const isChoiceLikeForm = (form) => ["PG", "PG Kompleks", "Menjodohkan"].includes(normalizeBentuk(form));
 
+  const formatOptionLinesForWord = (text) => {
+    const value = normalizeChoiceOptionsText(text);
+    const items = [...value.matchAll(/(^|\n)\s*([A-D])\s*[\).:-]\s*([^\n]+)/gi)];
+    if (!items.length) return formatText(value);
+    const start = Math.max(1, items[0][2].toUpperCase().charCodeAt(0) - 64);
+    return `<ol class="letter-list choice-list" type="A" start="${start}" style="margin-top:0;margin-bottom:0;margin-left:0pt;padding-left:14pt;text-align:left">${items.map(match => `<li style="margin:0 0 1pt 0;text-align:left;line-height:1.05;mso-line-height-rule:exactly">${escapeHtml(normalizeInlineWordText(match[3]))}</li>`).join('')}</ol>`;
+  };
+
   const formatOptionsForWord = (text, form) => {
-    if (normalizeBentuk(form) !== "Menjodohkan") return formatText(text);
+    const normalizedForm = normalizeBentuk(form);
+    if (normalizedForm === "PG" || normalizedForm === "PG Kompleks") return formatOptionLinesForWord(text);
+    if (normalizedForm === "Isian Singkat") return `<p class="text-line" style="text-align:left">-</p>`;
+    if (normalizedForm === "Uraian" || normalizedForm === "Praktik" || normalizedForm === "Proyek") return formatText(normalizeAnswerGuideText(text) || "-");
+    if (normalizedForm !== "Menjodohkan") return formatText(text);
     const parsed = parseMatchingOptions(text);
     const maxRows = Math.max(parsed.premis.length, parsed.respon.length);
     if (!maxRows) return formatText(text);
+    const pairCell = (item) => item ? `<p class="matching-line"><span class="matching-marker">${escapeHtml(item.label)}.</span>&nbsp;${escapeHtml(normalizeInlineWordText(item.value))}</p>` : '&nbsp;';
     const rows = Array.from({ length: maxRows }).map((_, i) => {
       const p = parsed.premis[i];
       const r = parsed.respon[i];
-      return `<tr><td style="border:1px solid #999;padding:4px;width:50%">${p ? `<strong>${p.label}.</strong> ${formatText(p.value)}` : ''}</td><td style="border:1px solid #999;padding:4px;width:50%">${r ? `<strong>${r.label}.</strong> ${formatText(r.value)}` : ''}</td></tr>`;
+      return `<tr><td style="border:1px solid #999;padding:2px 3px;width:50%;line-height:1.05;text-align:left;vertical-align:top">${pairCell(p)}</td><td style="border:1px solid #999;padding:2px 3px;width:50%;line-height:1.05;text-align:left;vertical-align:top">${pairCell(r)}</td></tr>`;
     }).join('');
-    return `<table style="width:100%;border-collapse:collapse;font-size:9.5pt"><thead style="display:table-header-group"><tr><th style="border:1px solid #999;background:#f1f5f9;padding:4px">Premis / Kolom A</th><th style="border:1px solid #999;background:#f1f5f9;padding:4px">Respon / Kolom B</th></tr></thead><tbody>${rows}</tbody></table>`;
+    return `<table style="width:100%;border-collapse:collapse;font-size:9.5pt;mso-table-lspace:0pt;mso-table-rspace:0pt;page-break-inside:auto"><thead style="display:table-header-group"><tr><th style="border:1px solid #999;background:#f1f5f9;padding:2px 3px;text-align:center;vertical-align:middle">Premis / Kolom A</th><th style="border:1px solid #999;background:#f1f5f9;padding:2px 3px;text-align:center;vertical-align:middle">Respon / Kolom B</th></tr></thead><tbody>${rows}</tbody></table>`;
+  };
+
+  const getRubrikMaxScore = (row) => {
+    const form = normalizeBentuk(row?.bentukPenilaian);
+    return getMaxScoreByFormOrText(form, row?.skor || row?.kriteria);
+  };
+
+  const getRubrikDescriptionForExport = (row) => {
+    const skor = cleanStr(row?.skor);
+    const kriteria = cleanStr(row?.kriteria);
+    if (/^Rentang\s+Nilai\s*:/i.test(kriteria)) return stripRubrikLabels(kriteria);
+    const form = normalizeBentuk(row?.bentukPenilaian);
+    const fallback = buildDefaultRubrik(form || "Tertulis");
+    const range = (skor && (/[=:-]/.test(skor) || skor.split(/\n+/).length > 1)) ? skor : fallback.skor;
+    return buildRubrikDescription(range, kriteria || fallback.kriteria);
   };
 
   const renderMatchingOptions = (text) => {
@@ -999,7 +1360,9 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
 
   const renderStudentOptions = (row, index) => {
     const form = normalizeBentuk(rppData.kisiKisi[index]?.bentuk);
-    if (!isChoiceLikeForm(form)) return <span className="text-slate-400 italic">Jawaban tidak ditampilkan.</span>;
+    if (form === "Isian Singkat") return <span className="text-slate-400 italic">-</span>;
+    if (form === "Uraian" || form === "Praktik" || form === "Proyek") return <div className="whitespace-pre-wrap leading-relaxed">{normalizeAnswerGuideText(row.opsi) || '-'}</div>;
+    if (!isChoiceLikeForm(form)) return <span className="text-slate-400 italic">-</span>;
     if (form === "Menjodohkan") return renderMatchingOptions(row.opsi);
     return <div className="whitespace-pre-wrap leading-relaxed">{row.opsi || '-'}</div>;
   };
@@ -1013,65 +1376,67 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
     const bRows = rppData.bankSoal.length > 0 ? rppData.bankSoal.map((b, i) => {
       const form = rppData.kisiKisi[i]?.bentuk;
       const row = getBankRowForDisplay(b, i);
-      return `<tr><td style="text-align:center;${tdStyle}">${i+1}</td><td style="${tdStyle}">${formatText(row.soal)}</td><td style="${tdStyle}">${formatOptionsForWord(row.opsi, form)}</td><td style="text-align:center;font-weight:bold;${tdStyle}">${row.kunci}</td></tr>`;
+      return `<tr><td style="text-align:center;${tdStyle}">${i+1}</td><td style="${tdStyle}">${formatText(row.soal)}</td><td style="${tdStyle}">${formatOptionsForWord(row.opsi, form)}</td><td style="text-align:center;font-weight:bold;${tdStyle}">${escapeHtml(formatKeyForExport(row.kunci, form))}</td></tr>`;
     }).join('') : `<tr><td colspan="4" style="text-align:center;${tdStyle}">Tidak ada soal</td></tr>`;
     const rubrikRowsForExport = rppData.kisiKisi.length ? mapRubrikByKisi(rppData.rubrikPenilaian, rppData.kisiKisi) : rppData.rubrikPenilaian;
-    const rRowsTable = rubrikRowsForExport.length > 0 ? rubrikRowsForExport.map(r => `<tr><td style="text-align:center;font-weight:bold;${tdStyle}">${formatText(r.bentukPenilaian)}</td><td style="text-align:left;font-weight:bold;${tdStyle}">${formatText(r.skor)}</td><td style="${tdStyle}">${formatText(r.kriteria)}</td></tr>`).join('') : `<tr><td colspan="3" style="text-align:center;${tdStyle}">Tidak ada rubrik</td></tr>`;
+    const rRowsTable = rubrikRowsForExport.length > 0 ? rubrikRowsForExport.map(r => `<tr><td style="text-align:center;font-weight:bold;${tdStyle}">${formatText(r.bentukPenilaian)}</td><td style="text-align:center;font-weight:bold;${tdStyle}">${escapeHtml(getRubrikMaxScore(r))}</td><td style="${tdStyle}">${formatText(getRubrikDescriptionForExport(r))}</td></tr>`).join('') : `<tr><td colspan="3" style="text-align:center;${tdStyle}">Tidak ada rubrik</td></tr>`;
     
     let pKeys = Object.keys(profilLabels);
     let kKeys = Object.keys(kseLabels);
     const profilHtml = formatChecklistForWord(pKeys, profilLabels, rppData.profilLulusan);
     const kseHtml = formatChecklistForWord(kKeys, kseLabels, rppData.kseLulusan, "#1e40af");
 
-    return `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>RPP</title><style>@page WordSection1{size:595.3pt 841.9pt;margin:36pt;mso-header-margin:24pt;mso-footer-margin:24pt;mso-paper-source:0;}div.WordSection1{page:WordSection1;}body{font-family:'Times New Roman',Times,serif;font-size:11pt;line-height:1.05;color:#000;margin:0;padding:0;}p{margin-top:0;margin-bottom:1pt;text-align:justify;}td{font-size:11pt;line-height:1.05;vertical-align:top;text-align:justify;}th{font-size:11pt;line-height:1.05;vertical-align:middle;}.kop{border-bottom:2px solid black;padding-bottom:2pt;margin-bottom:4pt;text-align:center;line-height:1.05;}.kop-line1{font-size:14pt;font-weight:bold;text-transform:uppercase;line-height:1.05;}.kop-line2{font-size:18pt;font-weight:bold;text-transform:none;margin:0;letter-spacing:0;line-height:1.05;}.kop-line3{font-size:11pt;font-style:italic;line-height:1.05;}.t-table{width:100%;border-collapse:collapse;margin-bottom:4pt;page-break-inside:auto;}.t-table th{background-color:#dbeafe;padding:3px;text-align:center;vertical-align:middle;border:1px solid black;font-size:11pt;font-weight:bold;text-transform:uppercase;}.t-label{width:16%;background-color:#f8fafc;border:1px solid black;padding:3px;font-weight:bold;vertical-align:middle;font-size:11pt;text-align:left;}.t-content{border:1px solid black;padding:3px;vertical-align:top;font-size:11pt;text-align:justify;}.t-content-half{width:34%;border:1px solid black;padding:3px;vertical-align:middle;font-size:11pt;text-align:justify;}.t-header-sub{background-color:#e2e8f0;border:1px solid black;padding:3px;text-align:left;font-weight:bold;font-size:11pt;}.check-row{margin:0 0 1pt 0;font-size:10pt;line-height:1.05;text-align:left;}.check-item{display:inline-block;width:49%;white-space:nowrap;}h3,h4{font-size:12pt;}thead{display:table-header-group;}tfoot{display:table-footer-group;}tr{page-break-inside:auto;page-break-after:auto;}</style></head><body><div class="WordSection1">
-<div class="kop"><div class="kop-line1">PEMERINTAH KABUPATEN MAGELANG<br/>DINAS PENDIDIKAN DAN KEBUDAYAAN</div><div class="kop-line2">${rppData.namaSekolah}</div><div class="kop-line3">Jalan Raya Secang, Kab. Magelang, Jawa Tengah 56195 | Telepon: (0293) 3195355</div></div>
+    return `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>RPP</title><style>@page WordSection1{size:595.3pt 841.9pt;margin:36pt;mso-header-margin:24pt;mso-footer-margin:24pt;mso-paper-source:0;}div.WordSection1{page:WordSection1;}body{font-family:'Times New Roman',Times,serif;font-size:11pt;line-height:1.05;color:#000;margin:0;padding:0;}p{margin-top:0;margin-bottom:0;mso-margin-top-alt:0cm;mso-margin-bottom-alt:0cm;mso-para-margin:0;text-align:justify;}td{font-size:11pt;line-height:1.05;vertical-align:top;text-align:justify;}th{font-size:11pt;line-height:1.05;vertical-align:middle;}.kop{border-bottom:2px solid black;padding-bottom:3pt;margin-bottom:4pt;text-align:center;line-height:1.05;}.kop p{margin:0;text-align:center;mso-para-margin:0;}.kop-line1{font-size:14pt;font-weight:bold;text-transform:uppercase;line-height:1.05;}.kop-line2{font-size:18pt;font-weight:bold;text-transform:uppercase;margin:0;letter-spacing:0;line-height:1.05;}.kop-line3{font-size:11pt;font-style:italic;line-height:1.05;}.t-table{width:100%;border-collapse:collapse;margin-bottom:4pt;page-break-inside:auto;}.t-table th{background-color:#dbeafe;padding:3px;text-align:center;vertical-align:middle;border:1px solid black;font-size:11pt;font-weight:bold;text-transform:uppercase;}.section-head{background-color:#dbeafe;border:1px solid black;padding:3px;text-align:left!important;vertical-align:middle;font-size:11pt;font-weight:bold;text-transform:uppercase;}.t-label{width:16%;background-color:#f8fafc;border:1px solid black;padding:3px;font-weight:bold;vertical-align:middle;font-size:11pt;text-align:left;}.t-content{border:1px solid black;padding:3px;vertical-align:top;font-size:11pt;text-align:justify;}.t-content-half{width:34%;border:1px solid black;padding:3px;vertical-align:middle;font-size:11pt;text-align:justify;}.t-header-sub{background-color:#e2e8f0;border:1px solid black;padding:3px;text-align:left;font-weight:bold;font-size:11pt;}.text-line{margin:0 0 1pt 0;mso-para-margin:0;text-align:justify;line-height:1.05;mso-line-height-rule:exactly;}.cell-title{margin:0 0 1pt 0;mso-para-margin:0;text-align:left;font-weight:bold;line-height:1.05;mso-line-height-rule:exactly;}.num-list,.letter-list,.lower-letter-list,.bullet-list{margin-top:0;margin-bottom:0;margin-left:12pt;padding-left:0;text-align:justify;}.num-list li,.letter-list li,.lower-letter-list li,.bullet-list li{margin:0 0 1pt 0;padding-left:0;text-align:justify;line-height:1.05;mso-line-height-rule:exactly;}.matching-line{margin:0;text-align:left;line-height:1.05;mso-line-height-rule:exactly;}.matching-marker{font-weight:bold;}.page-break{page-break-before:always;mso-break-before:page;margin:0;height:0;line-height:1pt;font-size:1pt;}h3,h4{font-size:12pt;}thead{display:table-header-group;}tfoot{display:table-footer-group;}tr{page-break-inside:auto;page-break-after:auto;}</style></head><body><div class="WordSection1">
+<div class="kop"><p class="kop-line1">PEMERINTAH KABUPATEN MAGELANG</p><p class="kop-line1">DINAS PENDIDIKAN DAN KEBUDAYAAN</p><p class="kop-line2">${String(rppData.namaSekolah || 'SMP NEGERI 2 SECANG').toUpperCase()}</p><p class="kop-line3">Jalan Raya Secang, Kab. Magelang, Jawa Tengah 56195 | Telepon: (0293) 3195355</p></div>
 <h3 style="text-align:center;text-decoration:underline;margin:2pt 0;font-size:12pt;font-weight:bold">RANCANGAN PEMBELAJARAN MENDALAM</h3><p style="text-align:center;margin-bottom:6pt;font-weight:bold;text-transform:uppercase">TOPIK PEMBELAJARAN: ${rppData.topik||'........................'}</p>
 <table class="t-table"><tr><th colspan="4">INFORMASI UMUM</th></tr>
 <tr><td class="t-label">Nama Penyusun</td><td class="t-content-half">${rppData.namaGuru}</td><td class="t-label">Fase / Kelas</td><td class="t-content-half">${rppData.kelas}</td></tr>
 <tr><td class="t-label">Mata Pelajaran</td><td class="t-content-half">${rppData.mapel}</td><td class="t-label">Alokasi Waktu</td><td class="t-content-half">${rppData.waktu} / ${rppData.jumlahPertemuan}</td></tr>
-<tr><th colspan="4">1. IDENTIFIKASI</th></tr>
+<tr><td colspan="4" class="section-head" style="text-align:left">1. IDENTIFIKASI</td></tr>
 <tr>
-  <td colspan="2" class="t-content" style="width:50%; vertical-align:top;"><strong>Komp. Awal:</strong><br/>${formatText(rppData.kompetensiAwal)}</td>
-  <td colspan="2" class="t-content" style="width:50%; vertical-align:top;"><strong>Kesiapan Siswa:</strong><br/>${formatText(rppData.kesiapanSiswa)}</td>
+  <td colspan="2" class="t-content" style="width:50%; vertical-align:top;">${formatBlock('Komp. Awal:', rppData.kompetensiAwal)}</td>
+  <td colspan="2" class="t-content" style="width:50%; vertical-align:top;">${formatBlock('Kesiapan Siswa:', rppData.kesiapanSiswa)}</td>
 </tr>
 <tr><td class="t-label">Karakter Materi</td><td colspan="3" class="t-content">${formatText(rppData.karakteristikMateri)}</td></tr>
 <tr><td class="t-label">Konteks Nyata Siswa</td><td colspan="3" class="t-content">${formatText(rppData.situasiNyataSiswa)}</td></tr>
-<tr><td class="t-label">Dimensi Lulusan</td><td colspan="3" class="t-content" style="padding:0 2px;line-height:0.95">${profilHtml}</td></tr>
-<tr><td class="t-label" style="color:#1e40af">Komp. Sosial Emos.</td><td colspan="3" class="t-content" style="padding:0 2px;line-height:0.95;background-color:#eff6ff">${kseHtml}</td></tr>
-<tr><th colspan="4">2. DESAIN PEMBELAJARAN</th></tr>
+<tr><td class="t-label">Dimensi Lulusan</td><td colspan="3" class="t-content" style="padding:0 2px;line-height:0.95;mso-line-height-rule:exactly;mso-para-margin:0">${profilHtml}</td></tr>
+<tr><td class="t-label" style="color:#1e40af">Komp. Sosial Emos.</td><td colspan="3" class="t-content" style="padding:0 2px;line-height:0.95;mso-line-height-rule:exactly;mso-para-margin:0;background-color:#eff6ff">${kseHtml}</td></tr>
+<tr><td colspan="4" class="section-head" style="text-align:left">2. DESAIN PEMBELAJARAN</td></tr>
 <tr><td class="t-label">Capaian Pemb.</td><td colspan="3" class="t-content">${formatText(rppData.cp)}</td></tr>
 <tr><td class="t-label">Tujuan Pemb.</td><td colspan="3" class="t-content">${formatText(rppData.tp)}</td></tr>
 <tr><td class="t-label">Lintas Disiplin</td><td colspan="3" class="t-content">${formatText(rppData.lintasDisiplin)}</td></tr>
 <tr>
-  <td colspan="2" class="t-content" style="width:50%; vertical-align:top;"><strong style="color:#333">Praktik Pedagogis:</strong><br/>${formatText(rppData.praktikPedagogis)}</td>
-  <td colspan="2" class="t-content" style="width:50%; vertical-align:top;"><strong style="color:#333">Kemitraan Pembelajaran:</strong><br/>${formatText(rppData.kemitraanPembelajaran)}</td>
+  <td colspan="2" class="t-content" style="width:50%; vertical-align:top;">${formatBlock('Praktik Pedagogis:', rppData.praktikPedagogis)}</td>
+  <td colspan="2" class="t-content" style="width:50%; vertical-align:top;">${formatBlock('Kemitraan Pembelajaran:', rppData.kemitraanPembelajaran)}</td>
 </tr>
 <tr>
-  <td colspan="2" class="t-content" style="width:50%; vertical-align:top;"><strong style="color:#333">Lingkungan Pembelajaran:</strong><br/>${formatText(rppData.lingkunganPembelajaran)}</td>
-  <td colspan="2" class="t-content" style="width:50%; vertical-align:top;"><strong style="color:#333">Pemanfaatan Digital:</strong><br/>${formatText(rppData.pemanfaatanDigital)}</td>
+  <td colspan="2" class="t-content" style="width:50%; vertical-align:top;">${formatBlock('Lingkungan Pembelajaran:', rppData.lingkunganPembelajaran)}</td>
+  <td colspan="2" class="t-content" style="width:50%; vertical-align:top;">${formatBlock('Pemanfaatan Digital:', rppData.pemanfaatanDigital)}</td>
 </tr>
-<tr><th colspan="4">3. PENGALAMAN BELAJAR (Mindful, Meaningful, Joyful) & 4. ASESMEN</th></tr>
+<tr><td colspan="4" class="section-head" style="text-align:left">3. PENGALAMAN BELAJAR (Mindful, Meaningful, Joyful) & 4. ASESMEN</td></tr>
 <tr><td colspan="4" class="t-header-sub">Rincian Langkah Pembelajaran, Pengalaman Kognitif, & Asesmen</td></tr>
-<tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 1:<br/>Pendahuluan</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa"><strong>Aktivitas Kelas (Langkah Fisik):</strong><br/>${formatText(rppData.kegiatanAwal)}</td></tr>
-<tr><td colspan="2" class="t-content" style="width:42%"><strong>Target: Memahami</strong><br/>${formatText(rppData.pengalamanMemahami)}</td><td class="t-content" style="width:42%;background:#f8fafc"><strong>Asesmen Awal:</strong><br/>${formatText(rppData.asesmenAwal)}</td></tr>
-<tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 2:<br/>Inti</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa"><strong>Aktivitas Kelas (Langkah Fisik):</strong><br/>${formatText(rppData.kegiatanInti)}</td></tr>
-<tr><td colspan="2" class="t-content" style="width:42%"><strong>Target: Mengaplikasi / Memaknai</strong><br/>${formatText(rppData.pengalamanMengaplikasi)}</td><td class="t-content" style="width:42%;background:#f8fafc"><strong>Asesmen Proses:</strong><br/>${formatText(rppData.asesmenProses)}</td></tr>
-<tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 3:<br/>Penutup</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa"><strong>Aktivitas Kelas (Langkah Fisik):</strong><br/>${formatText(rppData.kegiatanPenutup)}</td></tr>
-<tr><td colspan="2" class="t-content" style="width:42%"><strong>Target: Merefleksi</strong><br/>${formatText(rppData.pengalamanMerefleksi)}</td><td class="t-content" style="width:42%;background:#f8fafc"><strong>Asesmen Akhir:</strong><br/>${formatText(rppData.asesmenAkhir)}</td></tr>
+<tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 1:<br/>Pendahuluan</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa">${formatBlock('Aktivitas Kelas (Langkah Fisik):', rppData.kegiatanAwal)}</td></tr>
+<tr><td colspan="2" class="t-content" style="width:42%">${formatBlock('Target: Memahami', rppData.pengalamanMemahami)}</td><td class="t-content" style="width:42%;background:#f8fafc">${formatBlock('Asesmen Awal:', rppData.asesmenAwal, { assessment: true })}</td></tr>
+<tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 2:<br/>Inti</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa">${formatBlock('Aktivitas Kelas (Langkah Fisik):', rppData.kegiatanInti)}</td></tr>
+<tr><td colspan="2" class="t-content" style="width:42%">${formatBlock('Target: Mengaplikasi / Memaknai', rppData.pengalamanMengaplikasi)}</td><td class="t-content" style="width:42%;background:#f8fafc">${formatBlock('Asesmen Proses:', rppData.asesmenProses, { assessment: true })}</td></tr>
+<tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 3:<br/>Penutup</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa">${formatBlock('Aktivitas Kelas (Langkah Fisik):', rppData.kegiatanPenutup)}</td></tr>
+<tr><td colspan="2" class="t-content" style="width:42%">${formatBlock('Target: Merefleksi', rppData.pengalamanMerefleksi)}</td><td class="t-content" style="width:42%;background:#f8fafc">${formatBlock('Asesmen Akhir:', rppData.asesmenAkhir, { assessment: true })}</td></tr>
 </table>
 <h4 style="text-align:left;margin-top:8pt;margin-bottom:3pt;font-size:12pt;text-transform:uppercase">CATATAN REFLEKSI GURU</h4>
-<table class="t-table" style="margin-bottom:10pt"><tr><td style="border:1px solid black;padding:8px;vertical-align:top;height:80px">${(rppData.catatanRefleksi && rppData.catatanRefleksi.trim()) ? formatText(rppData.catatanRefleksi) : '<span style="color:#555;font-style:italic">1. Bagian pembelajaran apa yang paling membantu siswa memahami konsep?<br/>2. Bukti belajar apa yang paling kuat terlihat?<br/>3. Siswa/kelompok mana yang membutuhkan dukungan lanjutan?<br/>4. Apa yang perlu diperbaiki pada pertemuan berikutnya?</span>'}</td></tr></table>
+<table class="t-table" style="margin-bottom:10pt"><tr><td style="border:1px solid black;padding:8px;vertical-align:top;height:80px">${(rppData.catatanRefleksi && rppData.catatanRefleksi.trim()) ? formatText(rppData.catatanRefleksi) : `<span style="color:#555;font-style:italic">${formatText('1. Bagian pembelajaran apa yang paling membantu siswa memahami konsep?\\n2. Bukti belajar apa yang paling kuat terlihat?\\n3. Siswa/kelompok mana yang membutuhkan dukungan lanjutan?\\n4. Apa yang perlu diperbaiki pada pertemuan berikutnya?')}</span>`}</td></tr></table>
 <table style="width:100%;border:none;page-break-inside:auto;margin-bottom:0"><tr><td style="width:50%;text-align:center;border:none;padding:4px;font-size:10pt">Mengetahui,<br/>Kepala ${rppData.namaSekolah}<br/><br/><br/><br/><br/><strong><u>${rppData.namaKepsek||'_______________________'}</u></strong><br/>NIP. ${rppData.nipKepsek||'_______________________'}</td><td style="width:50%;text-align:center;border:none;padding:4px;font-size:10pt">Secang, ........................ 2026<br/>Guru Mata Pelajaran<br/><br/><br/><br/><br/><strong><u>${rppData.namaGuru||'_______________________'}</u></strong><br/>NIP. ${rppData.nipGuru||'_______________________'}</td></tr></table>
 
-<div style="border-top:1px solid #000;margin:8pt 0 4pt 0"></div>
+<div class="page-break">&nbsp;</div>
 
-<h4 style="text-align:left;margin-top:8pt;margin-bottom:3pt;font-size:12pt">LAMPIRAN INSTRUMEN PENILAIAN</h4>
-<p style="margin-bottom:2pt;font-size:11pt"><strong>A. Kisi-kisi Soal</strong></p>
+<h4 style="text-align:left;margin-top:0;margin-bottom:3pt;font-size:12pt">LAMPIRAN INSTRUMEN PENILAIAN</h4>
+<p style="margin-bottom:2pt;font-size:11pt;text-align:left"><strong>A. Kisi-kisi Soal</strong></p>
 <table style="width:100%;border-collapse:collapse;margin-bottom:10pt;"><thead style="display:table-header-group"><tr><th width="4%" style="${thStyle}">No</th><th width="28%" style="${thStyle}">Materi Pokok</th><th width="42%" style="${thStyle}">Indikator Soal</th><th width="7%" style="${thStyle}">Level</th><th width="11%" style="${thStyle}">Bentuk</th><th width="8%" style="${thStyle}">No Soal</th></tr></thead><tbody>${kRows}</tbody></table>
-<p style="margin-bottom:2pt;font-size:11pt;margin-top:6pt"><strong>B. Bank Soal AKM (Literasi/Numerasi HOTS)</strong></p>
+<p style="margin:0;line-height:8pt;font-size:8pt;text-align:left">&nbsp;</p>
+<p style="margin:0 0 3pt 0;font-size:11pt;text-align:left"><strong>B. Bank Soal AKM (Literasi/Numerasi HOTS)</strong></p>
 <table style="width:100%;border-collapse:collapse;margin-bottom:8pt;"><thead style="display:table-header-group"><tr><th width="5%" style="${thStyle}">No</th><th width="45%" style="${thStyle}">Butir Soal & Stimulus Kontekstual</th><th width="40%" style="${thStyle}">Pilihan Jawaban / Pedoman Jawab</th><th width="10%" style="${thStyle}">Kunci</th></tr></thead><tbody>${bRows}</tbody></table>
-<p style="margin-bottom:2pt;font-size:11pt;margin-top:8pt"><strong>C. Rubrik Penilaian Kinerja/Uraian</strong></p>
-<table style="width:100%;border-collapse:collapse;margin-bottom:10pt;"><thead style="display:table-header-group"><tr><th width="14%" style="${thStyle}">Bentuk Penilaian</th><th width="22%" style="${thStyle}">Skor / Level</th><th width="64%" style="${thStyle}">Deskripsi Indikator Penilaian</th></tr></thead><tbody>${rRowsTable}</tbody></table>
+<p style="margin:0;line-height:8pt;font-size:8pt;text-align:left">&nbsp;</p>
+<p style="margin:0 0 3pt 0;font-size:11pt;text-align:left"><strong>C. Rubrik Penilaian Kinerja/Uraian</strong></p>
+<table style="width:100%;border-collapse:collapse;margin-bottom:10pt;"><thead style="display:table-header-group"><tr><th width="14%" style="${thStyle}">Bentuk Penilaian</th><th width="10%" style="${thStyle}">Skor Maks.</th><th width="76%" style="${thStyle}">Deskripsi Indikator Penilaian / Rentang Nilai</th></tr></thead><tbody>${rRowsTable}</tbody></table>
 </div></body></html>`;
   };
 
@@ -1163,14 +1528,15 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
           maxWidths: [6, 74, 62, 16],
           rows: rppData.bankSoal.map((b, i) => {
             const row = getBankRowForDisplay(b, i);
-            return { "No": i + 1, "Butir Soal & Stimulus": row.soal, "Pilihan Jawaban / Pedoman Jawab": row.opsi || "-", "Kunci Jawaban": row.kunci || "-" };
+            const form = rppData.kisiKisi[i]?.bentuk;
+            return { "No": i + 1, "Butir Soal & Stimulus": row.soal, "Pilihan Jawaban / Pedoman Jawab": row.opsi || "-", "Kunci Jawaban": formatKeyForExport(row.kunci, form) || "-" };
           })
         },
         {
           name: "Rubrik Penilaian",
           minWidths: [5, 18, 24, 52],
           maxWidths: [6, 24, 34, 76],
-          rows: rubrikRowsForExcel.map((r, i) => ({ "No": i + 1, "Bentuk Penilaian": r.bentukPenilaian, "Skor / Rentang Nilai": r.skor, "Deskripsi Indikator Penilaian": r.kriteria }))
+          rows: rubrikRowsForExcel.map((r, i) => ({ "No": i + 1, "Bentuk Penilaian": r.bentukPenilaian, "Skor Maks.": getRubrikMaxScore(r), "Deskripsi Indikator Penilaian / Rentang Nilai": getRubrikDescriptionForExport(r) }))
         }
       ];
 
@@ -1289,7 +1655,35 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
         </div>
       </header>
 
-      <main className="w-full max-w-[99%] xl:max-w-[1560px] 2xl:max-w-[1760px] mx-auto px-2 sm:px-4 mt-5 sm:mt-8 flex flex-col md:flex-row gap-5 sm:gap-6 relative items-start flex-1 min-w-0">
+      <section className="w-full bg-white border-b border-slate-200 shadow-sm">
+        <div className="w-full max-w-[99%] xl:max-w-[1560px] 2xl:max-w-[1760px] mx-auto px-2 sm:px-4 py-3">
+          <div className="flex items-center gap-2 overflow-x-auto scrollbar-hide pb-1">
+            {activityTabs.map((tab, index) => {
+              const active = tab.id === activeTabId;
+              return (
+                <div key={tab.id} className={`shrink-0 flex items-center rounded-xl border transition shadow-sm ${active ? 'bg-blue-700 border-blue-800 text-white' : 'bg-slate-50 border-slate-200 text-slate-700 hover:bg-blue-50'}`}>
+                  <button type="button" onClick={() => switchActivityTab(tab.id)} className="px-3 sm:px-4 py-2 text-left min-w-[150px] max-w-[260px]">
+                    <span className={`block text-[10px] font-black uppercase tracking-wide ${active ? 'text-blue-100' : 'text-slate-400'}`}>Kegiatan {index + 1}</span>
+                    <span className="block text-xs sm:text-sm font-bold truncate">{tab.title}</span>
+                  </button>
+                  {activityTabs.length > 1 ? (
+                    <button type="button" onClick={() => removeActivityTab(tab.id)} className={`w-8 h-8 mr-1 rounded-lg flex items-center justify-center ${active ? 'text-blue-100 hover:bg-blue-800 hover:text-white' : 'text-slate-400 hover:bg-red-50 hover:text-red-600'}`} title="Hapus tab kegiatan">
+                      <i className="fas fa-times text-xs"></i>
+                    </button>
+                  ) : null}
+                </div>
+              );
+            })}
+            <button type="button" onClick={addActivityTab} className="shrink-0 px-4 py-2 rounded-xl bg-emerald-600 text-white text-xs sm:text-sm font-bold shadow-sm hover:bg-emerald-700 flex items-center gap-2">
+              <i className="fas fa-plus"></i>
+              Tambah Tab
+            </button>
+          </div>
+          <p className="mt-1 text-[11px] sm:text-xs text-slate-500">Setiap tab menyimpan satu rancangan subbab/kegiatan. Semua tab tersimpan otomatis di localStorage perangkat ini.</p>
+        </div>
+      </section>
+
+      <main className="w-full max-w-[99%] xl:max-w-[1560px] 2xl:max-w-[1760px] mx-auto px-2 sm:px-4 mt-4 sm:mt-6 flex flex-col md:flex-row gap-5 sm:gap-6 relative items-start flex-1 min-w-0">
         <div className="flex-1 w-full order-2 md:order-1 min-w-0">
           <div className="animate-in fade-in duration-500">
             {isEditing ? (
@@ -1585,7 +1979,7 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
                   </div>
 
                   <div className="bg-white p-3 sm:p-4 rounded-lg border border-slate-200 shadow-sm mb-6 overflow-hidden">
-                    <LabelWithHint onRegenerate={() => handleRegenerateSpecific('bankSoal', 'Bank Soal AKM', 'array_soal')} isLoading={individualLoading['bankSoal']} className="font-bold text-slate-800 text-sm sm:text-base mb-2" hint="Pastikan soal selaras dengan grid Kisi-Kisi di atas.">B. Bank Soal (Sinkron dengan Kisi-kisi)</LabelWithHint>
+                    <LabelWithHint onRegenerate={() => handleRegenerateSpecific('bankSoal', 'Bank Soal AKM Literasi/Numerasi HOTS', 'array_soal')} isLoading={individualLoading['bankSoal']} className="font-bold text-slate-800 text-sm sm:text-base mb-2" hint="Pastikan soal selaras dengan grid Kisi-Kisi di atas.">B. Bank Soal AKM (Literasi/Numerasi HOTS)</LabelWithHint>
                     <div className="w-full overflow-x-auto border border-slate-300 rounded scrollbar-hide pb-2">
                       <table className="w-full text-left text-sm border-collapse min-w-[1000px]">
                         <thead className="bg-slate-100 text-slate-700 border-b border-slate-300">
@@ -1601,10 +1995,10 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
                               <td className="p-1 border-r align-top"><textarea className="table-input resize-y min-h-[120px] leading-relaxed whitespace-pre-wrap" rows="5" value={displayRow.soal} onChange={(e) => handleTableChange('bankSoal', index, 'soal', e.target.value)} placeholder="Tuliskan stimulus cerita/kasus dan soal..."></textarea></td>
                               <td className="p-1 border-r align-top">
                                 {bankForm === "Menjodohkan" ? <div className="mb-2 grid grid-cols-2 gap-2 text-[11px] font-bold text-slate-700"><div className="bg-slate-100 border rounded px-2 py-1">Premis / Kolom A</div><div className="bg-slate-100 border rounded px-2 py-1">Respon / Kolom B</div></div> : null}
-                                <textarea className="table-input resize-y min-h-[120px] leading-relaxed whitespace-pre-wrap" rows="5" value={displayRow.opsi} onChange={(e) => handleTableChange('bankSoal', index, 'opsi', e.target.value)} placeholder={bankForm === "Menjodohkan" ? "Premis / Kolom A:\n1. ...\n2. ...\n3. ...\n4. ...\n\nRespon / Kolom B:\nA. ...\nB. ...\nC. ...\nD. ..." : "PG/PG Kompleks:\nA. ...\nB. ...\nC. ...\nD. ...\n\nIsian/Uraian/Praktik/Proyek:\nPedoman jawab atau rambu pengerjaan..."}></textarea>
+                                <textarea className="table-input resize-y min-h-[120px] leading-relaxed whitespace-pre-wrap" rows="5" value={displayRow.opsi} onChange={(e) => handleTableChange('bankSoal', index, 'opsi', e.target.value)} placeholder={bankForm === "Menjodohkan" ? "Premis / Kolom A:\n1. ...\n2. ...\n3. ...\n4. ...\n\nRespon / Kolom B:\nA. ...\nB. ...\nC. ...\nD. ..." : bankForm === "Isian Singkat" ? "-" : bankForm === "Uraian" ? "Tuliskan kunci/pedoman jawaban ringkas di kolom lebar ini. Kolom kunci otomatis berisi -." : "PG/PG Kompleks:\nA. ...\nB. ...\nC. ...\nD. ...\n\nPraktik/Proyek:\nRambu pengerjaan, produk, dan bukti kinerja..."}></textarea>
                                 {bankForm === "Menjodohkan" ? <div className="mt-2">{renderMatchingOptions(displayRow.opsi)}</div> : null}
                               </td>
-                              <td className="p-1 border-r align-top"><input type="text" className="table-input font-bold text-center mt-2 text-blue-700" value={row.kunci} onChange={(e) => handleTableChange('bankSoal', index, 'kunci', e.target.value)} placeholder="Kunci" /></td>
+                              <td className="p-1 border-r align-top"><input type="text" className="table-input font-bold text-center mt-2 text-blue-700" value={displayRow.kunci} onChange={(e) => handleTableChange('bankSoal', index, 'kunci', e.target.value)} placeholder="Kunci" /></td>
                               <td className="p-2 text-center align-top">
                                 <div className="flex items-center justify-center gap-1 mt-2">
                                   <button onClick={() => handleRegenerateBankItem(index)} disabled={!!individualLoading[`bankSoal_${index}`]} className={`p-2 rounded ${individualLoading[`bankSoal_${index}`] ? 'text-slate-400 cursor-not-allowed' : 'text-blue-500 hover:text-blue-700 hover:bg-blue-50'}`} title={`Generate ulang soal nomor ${index + 1}`}><i className={`fas fa-sync-alt ${individualLoading[`bankSoal_${index}`] ? 'fa-spin' : ''}`}></i></button>
@@ -1625,14 +2019,14 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
                     <div className="w-full overflow-x-auto border border-slate-300 rounded scrollbar-hide pb-2">
                       <table className="w-full text-left text-sm border-collapse min-w-[920px]">
                         <thead className="bg-slate-100 text-slate-700 border-b border-slate-300">
-                          <tr><th className="p-2 border-r min-w-[120px] w-[14%]">Bentuk Penilaian</th><th className="p-2 border-r min-w-[190px] w-[22%]">Skor / Rentang Nilai</th><th className="p-2 border-r min-w-[520px] w-[58%]">Deskripsi Indikator Penilaian</th><th className="p-2 w-10 text-center shrink-0"></th></tr>
+                          <tr><th className="p-2 border-r min-w-[120px] w-[14%]">Bentuk Penilaian</th><th className="p-2 border-r min-w-[110px] w-[12%] text-center">Skor Maks.</th><th className="p-2 border-r min-w-[600px] w-[68%]">Deskripsi Indikator Penilaian / Rentang Nilai</th><th className="p-2 w-10 text-center shrink-0"></th></tr>
                         </thead>
                         <tbody>
                           {rppData.rubrikPenilaian.map((row, index) => (
                             <tr key={row.id} className="border-b hover:bg-slate-50">
                               <td className="p-1 border-r align-top"><input type="text" className="table-input font-bold text-center text-orange-700" value={row.bentukPenilaian || ""} onChange={(e) => handleTableChange('rubrikPenilaian', index, 'bentukPenilaian', e.target.value)} placeholder="PG / Uraian / Proyek" /></td>
-                              <td className="p-1 border-r align-top"><textarea className="table-input resize-y min-h-[60px] font-bold whitespace-pre-wrap text-left" rows="3" value={row.skor} onChange={(e) => handleTableChange('rubrikPenilaian', index, 'skor', e.target.value)} placeholder="Skor 4, 3, 2, 1"></textarea></td>
-                              <td className="p-1 border-r align-top"><textarea className="table-input resize-y min-h-[60px] leading-relaxed whitespace-pre-wrap" rows="3" value={row.kriteria} onChange={(e) => handleTableChange('rubrikPenilaian', index, 'kriteria', e.target.value)} placeholder="Deskripsi pencapaian..."></textarea></td>
+                              <td className="p-1 border-r align-top"><input type="text" className="table-input font-bold text-center text-blue-700" value={row.skor} onChange={(e) => handleTableChange('rubrikPenilaian', index, 'skor', e.target.value)} placeholder="4" /></td>
+                              <td className="p-1 border-r align-top"><textarea className="table-input resize-y min-h-[80px] leading-relaxed whitespace-pre-wrap" rows="4" value={row.kriteria} onChange={(e) => handleTableChange('rubrikPenilaian', index, 'kriteria', e.target.value)} placeholder="Rentang Nilai:\n4 = ...\n3 = ...\n\nDeskripsi operasional penilaian..."></textarea></td>
                               <td className="p-2 text-center align-top"><button onClick={() => removeTableRow('rubrikPenilaian', row.id)} className="text-red-400 hover:text-red-600 mt-1 p-2"><i className="fas fa-trash"></i></button></td>
                             </tr>
                           ))}
@@ -1725,7 +2119,7 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
                   </div>
                 </Accordion>
 
-                <Accordion title="Instrumen Penilaian (Bank Soal)" icon="fas fa-file-circle-question" isCompleted={completedSteps['bank']} onToggleComplete={() => toggleStep('bank')} headerColorClass="bg-orange-100 text-orange-700">
+                <Accordion title="Instrumen Penilaian (Bank Soal AKM)" icon="fas fa-file-circle-question" isCompleted={completedSteps['bank']} onToggleComplete={() => toggleStep('bank')} headerColorClass="bg-orange-100 text-orange-700">
                   <div>
                     <h3 className="font-bold text-orange-800 text-base sm:text-lg mb-4 border-b pb-2">Instrumen Penilaian (Bank Soal)</h3>
                     <div className="w-full overflow-x-auto border border-slate-300 rounded pb-2">
@@ -1746,13 +2140,13 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
                     <div className="w-full overflow-x-auto border border-slate-300 rounded pb-2">
                       <table className="w-full text-left text-xs sm:text-sm border-collapse min-w-[760px]">
                         <thead className="bg-slate-100 text-slate-700 border-b border-slate-300">
-                          <tr><th className="p-2 border-r min-w-[120px] w-[14%]">Bentuk Penilaian</th><th className="p-2 border-r min-w-[190px] w-[22%]">Skor / Rentang Nilai</th><th className="p-2 min-w-[420px] w-[64%]">Deskripsi Indikator Penilaian</th></tr>
+                          <tr><th className="p-2 border-r min-w-[120px] w-[14%]">Bentuk Penilaian</th><th className="p-2 border-r min-w-[110px] w-[12%] text-center">Skor Maks.</th><th className="p-2 min-w-[500px] w-[74%]">Deskripsi Indikator Penilaian / Rentang Nilai</th></tr>
                         </thead>
                         <tbody>
                           {(rppData.kisiKisi.length ? mapRubrikByKisi(rppData.rubrikPenilaian, rppData.kisiKisi) : rppData.rubrikPenilaian).map((r, i) => (
                             <tr key={`${r.bentukPenilaian || 'rubrik'}-${i}`} className="border-b">
                               <td className="p-2 sm:p-3 border-r align-top font-bold text-amber-700">{r.bentukPenilaian || '-'}</td>
-                              <td className="p-2 sm:p-3 border-r align-top text-left whitespace-pre-wrap font-semibold">{r.skor || '-'}</td>
+                              <td className="p-2 sm:p-3 border-r align-top text-center whitespace-pre-wrap font-semibold">{getRubrikMaxScore(r) || '-'}</td>
                               <td className="p-2 sm:p-3 align-top whitespace-pre-wrap leading-relaxed">{r.kriteria || '-'}</td>
                             </tr>
                           ))}
@@ -1900,7 +2294,7 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
               </div>
               <label className="block font-bold text-slate-800 mb-2">Gemini API Key Anda:</label>
               <input type="password" value={tempApiKey} onChange={(e) => setTempApiKey(e.target.value)} placeholder="AIzaSy..." className="w-full p-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-mono tracking-widest text-slate-800 mb-1"/>
-              <p className="text-[10px] text-slate-500 mb-6"><i className="fas fa-shield-alt mr-1"></i>Key hanya disimpan sementara di <i>sessionStorage</i> tab ini dan dikirim melalui header API, bukan query string URL.</p>
+              <p className="text-[10px] text-slate-500 mb-6"><i className="fas fa-shield-alt mr-1"></i>Key disimpan di <i>localStorage</i> perangkat ini agar tidak hilang saat tab tertutup, dan dikirim melalui header API, bukan query string URL.</p>
               
               <div className="flex gap-3">
                 <button onClick={() => setShowApiModal(false)} className="flex-1 py-3 bg-slate-100 font-bold rounded-xl hover:bg-slate-200">Batal</button>
