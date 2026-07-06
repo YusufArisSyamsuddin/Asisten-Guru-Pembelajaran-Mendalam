@@ -238,6 +238,54 @@ function App() {
     Praktik: "9-10 = kinerja sangat kreatif, akurat, mandiri, dan demonstrasi jelas\n7-8 = kinerja baik, konsep tepat, tetapi detail/kelancaran masih dapat ditingkatkan\n5-6 = kinerja cukup, sebagian prosedur tepat, tetapi bukti dan penjelasan belum kuat\n1-4 = kinerja sangat terbatas dan membutuhkan banyak bimbingan\n0 = tidak menunjukkan evidensi",
     Proyek: "9-10 = produk sangat kreatif, berfungsi sangat baik, demonstrasi jelas, dan penjelasan konsep sangat akurat\n7-8 = produk baik dan berfungsi, tetapi pengembangan ide atau penjelasan konsep belum mendalam\n5-6 = produk cukup, sebagian kriteria terpenuhi, tetapi fungsi/bukti masih terbatas\n1-4 = produk belum memenuhi sebagian besar kriteria dan membutuhkan banyak perbaikan\n0 = tidak mengumpulkan produk/evidensi"
   };
+  const pertemuanFieldKeys = [
+    "kegiatanAwal",
+    "pengalamanMemahami",
+    "asesmenAwal",
+    "kegiatanInti",
+    "pengalamanMengaplikasi",
+    "asesmenProses",
+    "kegiatanPenutup",
+    "pengalamanMerefleksi",
+    "asesmenAkhir"
+  ];
+  const getJumlahPertemuanValue = (value) => {
+    const match = String(value || "").match(/\d+/);
+    return Math.max(1, parseInt(match?.[0] || "1", 10) || 1);
+  };
+  const makeEmptyPertemuan = (index = 0) => pertemuanFieldKeys.reduce((row, key) => ({ ...row, [key]: "" }), {
+    id: `pertemuan-${index + 1}`,
+    label: `Pertemuan ${index + 1}`
+  });
+  const getLegacyPertemuanData = (data = {}) => pertemuanFieldKeys.reduce((row, key) => ({ ...row, [key]: data?.[key] || "" }), {});
+  const normalizePertemuanEntry = (row = {}, index = 0, fallback = {}) => {
+    const source = row && typeof row === "object" ? row : {};
+    const normalized = { ...makeEmptyPertemuan(index), ...source, id: source.id || `pertemuan-${index + 1}`, label: `Pertemuan ${index + 1}` };
+    pertemuanFieldKeys.forEach(key => {
+      normalized[key] = source[key] ?? fallback[key] ?? "";
+    });
+    return normalized;
+  };
+  const syncPertemuanPembelajaran = (data = {}, countOverride = null) => {
+    const count = countOverride || getJumlahPertemuanValue(data.jumlahPertemuan);
+    const source = Array.isArray(data.pertemuanPembelajaran) ? data.pertemuanPembelajaran : [];
+    const hasSource = source.length > 0;
+    const legacy = getLegacyPertemuanData(data);
+    return Array.from({ length: count }).map((_, index) => {
+      const fallback = !hasSource && index === 0 ? legacy : {};
+      return normalizePertemuanEntry(source[index] || {}, index, fallback);
+    });
+  };
+  const mirrorFirstPertemuanFields = (data, pertemuanRows) => {
+    const first = pertemuanRows?.[0] || {};
+    return pertemuanFieldKeys.reduce((next, key) => ({ ...next, [key]: first[key] ?? data[key] ?? "" }), data);
+  };
+  const getPertemuanFases = (row = {}) => [
+    { t: "AWAL", sub: "Pendahuluan", c: "blue", ak: row.kegiatanAwal, tk: row.pengalamanMemahami, as: row.asesmenAwal, ic: "brain" },
+    { t: "INTI", sub: "Elaborasi", c: "emerald", ak: row.kegiatanInti, tk: row.pengalamanMengaplikasi, as: row.asesmenProses, ic: "cogs" },
+    { t: "AKHIR", sub: "Penutup", c: "fuchsia", ak: row.kegiatanPenutup, tk: row.pengalamanMerefleksi, as: row.asesmenAkhir, ic: "undo" }
+  ];
+
   const defaultAssessmentPlan = [
     { id: "plan-pg-c3", bentuk: "PG", jumlah: 2, level: "C3" },
     { id: "plan-pgk-c4", bentuk: "PG Kompleks", jumlah: 2, level: "C4" },
@@ -253,7 +301,7 @@ function App() {
     kseLulusan: { kesadaranDiri: false, manajemenDiri: false, kesadaranSosial: false, keterampilanBerelasi: false, keputusanBertanggungJawab: false },
     kseAlasan: "",
     cp: "", lintasDisiplin: "", tp: "", praktikPedagogis: "Pembelajaran Mendalam", kemitraanPembelajaran: "", lingkunganPembelajaran: "", pemanfaatanDigital: "",
-    kegiatanAwal: "", kegiatanInti: "", kegiatanPenutup: "", pengalamanMemahami: "", pengalamanMengaplikasi: "", pengalamanMerefleksi: "", asesmenAwal: "", asesmenProses: "", asesmenAkhir: "", catatanRefleksi: "",
+    kegiatanAwal: "", kegiatanInti: "", kegiatanPenutup: "", pengalamanMemahami: "", pengalamanMengaplikasi: "", pengalamanMerefleksi: "", asesmenAwal: "", asesmenProses: "", asesmenAkhir: "", pertemuanPembelajaran: [makeEmptyPertemuan(0)], catatanRefleksi: "",
     rencanaAsesmen: defaultAssessmentPlan.map(row => ({ ...row })),
     kisiKisi: [], bankSoal: [], rubrikPenilaian: []
   };
@@ -262,15 +310,17 @@ function App() {
   const normalizeActivityData = (data = {}) => {
     let p = { ...defaultDataObj, ...(data || {}) };
     if (Array.isArray(p.praktikPedagogis)) p.praktikPedagogis = p.praktikPedagogis.join(', ');
-    return {
+    const pertemuanPembelajaran = syncPertemuanPembelajaran(p);
+    return mirrorFirstPertemuanFields({
       ...p,
       profilLulusan: { ...defaultDataObj.profilLulusan, ...(p.profilLulusan || {}) },
       kseLulusan: { ...defaultDataObj.kseLulusan, ...(p.kseLulusan || {}) },
+      pertemuanPembelajaran,
       rencanaAsesmen: Array.isArray(p.rencanaAsesmen) && p.rencanaAsesmen.length ? p.rencanaAsesmen : defaultAssessmentPlan.map(row => ({ ...row })),
       kisiKisi: Array.isArray(p.kisiKisi) ? p.kisiKisi : [],
       bankSoal: Array.isArray(p.bankSoal) ? p.bankSoal : [],
       rubrikPenilaian: Array.isArray(p.rubrikPenilaian) ? p.rubrikPenilaian : []
-    };
+    }, pertemuanPembelajaran);
   };
   const getActivityTitle = (data, index = 1) => {
     const topic = String(data?.topik || "").trim();
@@ -399,7 +449,24 @@ function App() {
   };
 
   const toggleStep = (id) => setCompletedSteps(p => ({ ...p, [id]: !p[id] }));
-  const handleInputChange = (e) => setRppData(p => ({ ...p, [e.target.name]: e.target.value }));
+  const handleInputChange = (e) => {
+    const { name, value } = e.target;
+    setRppData(p => {
+      const next = { ...p, [name]: value };
+      if (name !== "jumlahPertemuan") return next;
+      const pertemuanPembelajaran = syncPertemuanPembelajaran(next, getJumlahPertemuanValue(value));
+      return mirrorFirstPertemuanFields({ ...next, pertemuanPembelajaran }, pertemuanPembelajaran);
+    });
+  };
+  const handlePertemuanFieldChange = (index, fieldKey, value) => {
+    setRppData(prev => {
+      const pertemuanPembelajaran = syncPertemuanPembelajaran(prev).map((row, rowIndex) => (
+        rowIndex === index ? { ...row, [fieldKey]: value } : row
+      ));
+      const next = { ...prev, pertemuanPembelajaran };
+      return index === 0 ? mirrorFirstPertemuanFields(next, pertemuanPembelajaran) : next;
+    });
+  };
   const handleProfilChange = (k) => setRppData(p => ({ ...p, profilLulusan: { ...p.profilLulusan, [k]: !p.profilLulusan[k] } }));
   const handleKseChange = (k) => setRppData(p => ({ ...p, kseLulusan: { ...p.kseLulusan, [k]: !p.kseLulusan[k] } }));
   const handleTableChange = (a, i, f, v) => setRppData(p => { const n = [...p[a]]; n[i] = { ...n[i], [f]: v }; return { ...p, [a]: n }; });
@@ -926,6 +993,40 @@ function App() {
     ...extra
   });
 
+  const mapGeneratedPertemuan = (aiData = {}, prev = rppData) => {
+    const count = getJumlahPertemuanValue(prev.jumlahPertemuan);
+    const fallbackFromLegacy = {
+      kegiatanAwal: cleanStr(aiData.kegiatanAwal) || prev.kegiatanAwal,
+      pengalamanMemahami: ensureExperienceText(aiData.pengalamanMemahami || prev.pengalamanMemahami, 'memahami', prev),
+      asesmenAwal: cleanStr(aiData.asesmenAwal) || prev.asesmenAwal,
+      kegiatanInti: cleanStr(aiData.kegiatanInti) || prev.kegiatanInti,
+      pengalamanMengaplikasi: ensureExperienceText(aiData.pengalamanMengaplikasi || prev.pengalamanMengaplikasi, 'mengaplikasi', prev),
+      asesmenProses: cleanStr(aiData.asesmenProses) || prev.asesmenProses,
+      kegiatanPenutup: cleanStr(aiData.kegiatanPenutup) || prev.kegiatanPenutup,
+      pengalamanMerefleksi: ensureExperienceText(aiData.pengalamanMerefleksi || prev.pengalamanMerefleksi, 'merefleksi', prev),
+      asesmenAkhir: cleanStr(aiData.asesmenAkhir) || prev.asesmenAkhir
+    };
+    const source = Array.isArray(aiData.pertemuanPembelajaran) && aiData.pertemuanPembelajaran.length ? aiData.pertemuanPembelajaran : [fallbackFromLegacy];
+    const existingRows = syncPertemuanPembelajaran(prev, count);
+    return Array.from({ length: count }).map((_, index) => {
+      const raw = source[index] || {};
+      const fallback = index === 0 ? fallbackFromLegacy : existingRows[index] || {};
+      const normalized = normalizePertemuanEntry(raw, index, fallback);
+      return {
+        ...normalized,
+        kegiatanAwal: cleanStr(raw.kegiatanAwal) || fallback.kegiatanAwal || "",
+        pengalamanMemahami: ensureExperienceText(raw.pengalamanMemahami || fallback.pengalamanMemahami, 'memahami', prev),
+        asesmenAwal: cleanStr(raw.asesmenAwal) || fallback.asesmenAwal || "",
+        kegiatanInti: cleanStr(raw.kegiatanInti) || fallback.kegiatanInti || "",
+        pengalamanMengaplikasi: ensureExperienceText(raw.pengalamanMengaplikasi || fallback.pengalamanMengaplikasi, 'mengaplikasi', prev),
+        asesmenProses: cleanStr(raw.asesmenProses) || fallback.asesmenProses || "",
+        kegiatanPenutup: cleanStr(raw.kegiatanPenutup) || fallback.kegiatanPenutup || "",
+        pengalamanMerefleksi: ensureExperienceText(raw.pengalamanMerefleksi || fallback.pengalamanMerefleksi, 'merefleksi', prev),
+        asesmenAkhir: cleanStr(raw.asesmenAkhir) || fallback.asesmenAkhir || ""
+      };
+    });
+  };
+
   const handleGenerateAI = async () => {
     if (!rppData.topik || !rppData.mapel || !rppData.kelas) {
       notify("Data Belum Lengkap", "Mohon isi Mata Pelajaran, Fase/Kelas, dan Topik Pembelajaran terlebih dahulu.", "warning");
@@ -935,6 +1036,7 @@ function App() {
     setActiveGenerateMode("modul");
     setCountdown(12);
 
+    const jumlahPertemuan = getJumlahPertemuanValue(rppData.jumlahPertemuan);
     const prompt = `Anda adalah ahli kurikulum dan Pembelajaran Mendalam. Tugas Anda HANYA menyusun Modul Ajar/RPM, bukan menyusun kisi-kisi, bank soal, atau rubrik lampiran.
 
 ATURAN TETAP KURIKULER:
@@ -949,11 +1051,13 @@ ATURAN TETAP KURIKULER:
 9. Aktivitas kelas harus kaya, operasional, dan dapat dipraktikkan guru: kegiatan awal minimal 5 langkah; kegiatan inti minimal 7 langkah; kegiatan penutup minimal 4 langkah.
 10. Target kognitif Memahami, Mengaplikasi, dan Merefleksi masing-masing minimal 3 poin yang menunjukkan proses berpikir siswa, bukan sekadar aktivitas fisik.
 11. Asesmen awal, proses, dan akhir masing-masing harus ditulis tepat 4 poin bernomor dengan pola: 1. Teknik: ..., 2. Bukti: ..., 3. Cara membaca: ..., 4. Tindak lanjut: ...
+12. Jumlah pertemuan adalah ${jumlahPertemuan}. Field pertemuanPembelajaran WAJIB berisi tepat ${jumlahPertemuan} objek. Setiap objek mewakili satu pertemuan dan wajib memuat kegiatanAwal, pengalamanMemahami, asesmenAwal, kegiatanInti, pengalamanMengaplikasi, asesmenProses, kegiatanPenutup, pengalamanMerefleksi, dan asesmenAkhir. Jika lebih dari 1 pertemuan, alur tiap pertemuan harus berbeda dan berurutan, bukan salinan.
 
 KONTEKS KELAS DAN GURU:
 - Mapel: ${rppData.mapel}
 - Fase/Kelas: ${rppData.kelas}
 - Topik: ${rppData.topik}
+- Jumlah pertemuan: ${rppData.jumlahPertemuan}
 - CP saat ini: ${rppData.cp || 'Belum dirumuskan'}
 - Analisis materi saat ini: ${rppData.karakteristikMateri || 'Belum dirumuskan'}
 - Tujuan Pembelajaran saat ini: ${rppData.tp || 'Belum dirumuskan'}
@@ -967,7 +1071,7 @@ KONTEKS KELAS DAN GURU:
 ${instruksiKhusus ? `- Instruksi khusus guru: ${instruksiKhusus}` : ''}
 
 FORMAT OUTPUT:
-Keluarkan JSON murni. Semua field wajib terisi, spesifik untuk mapel/kelas/topik, berupa poin bernomor memakai newline (\\n), tanpa basa-basi. Untuk kompetensi awal, situasi nyata, pengalaman belajar, kegiatan, dan refleksi, gunakan kalimat operasional yang memuat konteks nyata, bukti belajar, dan tindakan siswa. Jangan keluarkan field kisiKisi, bankSoal, atau rubrikPenilaian.`;
+Keluarkan JSON murni. Semua field wajib terisi, spesifik untuk mapel/kelas/topik, berupa poin bernomor memakai newline (\\n), tanpa basa-basi. Untuk kompetensi awal, situasi nyata, pengalaman belajar, kegiatan, dan refleksi, gunakan kalimat operasional yang memuat konteks nyata, bukti belajar, dan tindakan siswa. Field pertemuanPembelajaran harus tepat ${jumlahPertemuan} objek sesuai jumlah pertemuan. Jangan keluarkan field kisiKisi, bankSoal, atau rubrikPenilaian.`;
 
     const payload = {
       contents: [{ parts: [{ text: prompt }] }],
@@ -983,11 +1087,23 @@ Keluarkan JSON murni. Semua field wajib terisi, spesifik untuk mapel/kelas/topik
             profilAlasan: { type: "STRING" }, kseAlasan: { type: "STRING" },
             praktikPedagogis: { type: "STRING" }, cp: { type: "STRING" }, lintasDisiplin: { type: "STRING" }, tp: { type: "STRING" },
             kemitraanPembelajaran: { type: "STRING" }, lingkunganPembelajaran: { type: "STRING" }, pemanfaatanDigital: { type: "STRING" },
+            pertemuanPembelajaran: {
+              type: "ARRAY",
+              items: {
+                type: "OBJECT",
+                properties: {
+                  kegiatanAwal: { type: "STRING" }, pengalamanMemahami: { type: "STRING" }, asesmenAwal: { type: "STRING" },
+                  kegiatanInti: { type: "STRING" }, pengalamanMengaplikasi: { type: "STRING" }, asesmenProses: { type: "STRING" },
+                  kegiatanPenutup: { type: "STRING" }, pengalamanMerefleksi: { type: "STRING" }, asesmenAkhir: { type: "STRING" }
+                },
+                required: ["kegiatanAwal","pengalamanMemahami","asesmenAwal","kegiatanInti","pengalamanMengaplikasi","asesmenProses","kegiatanPenutup","pengalamanMerefleksi","asesmenAkhir"]
+              }
+            },
             kegiatanAwal: { type: "STRING" }, pengalamanMemahami: { type: "STRING" }, asesmenAwal: { type: "STRING" },
             kegiatanInti: { type: "STRING" }, pengalamanMengaplikasi: { type: "STRING" }, asesmenProses: { type: "STRING" },
             kegiatanPenutup: { type: "STRING" }, pengalamanMerefleksi: { type: "STRING" }, asesmenAkhir: { type: "STRING" }
           },
-          required: ["kompetensiAwal","kesiapanSiswa","karakteristikMateri","situasiNyataSiswa","profilLulusan","kseLulusan","profilAlasan","kseAlasan","praktikPedagogis","cp","lintasDisiplin","tp","kemitraanPembelajaran","lingkunganPembelajaran","pemanfaatanDigital","kegiatanAwal","pengalamanMemahami","asesmenAwal","kegiatanInti","pengalamanMengaplikasi","asesmenProses","kegiatanPenutup","pengalamanMerefleksi","asesmenAkhir"]
+          required: ["kompetensiAwal","kesiapanSiswa","karakteristikMateri","situasiNyataSiswa","profilLulusan","kseLulusan","profilAlasan","kseAlasan","praktikPedagogis","cp","lintasDisiplin","tp","kemitraanPembelajaran","lingkunganPembelajaran","pemanfaatanDigital","pertemuanPembelajaran"]
         }
       })
     };
@@ -1004,16 +1120,17 @@ Keluarkan JSON murni. Semua field wajib terisi, spesifik untuk mapel/kelas/topik
       if (aiData.kseLulusan) aiData.kseLulusan.forEach(k => { const sk = k.trim(); if(newKse[sk] !== undefined) newKse[sk] = true; });
 
       saveAiSnapshot("Generate Modul Ajar PM");
-      setRppData(prev => ({
-        ...prev,
-        kompetensiAwal: cleanStr(aiData.kompetensiAwal) || prev.kompetensiAwal, kesiapanSiswa: cleanStr(aiData.kesiapanSiswa) || prev.kesiapanSiswa, karakteristikMateri: cleanStr(aiData.karakteristikMateri) || prev.karakteristikMateri, situasiNyataSiswa: ensureSituasiNyata(aiData.situasiNyataSiswa || prev.situasiNyataSiswa, prev),
-        profilLulusan: aiData.profilLulusan ? newProfil : prev.profilLulusan, profilAlasan: cleanStr(aiData.profilAlasan) || prev.profilAlasan, kseLulusan: aiData.kseLulusan ? newKse : prev.kseLulusan, kseAlasan: cleanStr(aiData.kseAlasan) || prev.kseAlasan,
-        praktikPedagogis: cleanStr(aiData.praktikPedagogis) || prev.praktikPedagogis, cp: cleanStr(aiData.cp) || prev.cp, lintasDisiplin: cleanStr(aiData.lintasDisiplin) || prev.lintasDisiplin, tp: cleanStr(aiData.tp) || prev.tp,
-        kemitraanPembelajaran: cleanStr(aiData.kemitraanPembelajaran) || prev.kemitraanPembelajaran, lingkunganPembelajaran: cleanStr(aiData.lingkunganPembelajaran) || prev.lingkunganPembelajaran, pemanfaatanDigital: cleanStr(aiData.pemanfaatanDigital) || prev.pemanfaatanDigital,
-        kegiatanAwal: cleanStr(aiData.kegiatanAwal) || prev.kegiatanAwal, pengalamanMemahami: ensureExperienceText(aiData.pengalamanMemahami || prev.pengalamanMemahami, 'memahami', prev), asesmenAwal: cleanStr(aiData.asesmenAwal) || prev.asesmenAwal,
-        kegiatanInti: cleanStr(aiData.kegiatanInti) || prev.kegiatanInti, pengalamanMengaplikasi: ensureExperienceText(aiData.pengalamanMengaplikasi || prev.pengalamanMengaplikasi, 'mengaplikasi', prev), asesmenProses: cleanStr(aiData.asesmenProses) || prev.asesmenProses,
-        kegiatanPenutup: cleanStr(aiData.kegiatanPenutup) || prev.kegiatanPenutup, pengalamanMerefleksi: ensureExperienceText(aiData.pengalamanMerefleksi || prev.pengalamanMerefleksi, 'merefleksi', prev), asesmenAkhir: cleanStr(aiData.asesmenAkhir) || prev.asesmenAkhir
-      }));
+      setRppData(prev => {
+        const pertemuanPembelajaran = mapGeneratedPertemuan(aiData, prev);
+        return mirrorFirstPertemuanFields({
+          ...prev,
+          kompetensiAwal: cleanStr(aiData.kompetensiAwal) || prev.kompetensiAwal, kesiapanSiswa: cleanStr(aiData.kesiapanSiswa) || prev.kesiapanSiswa, karakteristikMateri: cleanStr(aiData.karakteristikMateri) || prev.karakteristikMateri, situasiNyataSiswa: ensureSituasiNyata(aiData.situasiNyataSiswa || prev.situasiNyataSiswa, prev),
+          profilLulusan: aiData.profilLulusan ? newProfil : prev.profilLulusan, profilAlasan: cleanStr(aiData.profilAlasan) || prev.profilAlasan, kseLulusan: aiData.kseLulusan ? newKse : prev.kseLulusan, kseAlasan: cleanStr(aiData.kseAlasan) || prev.kseAlasan,
+          praktikPedagogis: cleanStr(aiData.praktikPedagogis) || prev.praktikPedagogis, cp: cleanStr(aiData.cp) || prev.cp, lintasDisiplin: cleanStr(aiData.lintasDisiplin) || prev.lintasDisiplin, tp: cleanStr(aiData.tp) || prev.tp,
+          kemitraanPembelajaran: cleanStr(aiData.kemitraanPembelajaran) || prev.kemitraanPembelajaran, lingkunganPembelajaran: cleanStr(aiData.lingkunganPembelajaran) || prev.lingkunganPembelajaran, pemanfaatanDigital: cleanStr(aiData.pemanfaatanDigital) || prev.pemanfaatanDigital,
+          pertemuanPembelajaran
+        }, pertemuanPembelajaran);
+      });
       notify("Modul Ajar PM Selesai", "Modul Ajar/RPM sudah digenerate. Lampiran instrumen penilaian tetap dipisahkan agar prompt asesmen lebih fokus.", "success");
     } catch (error) {
       if (!hasActiveApiKey() || error.message.toLowerCase().includes("api key") || error.message.includes("API_KEY_INVALID")) { setTempApiKey(geminiApiKey); setShowApiModal(true); }
@@ -1030,6 +1147,9 @@ Keluarkan JSON murni. Semua field wajib terisi, spesifik untuk mapel/kelas/topik
     setActiveGenerateMode("asesmen");
     setCountdown(15);
     const expectedTotal = getExpectedAssessmentSequence().length;
+    const assessmentPertemuanSummary = syncPertemuanPembelajaran(rppData).map((row, index) => (
+      `Pertemuan ${index + 1}: Inti=${cleanStr(row.kegiatanInti) || '-'} | Asesmen=${[row.asesmenAwal, row.asesmenProses, row.asesmenAkhir].filter(Boolean).join(' | ') || '-'}`
+    )).join('\n');
 
     const prompt = `Anda adalah ahli asesmen Pembelajaran Mendalam. Tugas Anda HANYA menyusun Instrumen Penilaian: kisi-kisi, bank soal, dan rubrik. Jangan menulis ulang Modul Ajar/RPM.
 
@@ -1057,8 +1177,8 @@ KONTEKS MODUL:
 - Materi esensial: ${rppData.karakteristikMateri || '-'}
 - Kompetensi awal: ${rppData.kompetensiAwal || '-'}
 - Situasi nyata siswa: ${rppData.situasiNyataSiswa || '-'}
-- Kegiatan inti: ${rppData.kegiatanInti || '-'}
-- Asesmen awal/proses/akhir: ${[rppData.asesmenAwal, rppData.asesmenProses, rppData.asesmenAkhir].filter(Boolean).join(' | ') || '-'}
+- Kegiatan dan asesmen per pertemuan:
+${assessmentPertemuanSummary || '-'}
 - Instruksi khusus guru sebagai konteks: ${instruksiKhusus || '-'}
 
 RENCANA JUMLAH SOAL:
@@ -1106,16 +1226,19 @@ Keluarkan JSON murni dengan field kisiKisi, bankSoal, rubrikPenilaian. Jangan me
     } finally { setIsGenerating(false); setActiveGenerateMode(""); }
   };
 
-  const handleRegenerateSpecific = async (fieldKey, fieldTitle, type = 'string') => {
+  const handleRegenerateSpecific = async (fieldKey, fieldTitle, type = 'string', options = {}) => {
     if (!rppData.topik || !rppData.mapel) {
       notify("Data Belum Lengkap", "Mohon isi Mata Pelajaran dan Topik Pembelajaran terlebih dahulu.", "warning");
       return;
     }
-    setIndividualLoading(prev => ({...prev, [fieldKey]: true}));
+    const pertemuanIndex = Number.isInteger(options.pertemuanIndex) ? options.pertemuanIndex : null;
+    const loadingKey = pertemuanIndex !== null ? `${fieldKey}_${pertemuanIndex}` : fieldKey;
+    const targetPertemuan = pertemuanIndex !== null ? syncPertemuanPembelajaran(rppData)[pertemuanIndex] || {} : rppData;
+    setIndividualLoading(prev => ({...prev, [loadingKey]: true}));
     setCountdown(8);
     const expectedAssessmentTotal = Math.max(rppData.kisiKisi.length, getExpectedAssessmentSequence().length);
 
-    let sequentialContext = `Konteks Saat Ini:\n- Mapel: ${rppData.mapel}\n- Fase/Kelas: ${rppData.kelas || '-'}\n- Topik: ${rppData.topik}\n- CP: ${rppData.cp || '-'}\n- Analisis Materi: ${rppData.karakteristikMateri || '-'}\n- Situasi Nyata Siswa: ${rppData.situasiNyataSiswa || '-'}\n- Kompetensi Awal: ${rppData.kompetensiAwal || '-'}\n- TP: ${rppData.tp || '-'}\n- Profil Lulusan: ${Object.keys(rppData.profilLulusan).filter(k => rppData.profilLulusan[k]).map(k => profilLabels[k]).join(', ') || '-'}\n- Alasan Profil: ${rppData.profilAlasan || '-'}\n- KSE: ${Object.keys(rppData.kseLulusan).filter(k => rppData.kseLulusan[k]).map(k => kseLabels[k]).join(', ') || '-'}\n- Alasan KSE: ${rppData.kseAlasan || '-'}\n- Kegiatan Awal: ${rppData.kegiatanAwal || '-'}\n- Kegiatan Inti: ${rppData.kegiatanInti || '-'}\n- Asesmen: ${[rppData.asesmenAwal, rppData.asesmenProses, rppData.asesmenAkhir].filter(Boolean).join(' | ') || '-'}\n`;
+    let sequentialContext = `Konteks Saat Ini:\n- Mapel: ${rppData.mapel}\n- Fase/Kelas: ${rppData.kelas || '-'}\n- Topik: ${rppData.topik}\n- CP: ${rppData.cp || '-'}\n- Analisis Materi: ${rppData.karakteristikMateri || '-'}\n- Situasi Nyata Siswa: ${rppData.situasiNyataSiswa || '-'}\n- Kompetensi Awal: ${rppData.kompetensiAwal || '-'}\n- TP: ${rppData.tp || '-'}\n- Jumlah Pertemuan: ${rppData.jumlahPertemuan || '-'}${pertemuanIndex !== null ? `\n- Bagian yang sedang dibuat: Pertemuan ${pertemuanIndex + 1}` : ''}\n- Profil Lulusan: ${Object.keys(rppData.profilLulusan).filter(k => rppData.profilLulusan[k]).map(k => profilLabels[k]).join(', ') || '-'}\n- Alasan Profil: ${rppData.profilAlasan || '-'}\n- KSE: ${Object.keys(rppData.kseLulusan).filter(k => rppData.kseLulusan[k]).map(k => kseLabels[k]).join(', ') || '-'}\n- Alasan KSE: ${rppData.kseAlasan || '-'}\n- Kegiatan Awal: ${targetPertemuan.kegiatanAwal || '-'}\n- Kegiatan Inti: ${targetPertemuan.kegiatanInti || '-'}\n- Asesmen: ${[targetPertemuan.asesmenAwal, targetPertemuan.asesmenProses, targetPertemuan.asesmenAkhir].filter(Boolean).join(' | ') || '-'}\n`;
     let fieldSpecificInstruction = "Jabarkan dengan penomoran/bullet point (1., 2., atau -). Jaga sinkronisasi dengan CP, analisis materi, kompetensi awal, TP, kegiatan, asesmen, dan rubrik.";
     
     // Hanya tambahkan instruksi khusus JIKA BUKAN kisi-kisi atau bank soal (Soal/Kisi harus murni HOTS menguji kedalaman)
@@ -1131,12 +1254,12 @@ Keluarkan JSON murni dengan field kisiKisi, bankSoal, rubrikPenilaian. Jangan me
     else if (fieldKey === 'kegiatanAwal') { fieldSpecificInstruction += "\nBuat minimal 5 langkah operasional untuk memantik kesadaran belajar, tujuan, motivasi intrinsik, aktivasi pengetahuan awal, dan koneksi konteks nyata."; }
     else if (fieldKey === 'pengalamanMemahami') { fieldSpecificInstruction += "\nBuat minimal 3 poin proses berpikir siswa: aktivasi pengetahuan awal, eksplorasi konsep, pemeriksaan miskonsepsi, dan penguatan makna."; }
     else if (fieldKey === 'asesmenAwal') { fieldSpecificInstruction += "\nTulis tepat 4 poin bernomor dengan format: 1. Teknik: ..., 2. Bukti: ..., 3. Cara membaca: ..., 4. Tindak lanjut: ..."; }
-    else if (fieldKey === 'kegiatanInti') { sequentialContext += `Kegiatan Pendahuluan Sebelumnya: ${rppData.kegiatanAwal}\n`; fieldSpecificInstruction += "\nLanjutkan alur secara logis dari Pendahuluan. Buat minimal 7 langkah operasional guru-siswa yang melatih TP melalui kasus nyata, diskusi bukti/data, produk/kinerja, dan umpan balik. DILARANG ADA BASA-BASI PEMBUKA."; }
+    else if (fieldKey === 'kegiatanInti') { sequentialContext += `Kegiatan Pendahuluan Sebelumnya: ${targetPertemuan.kegiatanAwal || '-'}\n`; fieldSpecificInstruction += "\nLanjutkan alur secara logis dari Pendahuluan. Buat minimal 7 langkah operasional guru-siswa yang melatih TP melalui kasus nyata, diskusi bukti/data, produk/kinerja, dan umpan balik. DILARANG ADA BASA-BASI PEMBUKA."; }
     else if (fieldKey === 'pengalamanMengaplikasi') { fieldSpecificInstruction += "\nBuat minimal 3 poin transfer pengetahuan ke kasus baru, penggunaan data/bukti, produk/kinerja siswa, dan alasan pengambilan keputusan."; }
     else if (fieldKey === 'asesmenProses') { fieldSpecificInstruction += "\nTulis tepat 4 poin bernomor dengan format: 1. Teknik: ..., 2. Bukti: ..., 3. Cara membaca: ..., 4. Tindak lanjut: ..."; }
     else if (fieldKey === 'pengalamanMerefleksi') { fieldSpecificInstruction += "\nBuat minimal 3 poin regulasi diri siswa: strategi belajar, bukti pemahaman, kesulitan, perbaikan, dan rencana belajar berikutnya."; }
     else if (fieldKey === 'asesmenAkhir') { fieldSpecificInstruction += "\nTulis tepat 4 poin bernomor dengan format: 1. Teknik: ..., 2. Bukti: ..., 3. Cara membaca: ..., 4. Tindak lanjut: ..."; }
-    else if (fieldKey === 'kegiatanPenutup') { sequentialContext += `Kegiatan Inti Sebelumnya: ${rppData.kegiatanInti}\n`; fieldSpecificInstruction += "\nBuat minimal 4 langkah penutup: sintesis, refleksi strategi berpikir, umpan balik, tindak lanjut/remedial-pengayaan, dan koneksi pertemuan berikutnya."; }
+    else if (fieldKey === 'kegiatanPenutup') { sequentialContext += `Kegiatan Inti Sebelumnya: ${targetPertemuan.kegiatanInti || '-'}\n`; fieldSpecificInstruction += "\nBuat minimal 4 langkah penutup: sintesis, refleksi strategi berpikir, umpan balik, tindak lanjut/remedial-pengayaan, dan koneksi pertemuan berikutnya."; }
     else if (fieldKey === 'kisiKisi') { fieldSpecificInstruction += `\nWAJIB mengikuti rencana jumlah soal berikut: ${getAssessmentPlanText()}. Buat tepat ${expectedAssessmentTotal} baris. Kolom 'level' HANYA isi dengan: C1-C6 dan minimal 60% indikator C4-C6. Bentuk Praktik/Proyek boleh dipakai bila ada pada rencana asesmen atau TP membutuhkan evidensi otentik.`; }
     else if (fieldKey === 'bankSoal') { const stringKisi = rppData.kisiKisi.map(k => `No.${k.nomor} (Level: ${k.level}, Bentuk: ${k.bentuk}): ${k.indikator}`).join(' | '); sequentialContext += `KISI-KISI SEBAGAI ACUAN MUTLAK:\n[ ${stringKisi || 'Acak'} ]\n`; fieldSpecificInstruction += `\nWAJIB membuat bank soal HOTS dan/atau LITERASI-NUMERASI sesuai semua baris kisi-kisi di atas. Kolom soal HANYA berisi stimulus minimal 3 kalimat atau 2 kalimat panjang yang memuat konteks, data/fakta/angka, masalah, dan pertanyaan/perintah; jangan menaruh opsi A-D, premis-respon, pedoman jawaban, atau kunci di kolom soal.\nKolom opsi wajib: PG/PG Kompleks hanya opsi A-D; Menjodohkan format "Premis / Kolom A:" 1-4 lalu "Respon / Kolom B:" A-D; Isian Singkat isi "-"; Uraian berisi kunci/pedoman ringkas TANPA label "Pedoman Jawaban:" dan kunci "-"; Praktik/Proyek berisi rambu produk/bukti dan kunci "-".\nKHUSUS PG Kompleks: Opsi A, B, C, D dan WAJIB TEPAT 2 OPSI BENAR (Kunci: contoh B dan D). Jangan memakai format Premis/Kolom A.\nKHUSUS MENJODOHKAN: BUKAN pilihan ganda. Kunci minimal 4 pasangan acak, contoh: 1-B, 2-D, 3-A, 4-C.\nPENTING: prioritaskan kepatuhan mutlak pada kisi-kisi, stimulus HOTS, literasi, numerasi, dan evidensi Praktik/Proyek.`; }
     else if (fieldKey === 'rubrikPenilaian') { const bentukRubrik = getBentukPenilaianList().join(', '); const aturanSkor = getBentukPenilaianList().map(b => `${b}: ${skorBentuk[b] || 'skor disesuaikan indikator'}`).join(' | '); sequentialContext += `Bentuk penilaian dari kisi-kisi: ${bentukRubrik}\nAturan skor: ${aturanSkor}\n`; fieldSpecificInstruction += `\nBuat tepat 1 rubrik untuk setiap bentuk penilaian dari kisi-kisi: ${bentukRubrik}. Kolom skor hanya berisi rentang nilai singkat, misalnya 0-1, 0-5, atau 0-10. Kolom kriteria berisi representasi skor per baris dengan format "Skor 9-10: ...", "Skor 7-8: ...", tanpa label "Kriteria:" atau "Rentang Nilai:".`; }
@@ -1164,7 +1287,14 @@ Keluarkan JSON murni dengan field kisiKisi, bankSoal, rubrikPenilaian. Jangan me
         if (fieldKey === 'pengalamanMengaplikasi') cleanedText = ensureExperienceText(cleanedText, 'mengaplikasi', rppData);
         if (fieldKey === 'pengalamanMerefleksi') cleanedText = ensureExperienceText(cleanedText, 'merefleksi', rppData);
         saveAiSnapshot(`Regenerate ${fieldTitle}`);
-        setRppData(prev => ({ ...prev, [fieldKey]: cleanedText }));
+        setRppData(prev => {
+          if (pertemuanIndex === null || !pertemuanFieldKeys.includes(fieldKey)) return { ...prev, [fieldKey]: cleanedText };
+          const pertemuanPembelajaran = syncPertemuanPembelajaran(prev).map((row, rowIndex) => (
+            rowIndex === pertemuanIndex ? { ...row, [fieldKey]: cleanedText } : row
+          ));
+          const next = { ...prev, pertemuanPembelajaran };
+          return pertemuanIndex === 0 ? mirrorFirstPertemuanFields(next, pertemuanPembelajaran) : next;
+        });
       } else {
         aiText = aiText.replace(/```json/gi, '').replace(/```/g, '').trim();
         const aiData = JSON.parse(aiText);
@@ -1194,7 +1324,7 @@ Keluarkan JSON murni dengan field kisiKisi, bankSoal, rubrikPenilaian. Jangan me
     } catch (error) {
       if (!hasActiveApiKey() || error.message.toLowerCase().includes("api key") || error.message.includes("API_KEY_INVALID")) { setTempApiKey(geminiApiKey); setShowApiModal(true); }
       else notify("Regenerate Belum Berhasil", "Sistem AI belum berhasil memproses bagian ini. Silakan coba lagi.\n\nDetail: " + error.message, "error");
-    } finally { setIndividualLoading(prev => ({...prev, [fieldKey]: false})); }
+    } finally { setIndividualLoading(prev => ({...prev, [loadingKey]: false})); }
   };
 
   const handleRegenerateBankItem = async (index) => {
@@ -1432,6 +1562,14 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
     let kKeys = Object.keys(kseLabels);
     const profilHtml = formatChecklistForWord(pKeys, profilLabels, rppData.profilLulusan);
     const kseHtml = formatChecklistForWord(kKeys, kseLabels, rppData.kseLulusan, "#1e40af");
+    const pertemuanWordRows = syncPertemuanPembelajaran(rppData).map((pertemuan, index) => `
+<tr><td colspan="4" class="t-header-sub">Pertemuan ${index + 1}</td></tr>
+<tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 1:<br/>Pendahuluan</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa">${formatBlock('Aktivitas Kelas (Langkah Fisik):', pertemuan.kegiatanAwal)}</td></tr>
+<tr><td colspan="2" class="t-content" style="width:42%">${formatBlock('Target: Memahami', pertemuan.pengalamanMemahami)}</td><td class="t-content" style="width:42%;background:#f8fafc">${formatBlock('Asesmen Awal:', pertemuan.asesmenAwal, { assessment: true })}</td></tr>
+<tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 2:<br/>Inti</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa">${formatBlock('Aktivitas Kelas (Langkah Fisik):', pertemuan.kegiatanInti)}</td></tr>
+<tr><td colspan="2" class="t-content" style="width:42%">${formatBlock('Target: Mengaplikasi / Memaknai', pertemuan.pengalamanMengaplikasi)}</td><td class="t-content" style="width:42%;background:#f8fafc">${formatBlock('Asesmen Proses:', pertemuan.asesmenProses, { assessment: true })}</td></tr>
+<tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 3:<br/>Penutup</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa">${formatBlock('Aktivitas Kelas (Langkah Fisik):', pertemuan.kegiatanPenutup)}</td></tr>
+<tr><td colspan="2" class="t-content" style="width:42%">${formatBlock('Target: Merefleksi', pertemuan.pengalamanMerefleksi)}</td><td class="t-content" style="width:42%;background:#f8fafc">${formatBlock('Asesmen Akhir:', pertemuan.asesmenAkhir, { assessment: true })}</td></tr>`).join('');
 
     return `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>RPP</title><style>@page WordSection1{size:595.3pt 841.9pt;margin:36pt;mso-header-margin:24pt;mso-footer-margin:24pt;mso-paper-source:0;}div.WordSection1{page:WordSection1;}body{font-family:'Times New Roman',Times,serif;font-size:11pt;line-height:1.05;color:#000;margin:0;padding:0;}p{margin-top:0;margin-bottom:0;mso-margin-top-alt:0cm;mso-margin-bottom-alt:0cm;mso-para-margin:0;text-align:justify;}td{font-size:11pt;line-height:1.05;vertical-align:top;text-align:justify;}th{font-size:11pt;line-height:1.05;vertical-align:middle;}.kop{border-bottom:2px solid black;padding-bottom:3pt;margin-bottom:4pt;text-align:center;line-height:1.05;}.kop p{margin:0;text-align:center;mso-para-margin:0;}.kop-line1{font-size:14pt;font-weight:bold;text-transform:uppercase;line-height:1.05;}.kop-line2{font-size:18pt;font-weight:bold;text-transform:uppercase;margin:0;letter-spacing:0;line-height:1.05;}.kop-line3{font-size:11pt;font-style:italic;line-height:1.05;}.t-table{width:100%;border-collapse:collapse;margin-bottom:4pt;page-break-inside:auto;}.t-table th{background-color:#dbeafe;padding:3px;text-align:center;vertical-align:middle;border:1px solid black;font-size:11pt;font-weight:bold;text-transform:uppercase;}.section-head{background-color:#dbeafe;border:1px solid black;padding:3px;text-align:left!important;vertical-align:middle;font-size:11pt;font-weight:bold;text-transform:uppercase;}.t-label{width:16%;background-color:#f8fafc;border:1px solid black;padding:3px;font-weight:bold;vertical-align:middle;font-size:11pt;text-align:left;}.t-content{border:1px solid black;padding:3px;vertical-align:top;font-size:11pt;text-align:justify;}.t-content-half{width:34%;border:1px solid black;padding:3px;vertical-align:middle;font-size:11pt;text-align:justify;}.t-header-sub{background-color:#e2e8f0;border:1px solid black;padding:3px;text-align:left;font-weight:bold;font-size:11pt;}.text-line{margin:0 0 1pt 0;mso-para-margin:0;text-align:justify;line-height:1.05;mso-line-height-rule:exactly;}.cell-title{margin:0 0 1pt 0;mso-para-margin:0;text-align:left;font-weight:bold;line-height:1.05;mso-line-height-rule:exactly;}.num-list,.letter-list,.lower-letter-list,.bullet-list{margin-top:0;margin-bottom:0;margin-left:6pt;padding-left:12pt;text-align:justify;list-style-position:outside;}.num-list li,.letter-list li,.lower-letter-list li,.bullet-list li{margin:0 0 1pt 0;padding-left:2pt;text-align:justify;line-height:1.05;mso-line-height-rule:exactly;}.matching-line{margin:0;text-align:left;line-height:1.05;mso-line-height-rule:exactly;}.matching-marker{font-weight:bold;}.page-break{page-break-before:always;mso-break-before:page;margin:0;height:0;line-height:1pt;font-size:1pt;}h3,h4{font-size:12pt;}thead{display:table-header-group;}tfoot{display:table-footer-group;}tr{page-break-inside:auto;page-break-after:auto;}</style></head><body><div class="WordSection1">
 <div class="kop"><p class="kop-line1">PEMERINTAH KABUPATEN MAGELANG</p><p class="kop-line1">DINAS PENDIDIKAN DAN KEBUDAYAAN</p><p class="kop-line2">${String(rppData.namaSekolah || 'SMP NEGERI 2 SECANG').toUpperCase()}</p><p class="kop-line3">Jalan Raya Secang, Kab. Magelang, Jawa Tengah 56195 | Telepon: (0293) 3195355</p></div>
@@ -1462,12 +1600,7 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
 </tr>
 <tr><td colspan="4" class="section-head" style="text-align:left">3. PENGALAMAN BELAJAR (Mindful, Meaningful, Joyful) & 4. ASESMEN</td></tr>
 <tr><td colspan="4" class="t-header-sub">Rincian Langkah Pembelajaran, Pengalaman Kognitif, & Asesmen</td></tr>
-<tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 1:<br/>Pendahuluan</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa">${formatBlock('Aktivitas Kelas (Langkah Fisik):', rppData.kegiatanAwal)}</td></tr>
-<tr><td colspan="2" class="t-content" style="width:42%">${formatBlock('Target: Memahami', rppData.pengalamanMemahami)}</td><td class="t-content" style="width:42%;background:#f8fafc">${formatBlock('Asesmen Awal:', rppData.asesmenAwal, { assessment: true })}</td></tr>
-<tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 2:<br/>Inti</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa">${formatBlock('Aktivitas Kelas (Langkah Fisik):', rppData.kegiatanInti)}</td></tr>
-<tr><td colspan="2" class="t-content" style="width:42%">${formatBlock('Target: Mengaplikasi / Memaknai', rppData.pengalamanMengaplikasi)}</td><td class="t-content" style="width:42%;background:#f8fafc">${formatBlock('Asesmen Proses:', rppData.asesmenProses, { assessment: true })}</td></tr>
-<tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 3:<br/>Penutup</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa">${formatBlock('Aktivitas Kelas (Langkah Fisik):', rppData.kegiatanPenutup)}</td></tr>
-<tr><td colspan="2" class="t-content" style="width:42%">${formatBlock('Target: Merefleksi', rppData.pengalamanMerefleksi)}</td><td class="t-content" style="width:42%;background:#f8fafc">${formatBlock('Asesmen Akhir:', rppData.asesmenAkhir, { assessment: true })}</td></tr>
+${pertemuanWordRows}
 </table>
 <h4 style="text-align:left;margin-top:8pt;margin-bottom:3pt;font-size:12pt;text-transform:uppercase">CATATAN REFLEKSI GURU</h4>
 <table class="t-table" style="margin-bottom:10pt"><tr><td style="border:1px solid black;padding:8px;vertical-align:top;height:80px">${(rppData.catatanRefleksi && rppData.catatanRefleksi.trim()) ? formatText(rppData.catatanRefleksi) : `<span style="color:#555;font-style:italic">${formatText('1. Bagian pembelajaran apa yang paling membantu siswa memahami konsep?\\n2. Bukti belajar apa yang paling kuat terlihat?\\n3. Siswa/kelompok mana yang membutuhkan dukungan lanjutan?\\n4. Apa yang perlu diperbaiki pada pertemuan berikutnya?')}</span>`}</td></tr></table>
@@ -1510,7 +1643,7 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
 
   const getActivityConsequenceWarnings = () => {
     const warnings = [];
-    const designText = `${rppData.kegiatanAwal} ${rppData.kegiatanInti} ${rppData.kegiatanPenutup} ${rppData.pengalamanMemahami} ${rppData.pengalamanMengaplikasi} ${rppData.pengalamanMerefleksi} ${rppData.asesmenAwal} ${rppData.asesmenProses} ${rppData.asesmenAkhir}`.toLowerCase();
+    const designText = syncPertemuanPembelajaran(rppData).map(row => pertemuanFieldKeys.map(key => row[key]).join(' ')).join(' ').toLowerCase();
     Object.keys(rppData.profilLulusan || {}).filter(k => rppData.profilLulusan[k]).forEach(k => {
       const label = profilLabels[k].toLowerCase().split(/\s+/).find(w => w.length > 6);
       if (label && !designText.includes(label)) warnings.push(`Profil ${profilLabels[k]} belum tampak jelas pada kegiatan/asesmen.`);
@@ -1528,8 +1661,9 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
     const warnings = [];
     const tp = cleanStr(rppData.tp).toLowerCase();
     const cp = cleanStr(rppData.cp).toLowerCase();
-    const kegiatan = cleanStr(`${rppData.kegiatanAwal} ${rppData.kegiatanInti} ${rppData.kegiatanPenutup}`).toLowerCase();
-    const asesmen = cleanStr(`${rppData.asesmenAwal} ${rppData.asesmenProses} ${rppData.asesmenAkhir}`).toLowerCase();
+    const pertemuanRows = syncPertemuanPembelajaran(rppData);
+    const kegiatan = cleanStr(pertemuanRows.map(row => `${row.kegiatanAwal} ${row.kegiatanInti} ${row.kegiatanPenutup}`).join(' ')).toLowerCase();
+    const asesmen = cleanStr(pertemuanRows.map(row => `${row.asesmenAwal} ${row.asesmenProses} ${row.asesmenAkhir}`).join(' ')).toLowerCase();
     const measurable = /(menganalisis|mengevaluasi|merancang|menyusun|menjelaskan|membandingkan|mengidentifikasi|menyimpulkan|membuktikan|menerapkan|menyajikan)/i;
     const countLines = (value) => cleanStr(value).split(/\n+/).filter(line => line.replace(/^[-\d\.\)\s]+/, '').trim().length > 18).length;
     const tpCount = countLines(rppData.tp);
@@ -1542,7 +1676,7 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
     if (cp && tp && !tp.split(/\s+/).some(w => w.length > 6 && cp.includes(w))) warnings.push("TP belum tampak menurunkan CP secara langsung.");
     if (tp && kegiatan && !tp.split(/\s+/).some(w => w.length > 6 && kegiatan.includes(w))) warnings.push("Kegiatan belajar belum cukup menampakkan latihan terhadap TP.");
     if (tp && asesmen && !tp.split(/\s+/).some(w => w.length > 6 && asesmen.includes(w))) warnings.push("Asesmen belum cukup jelas mengukur TP.");
-    if (countLines(rppData.pengalamanMemahami) < 2 || countLines(rppData.pengalamanMengaplikasi) < 2 || countLines(rppData.pengalamanMerefleksi) < 2) warnings.push("Pengalaman belajar perlu lebih eksplisit memuat memahami, mengaplikasi, dan merefleksi.");
+    if (pertemuanRows.some(row => countLines(row.pengalamanMemahami) < 2 || countLines(row.pengalamanMengaplikasi) < 2 || countLines(row.pengalamanMerefleksi) < 2)) warnings.push("Pengalaman belajar di setiap pertemuan perlu lebih eksplisit memuat memahami, mengaplikasi, dan merefleksi.");
     return warnings;
   };
 
@@ -1689,6 +1823,7 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
   };
 
   const currentAssessmentWarnings = isEditing ? validateAssessmentStructure(rppData) : [];
+  const activePertemuanRows = syncPertemuanPembelajaran(rppData);
 
   return (
     <div className="pb-8 bg-slate-100 min-h-screen relative flex flex-col">
@@ -1891,66 +2026,76 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
 
                 <Card className="p-4 sm:p-6 border-t-4 border-t-emerald-500 bg-emerald-50/30">
                   <div className="mb-4 sm:mb-5 border-b border-emerald-200 pb-2 sm:pb-3"><h3 className="font-bold text-emerald-900 text-base sm:text-lg"><span className="bg-emerald-600 text-white px-2 py-0.5 rounded text-xs sm:text-sm mr-2">TAHAP 3 & 4</span> Skenario Mindful, Meaningful, Joyful</h3></div>
-                  <div className="space-y-4 sm:space-y-6 text-sm">
-                    <div className="bg-white p-4 sm:p-5 rounded-lg border border-emerald-200 shadow-sm">
-                      <h4 className="font-bold text-slate-800 mb-3">Bagian 1: Pendahuluan (Membangun Mindful & Joyful)</h4>
-                      <div className="space-y-4">
-                        <div>
-                          <LabelWithHint onRegenerate={() => handleRegenerateSpecific('kegiatanAwal', 'Aktivitas Langkah Fisik Guru & Siswa di Fase Pendahuluan')} isLoading={individualLoading['kegiatanAwal']} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600">Aktivitas Kelas (Langkah Fisik)</LabelWithHint>
-                          <textarea name="kegiatanAwal" value={rppData.kegiatanAwal} onChange={handleInputChange} rows="6" className="w-full p-3 border border-slate-300 rounded focus:ring-2 bg-slate-50 outline-none min-h-[140px] leading-relaxed whitespace-pre-wrap"></textarea>
+                  <div className="space-y-5 sm:space-y-7 text-sm">
+                    {activePertemuanRows.map((pertemuan, pertemuanIndex) => (
+                      <div key={pertemuan.id || pertemuanIndex} className="bg-white rounded-lg border border-emerald-200 shadow-sm overflow-hidden">
+                        <div className="bg-emerald-100 px-4 sm:px-5 py-3 border-b border-emerald-200 flex items-center justify-between gap-3">
+                          <h4 className="font-black text-emerald-900 text-sm sm:text-base">Pertemuan {pertemuanIndex + 1}</h4>
+                          <span className="text-[10px] sm:text-xs font-bold text-emerald-700 bg-white border border-emerald-200 px-2 py-1 rounded">dari {activePertemuanRows.length}</span>
                         </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <LabelWithHint onRegenerate={() => handleRegenerateSpecific('pengalamanMemahami', 'Target Kognitif Fase Awal (Memahami)')} isLoading={individualLoading['pengalamanMemahami']} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600">Target Kognitif (Memahami)</LabelWithHint>
-                            <textarea name="pengalamanMemahami" value={rppData.pengalamanMemahami} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none leading-relaxed whitespace-pre-wrap"></textarea>
+                        <div className="p-4 sm:p-5 space-y-4 sm:space-y-5">
+                          <div className="bg-blue-50/40 p-4 rounded-lg border border-blue-100">
+                            <h5 className="font-bold text-slate-800 mb-3">Bagian 1: Pendahuluan (Membangun Mindful & Joyful)</h5>
+                            <div className="space-y-4">
+                              <div>
+                                <LabelWithHint onRegenerate={() => handleRegenerateSpecific('kegiatanAwal', `Aktivitas Langkah Fisik Guru & Siswa Pertemuan ${pertemuanIndex + 1}`, 'string', { pertemuanIndex })} isLoading={individualLoading[`kegiatanAwal_${pertemuanIndex}`]} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600">Aktivitas Kelas (Langkah Fisik)</LabelWithHint>
+                                <textarea value={pertemuan.kegiatanAwal} onChange={(e) => handlePertemuanFieldChange(pertemuanIndex, 'kegiatanAwal', e.target.value)} rows="6" className="w-full p-3 border border-slate-300 rounded focus:ring-2 bg-slate-50 outline-none min-h-[140px] leading-relaxed whitespace-pre-wrap"></textarea>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <LabelWithHint onRegenerate={() => handleRegenerateSpecific('pengalamanMemahami', `Target Kognitif Memahami Pertemuan ${pertemuanIndex + 1}`, 'string', { pertemuanIndex })} isLoading={individualLoading[`pengalamanMemahami_${pertemuanIndex}`]} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600">Target Kognitif (Memahami)</LabelWithHint>
+                                  <textarea value={pertemuan.pengalamanMemahami} onChange={(e) => handlePertemuanFieldChange(pertemuanIndex, 'pengalamanMemahami', e.target.value)} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none leading-relaxed whitespace-pre-wrap"></textarea>
+                                </div>
+                                <div>
+                                  <LabelWithHint onRegenerate={() => handleRegenerateSpecific('asesmenAwal', `Bentuk Asesmen Awal Pertemuan ${pertemuanIndex + 1}`, 'string', { pertemuanIndex })} isLoading={individualLoading[`asesmenAwal_${pertemuanIndex}`]} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600">Asesmen Awal</LabelWithHint>
+                                  <textarea value={pertemuan.asesmenAwal} onChange={(e) => handlePertemuanFieldChange(pertemuanIndex, 'asesmenAwal', e.target.value)} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none leading-relaxed whitespace-pre-wrap"></textarea>
+                                </div>
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <LabelWithHint onRegenerate={() => handleRegenerateSpecific('asesmenAwal', 'Bentuk Asesmen Awal/Diagnostik')} isLoading={individualLoading['asesmenAwal']} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600">Asesmen Awal</LabelWithHint>
-                            <textarea name="asesmenAwal" value={rppData.asesmenAwal} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none leading-relaxed whitespace-pre-wrap"></textarea>
+
+                          <div className="bg-emerald-50/50 p-4 rounded-lg border border-emerald-100">
+                            <h5 className="font-bold text-slate-800 mb-3">Bagian 2: Inti (Pengalaman Meaningful & Eksplorasi)</h5>
+                            <div className="space-y-4">
+                              <div>
+                                <LabelWithHint onRegenerate={() => handleRegenerateSpecific('kegiatanInti', `Aktivitas Langkah Fisik Guru & Siswa Pertemuan ${pertemuanIndex + 1}`, 'string', { pertemuanIndex })} isLoading={individualLoading[`kegiatanInti_${pertemuanIndex}`]} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600">Aktivitas Kelas (Langkah Fisik)</LabelWithHint>
+                                <textarea value={pertemuan.kegiatanInti} onChange={(e) => handlePertemuanFieldChange(pertemuanIndex, 'kegiatanInti', e.target.value)} rows="10" className="w-full p-3 border border-slate-300 rounded focus:ring-2 bg-slate-50 outline-none min-h-[200px] sm:min-h-[250px] leading-relaxed whitespace-pre-wrap"></textarea>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <LabelWithHint onRegenerate={() => handleRegenerateSpecific('pengalamanMengaplikasi', `Target Kognitif Mengaplikasi Pertemuan ${pertemuanIndex + 1}`, 'string', { pertemuanIndex })} isLoading={individualLoading[`pengalamanMengaplikasi_${pertemuanIndex}`]} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600">Target Kognitif (Mengaplikasi)</LabelWithHint>
+                                  <textarea value={pertemuan.pengalamanMengaplikasi} onChange={(e) => handlePertemuanFieldChange(pertemuanIndex, 'pengalamanMengaplikasi', e.target.value)} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none leading-relaxed whitespace-pre-wrap"></textarea>
+                                </div>
+                                <div>
+                                  <LabelWithHint onRegenerate={() => handleRegenerateSpecific('asesmenProses', `Bentuk Asesmen Proses Pertemuan ${pertemuanIndex + 1}`, 'string', { pertemuanIndex })} isLoading={individualLoading[`asesmenProses_${pertemuanIndex}`]} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600">Asesmen Proses</LabelWithHint>
+                                  <textarea value={pertemuan.asesmenProses} onChange={(e) => handlePertemuanFieldChange(pertemuanIndex, 'asesmenProses', e.target.value)} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none leading-relaxed whitespace-pre-wrap"></textarea>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+
+                          <div className="bg-fuchsia-50/40 p-4 rounded-lg border border-fuchsia-100">
+                            <h5 className="font-bold text-slate-800 mb-3">Bagian 3: Penutup (Refleksi Mendalam)</h5>
+                            <div className="space-y-4">
+                              <div>
+                                <LabelWithHint onRegenerate={() => handleRegenerateSpecific('kegiatanPenutup', `Aktivitas Langkah Fisik Penutup Pertemuan ${pertemuanIndex + 1}`, 'string', { pertemuanIndex })} isLoading={individualLoading[`kegiatanPenutup_${pertemuanIndex}`]} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600">Aktivitas Kelas (Langkah Fisik)</LabelWithHint>
+                                <textarea value={pertemuan.kegiatanPenutup} onChange={(e) => handlePertemuanFieldChange(pertemuanIndex, 'kegiatanPenutup', e.target.value)} rows="5" className="w-full p-3 border border-slate-300 rounded focus:ring-2 bg-slate-50 outline-none leading-relaxed whitespace-pre-wrap"></textarea>
+                              </div>
+                              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                  <LabelWithHint onRegenerate={() => handleRegenerateSpecific('pengalamanMerefleksi', `Target Kognitif Merefleksi Pertemuan ${pertemuanIndex + 1}`, 'string', { pertemuanIndex })} isLoading={individualLoading[`pengalamanMerefleksi_${pertemuanIndex}`]} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600">Target Kognitif (Merefleksi)</LabelWithHint>
+                                  <textarea value={pertemuan.pengalamanMerefleksi} onChange={(e) => handlePertemuanFieldChange(pertemuanIndex, 'pengalamanMerefleksi', e.target.value)} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none leading-relaxed whitespace-pre-wrap"></textarea>
+                                </div>
+                                <div>
+                                  <LabelWithHint onRegenerate={() => handleRegenerateSpecific('asesmenAkhir', `Bentuk Asesmen Akhir Pertemuan ${pertemuanIndex + 1}`, 'string', { pertemuanIndex })} isLoading={individualLoading[`asesmenAkhir_${pertemuanIndex}`]} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600">Asesmen Akhir</LabelWithHint>
+                                  <textarea value={pertemuan.asesmenAkhir} onChange={(e) => handlePertemuanFieldChange(pertemuanIndex, 'asesmenAkhir', e.target.value)} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none leading-relaxed whitespace-pre-wrap"></textarea>
+                                </div>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
-                    </div>
-                    
-                    <div className="bg-white p-4 sm:p-5 rounded-lg border border-emerald-200 shadow-sm">
-                      <h4 className="font-bold text-slate-800 mb-3">Bagian 2: Inti (Pengalaman Meaningful & Eksplorasi)</h4>
-                      <div className="space-y-4">
-                        <div>
-                          <LabelWithHint onRegenerate={() => handleRegenerateSpecific('kegiatanInti', 'Aktivitas Langkah Fisik Guru & Siswa di Fase Kegiatan Inti')} isLoading={individualLoading['kegiatanInti']} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600">Aktivitas Kelas (Langkah Fisik)</LabelWithHint>
-                          <textarea name="kegiatanInti" value={rppData.kegiatanInti} onChange={handleInputChange} rows="10" className="w-full p-3 border border-slate-300 rounded focus:ring-2 bg-slate-50 outline-none min-h-[200px] sm:min-h-[250px] leading-relaxed whitespace-pre-wrap"></textarea>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <LabelWithHint onRegenerate={() => handleRegenerateSpecific('pengalamanMengaplikasi', 'Target Kognitif Fase Inti (Mengaplikasi)')} isLoading={individualLoading['pengalamanMengaplikasi']} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600">Target Kognitif (Mengaplikasi)</LabelWithHint>
-                            <textarea name="pengalamanMengaplikasi" value={rppData.pengalamanMengaplikasi} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none leading-relaxed whitespace-pre-wrap"></textarea>
-                          </div>
-                          <div>
-                            <LabelWithHint onRegenerate={() => handleRegenerateSpecific('asesmenProses', 'Bentuk Asesmen Proses/Formatif')} isLoading={individualLoading['asesmenProses']} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600">Asesmen Proses</LabelWithHint>
-                            <textarea name="asesmenProses" value={rppData.asesmenProses} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none leading-relaxed whitespace-pre-wrap"></textarea>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <div className="bg-white p-4 sm:p-5 rounded-lg border border-emerald-200 shadow-sm">
-                      <h4 className="font-bold text-slate-800 mb-3">Bagian 3: Penutup (Refleksi Mendalam)</h4>
-                      <div className="space-y-4">
-                        <div>
-                          <LabelWithHint onRegenerate={() => handleRegenerateSpecific('kegiatanPenutup', 'Aktivitas Langkah Fisik di Fase Penutup')} isLoading={individualLoading['kegiatanPenutup']} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600">Aktivitas Kelas (Langkah Fisik)</LabelWithHint>
-                          <textarea name="kegiatanPenutup" value={rppData.kegiatanPenutup} onChange={handleInputChange} rows="5" className="w-full p-3 border border-slate-300 rounded focus:ring-2 bg-slate-50 outline-none leading-relaxed whitespace-pre-wrap"></textarea>
-                        </div>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <div>
-                            <LabelWithHint onRegenerate={() => handleRegenerateSpecific('pengalamanMerefleksi', 'Target Kognitif Fase Penutup (Merefleksi)')} isLoading={individualLoading['pengalamanMerefleksi']} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600">Target Kognitif (Merefleksi)</LabelWithHint>
-                            <textarea name="pengalamanMerefleksi" value={rppData.pengalamanMerefleksi} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none leading-relaxed whitespace-pre-wrap"></textarea>
-                          </div>
-                          <div>
-                            <LabelWithHint onRegenerate={() => handleRegenerateSpecific('asesmenAkhir', 'Bentuk Asesmen Sumatif')} isLoading={individualLoading['asesmenAkhir']} className="font-bold text-[10px] sm:text-xs uppercase text-slate-600">Asesmen Akhir</LabelWithHint>
-                            <textarea name="asesmenAkhir" value={rppData.asesmenAkhir} onChange={handleInputChange} rows="4" className="w-full p-3 border border-slate-300 rounded focus:ring-2 outline-none leading-relaxed whitespace-pre-wrap"></textarea>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
+                    ))}
                   </div>
                 </Card>
 
@@ -2160,8 +2305,18 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
 
                 <Accordion title="TAHAP 3 & 4: Panduan Eksekusi Mendalam" icon="fas fa-layer-group" isCompleted={completedSteps['t34']} onToggleComplete={() => toggleStep('t34')} headerColorClass="bg-emerald-100 text-emerald-800">
                   <div className="space-y-6 sm:space-y-8 text-sm sm:text-base">
-                    {[{t:"AWAL",sub:"Pendahuluan",c:"blue",ak:rppData.kegiatanAwal,tk:rppData.pengalamanMemahami,as:rppData.asesmenAwal,ic:"brain"},{t:"INTI",sub:"Elaborasi",c:"emerald",ak:rppData.kegiatanInti,tk:rppData.pengalamanMengaplikasi,as:rppData.asesmenProses,ic:"cogs"},{t:"AKHIR",sub:"Penutup",c:"fuchsia",ak:rppData.kegiatanPenutup,tk:rppData.pengalamanMerefleksi,as:rppData.asesmenAkhir,ic:"undo"}].map((f,i)=>(
-                      <div key={i} className={`border-2 border-${f.c}-200 rounded-xl overflow-hidden bg-white`}><div className={`bg-${f.c}-50 px-4 sm:px-5 py-3 border-b-2 border-${f.c}-200 flex items-center`}><span className={`bg-${f.c}-600 text-white w-6 h-6 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center font-bold mr-2 sm:mr-3 shrink-0`}>{i+1}</span><h4 className={`font-black text-${f.c}-900 text-sm sm:text-base`}>FASE {f.t} <span className="font-normal opacity-75 hidden sm:inline">| {f.sub}</span></h4></div><div><div className="p-4 sm:p-5 border-b bg-slate-50"><span className="inline-flex px-2 py-1 rounded bg-slate-200 text-xs font-bold mb-3"><i className="fas fa-running mr-1"></i> Aktivitas (Mindful, Meaningful, Joyful)</span><p className="whitespace-pre-wrap leading-relaxed">{f.ak}</p></div><div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x"><div className={`flex-1 p-4 sm:p-5 bg-${f.c}-50/30`}><span className={`inline-flex px-2 py-1 rounded bg-${f.c}-200 text-xs font-bold mb-3`}><i className={`fas fa-${f.ic} mr-1`}></i> Target</span><p className="whitespace-pre-wrap leading-relaxed">{f.tk}</p></div><div className="flex-1 p-4 sm:p-5 bg-orange-50/30"><span className="inline-flex px-2 py-1 rounded bg-orange-200 text-xs font-bold mb-3"><i className="fas fa-check mr-1"></i> Asesmen</span><p className="whitespace-pre-wrap font-medium leading-relaxed">{f.as}</p></div></div></div></div>
+                    {activePertemuanRows.map((pertemuan, pertemuanIndex) => (
+                      <div key={pertemuan.id || pertemuanIndex} className="border border-emerald-200 rounded-xl overflow-hidden bg-emerald-50/30">
+                        <div className="px-4 sm:px-5 py-3 bg-emerald-100 border-b border-emerald-200 flex items-center justify-between gap-3">
+                          <h4 className="font-black text-emerald-900 text-sm sm:text-base">Pertemuan {pertemuanIndex + 1}</h4>
+                          <span className="text-[10px] sm:text-xs font-bold text-emerald-700 bg-white border border-emerald-200 px-2 py-1 rounded">TAHAP 3 & 4</span>
+                        </div>
+                        <div className="p-3 sm:p-4 space-y-4">
+                          {getPertemuanFases(pertemuan).map((f,i)=>(
+                            <div key={`${pertemuanIndex}-${i}`} className={`border-2 border-${f.c}-200 rounded-xl overflow-hidden bg-white`}><div className={`bg-${f.c}-50 px-4 sm:px-5 py-3 border-b-2 border-${f.c}-200 flex items-center`}><span className={`bg-${f.c}-600 text-white w-6 h-6 sm:w-8 sm:h-8 rounded-lg flex items-center justify-center font-bold mr-2 sm:mr-3 shrink-0`}>{i+1}</span><h4 className={`font-black text-${f.c}-900 text-sm sm:text-base`}>FASE {f.t} <span className="font-normal opacity-75 hidden sm:inline">| {f.sub}</span></h4></div><div><div className="p-4 sm:p-5 border-b bg-slate-50"><span className="inline-flex px-2 py-1 rounded bg-slate-200 text-xs font-bold mb-3"><i className="fas fa-running mr-1"></i> Aktivitas (Mindful, Meaningful, Joyful)</span><p className="whitespace-pre-wrap leading-relaxed">{f.ak || "-"}</p></div><div className="flex flex-col md:flex-row divide-y md:divide-y-0 md:divide-x"><div className={`flex-1 p-4 sm:p-5 bg-${f.c}-50/30`}><span className={`inline-flex px-2 py-1 rounded bg-${f.c}-200 text-xs font-bold mb-3`}><i className={`fas fa-${f.ic} mr-1`}></i> Target</span><p className="whitespace-pre-wrap leading-relaxed">{f.tk || "-"}</p></div><div className="flex-1 p-4 sm:p-5 bg-orange-50/30"><span className="inline-flex px-2 py-1 rounded bg-orange-200 text-xs font-bold mb-3"><i className="fas fa-check mr-1"></i> Asesmen</span><p className="whitespace-pre-wrap font-medium leading-relaxed">{f.as || "-"}</p></div></div></div></div>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </Accordion>
