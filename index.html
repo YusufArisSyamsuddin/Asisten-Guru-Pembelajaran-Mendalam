@@ -105,7 +105,7 @@ const defaultLabelHints = {
   "Capaian Pembelajaran": "- Isi CP resmi sesuai fase dan mapel.\n- CP menjadi sumber penurunan TP, kegiatan, dan asesmen.",
   "Lintas Disiplin Ilmu": "- Tulis keterkaitan nyata antarmapel atau bidang kehidupan.\n- Hindari hanya menempel daftar mata pelajaran tanpa fungsi.",
   "Tujuan Pembelajaran": "- Gunakan kata kerja operasional yang dapat diukur.\n- Pastikan TP menurunkan CP dan dapat diuji lewat asesmen.",
-  "Materi Esensial / Pokok Materi": "- Tulis sedikit isi materi yang benar-benar diajarkan.\n- Cukup konsep inti, submateri, istilah penting, atau batasan materi agar kegiatan tidak melebar.",
+  "Materi Esensial / Pokok Materi": "- Tulis ringkasan materi yang cukup lengkap, bukan hanya satu-dua kalimat.\n- Minimal memuat konsep inti, submateri, istilah penting, prinsip/prosedur, contoh/konteks nyata, dan batasan materi.\n- Gunakan poin bernomor agar mudah dipakai sebagai dasar kegiatan, soal, dan LKPD.",
   "Praktik Pedagogis": "- Tulis strategi belajar mendalam yang nyata, bukan hanya label.\n- Contoh: inkuiri, studi kasus, proyek, diskusi berbasis data, praktik kinerja.",
   "Kemitraan Pembelajaran": "- Tulis peran teman sebaya, orang tua, komunitas, atau narasumber bila relevan.\n- Kemitraan harus membantu tercapainya TP.",
   "Lingkungan Pembelajaran": "- Jelaskan ruang, alat, budaya kelas, keamanan psikologis, dan aturan kerja.\n- Pastikan mendukung belajar sadar, bermakna, dan menggembirakan.",
@@ -572,7 +572,11 @@ Pastikan kegiatan tetap realistis untuk alokasi waktu, sesuai CP mapel dan Fase 
   const cleanStr = (str) => {
     if (!str) return "";
     let cleaned = String(str).replace(/\r\n/g, '\n').replace(/\\n/g, '\n').replace(/\*\*/g, '').replace(/\*/g, '');
+    cleaned = cleaned.replace(/\s+(?=(?:Langkah|Tahap|Aktivitas|Pertanyaan|Refleksi)\s*\d+\s*[\.\):=-]\s*)/gi, '\n');
+    cleaned = cleaned.replace(/([^\n])((?:Langkah|Tahap|Aktivitas|Pertanyaan|Refleksi)\s*\d+\s*[\.\):=-]\s*)/gi, '$1\n$2');
+    cleaned = cleaned.replace(/([^\n])((?:\d{1,2}|[A-Da-d])[\.\)](?=\S))/g, '$1\n$2 ');
     cleaned = cleaned.replace(/([^\n])\s+((?:\d+[\.\)]|[A-D][\.\)]|[-•])\s+)/g, '$1\n$2');
+    cleaned = cleaned.replace(/([^\n])\s*([;|]\s*)((?:\d{1,2}|[A-Da-d])[\.\)]\s+)/g, '$1\n$3');
     cleaned = cleaned.replace(/([^\n])\s+(Skor\s+\d+(?:-\d+)?\s*[:=])/gi, '$1\n$2');
     cleaned = cleaned.replace(/([^\n])\s+((?:Sangat baik|Baik|Cukup|Perlu bimbingan|Tidak menunjukkan evidensi)\s*[:=])/gi, '$1\n$2');
     cleaned = cleaned.replace(/\n\s*\n/g, '\n'); 
@@ -580,6 +584,25 @@ Pastikan kegiatan tetap realistis untuk alokasi waktu, sesuai CP mapel dan Fase 
   };
 
   const countMeaningfulLines = (value) => cleanStr(value).split(/\n+/).filter(line => line.replace(/^[-\d\.\)\s]+/, '').trim().length > 18).length;
+  const ensureNumberedListText = (value, fallback, minLines = 3) => {
+    const text = cleanStr(value);
+    if (countMeaningfulLines(text) >= minLines) return text;
+    const sentenceLines = text
+      .replace(/\s*;\s*/g, '\n')
+      .replace(/([.!?])\s+(?=[A-ZÀ-Ý0-9])/g, '$1\n')
+      .split(/\n+/)
+      .map(line => cleanStr(line).replace(/^[-\d\.\)\s]+/, '').trim())
+      .filter(line => line.length > 18)
+      .map((line, index) => `${index + 1}. ${line}`);
+    if (sentenceLines.length >= minLines) return sentenceLines.join('\n');
+    return cleanStr(fallback);
+  };
+  const ensureLkpdProductText = (value, fallback) => {
+    const text = cleanStr(value);
+    if (/(produk|bukti|jawaban|data|hasil|kinerja|kesimpulan)/i.test(text)) return text;
+    if (text) return cleanStr(`Produk/bukti belajar: ${text}\nHasil yang dikumpulkan harus memuat data/hasil kerja, kesimpulan, dan bukti kinerja sesuai kegiatan pembelajaran.`);
+    return cleanStr(fallback);
+  };
   const hasNumberedOneToThree = (value) => [1, 2, 3].every(num => new RegExp(`(^|\\n)\\s*${num}[\\.)]\\s+`, "i").test(cleanStr(value)));
   const removeRepeatedTargetTriplet = (value) => {
     const text = cleanStr(value);
@@ -950,9 +973,9 @@ Pastikan kegiatan tetap realistis untuk alokasi waktu, sesuai CP mapel dan Fase 
       tujuan: cleanStr(row.tujuan) || fallback.tujuan,
       petunjuk: cleanStr(row.petunjuk) || fallback.petunjuk,
       sumberBahan: cleanStr(row.sumberBahan || row.bahanSumber || row.sumber) || fallback.sumberBahan,
-      langkahKerja: cleanStr(row.langkahKerja || row.aktivitas || row.kegiatan) || fallback.langkahKerja,
-      produkBukti: cleanStr(row.produkBukti || row.bukti || row.produk) || fallback.produkBukti,
-      refleksi: cleanStr(row.refleksi) || fallback.refleksi
+      langkahKerja: ensureNumberedListText(row.langkahKerja || row.aktivitas || row.kegiatan, fallback.langkahKerja, 5),
+      produkBukti: ensureLkpdProductText(row.produkBukti || row.bukti || row.produk || row.hasil, fallback.produkBukti),
+      refleksi: ensureNumberedListText(row.refleksi || row.pertanyaanRefleksi, fallback.refleksi, 3)
     };
   };
 
@@ -1257,7 +1280,7 @@ ATURAN TETAP KURIKULER:
 4. Kompetensi awal harus berupa prasyarat materi yang spesifik, bukan teks generik. Awali tiap poin dengan kemampuan prasyarat konkret.
 5. Kesiapan peserta didik wajib membedakan kognitif, motivasi, kebiasaan belajar, dan kebutuhan dukungan.
 6. Karakteristik materi wajib menjelaskan sifat faktual, konseptual, prosedural, kontekstual, dan/atau lintas disiplin.
-7. Materi esensial/pokok materi wajib ringkas: konsep inti, submateri, istilah penting, prinsip/prosedur, dan batasan materi. Jangan menjadi ringkasan panjang.
+7. Materi esensial/pokok materi wajib cukup lengkap dan terstruktur, bukan terlalu pendek. Tulis minimal 6 poin bernomor yang memuat: konsep inti, submateri, istilah penting, prinsip/prosedur, contoh atau konteks nyata, miskonsepsi yang perlu diantisipasi, serta batasan materi. Tetap fokus pada materi yang benar-benar diajarkan.
 8. Situasi nyata lingkungan siswa wajib eksplisit minimal 3 poin: konteks lokal, masalah/fenomena nyata, dan bukti/data sederhana yang dapat diamati siswa.
 9. Profil lulusan dan KSE wajib tampak sebagai konsekuensi nyata dalam kegiatan, asesmen, atau refleksi.
 10. Aktivitas kelas harus kaya, operasional, dan dapat dipraktikkan guru: kegiatan awal minimal 5 langkah; kegiatan inti minimal 7 langkah; kegiatan penutup minimal 4 langkah.
@@ -1301,7 +1324,7 @@ Keluarkan JSON murni. Semua field wajib terisi, spesifik untuk mapel/kelas/topik
             profilLulusan: { type: "ARRAY", items: { type: "STRING" }, description: "Pilih array key yang relevan HANYA dari: keimanan, kewargaan, penalaran, kreativitas, kolaborasi, kemandirian, kesehatan, komunikasi" },
             kseLulusan: { type: "ARRAY", items: { type: "STRING" }, description: "Pilih array key yang relevan HANYA dari: kesadaranDiri, manajemenDiri, kesadaranSosial, keterampilanBerelasi, keputusanBertanggungJawab" },
             profilAlasan: { type: "STRING" }, kseAlasan: { type: "STRING" },
-            praktikPedagogis: { type: "STRING" }, cp: { type: "STRING" }, lintasDisiplin: { type: "STRING" }, tp: { type: "STRING" }, materiEsensial: { type: "STRING" },
+            praktikPedagogis: { type: "STRING" }, cp: { type: "STRING" }, lintasDisiplin: { type: "STRING" }, tp: { type: "STRING" }, materiEsensial: { type: "STRING", description: "Ringkasan materi cukup lengkap, minimal 6 poin bernomor: konsep inti, submateri, istilah penting, prinsip/prosedur, contoh/konteks nyata, miskonsepsi, dan batasan materi." },
             kemitraanPembelajaran: { type: "STRING" }, lingkunganPembelajaran: { type: "STRING" }, pemanfaatanDigital: { type: "STRING" },
             pertemuanPembelajaran: {
               type: "ARRAY",
@@ -1483,7 +1506,9 @@ ATURAN TETAP LKPD:
 4. Setiap LKPD wajib memuat field: pertemuan, judul, tujuan, petunjuk, sumberBahan, langkahKerja, produkBukti, dan refleksi.
 5. Tujuan LKPD harus menurunkan TP dan materi esensial. Langkah kerja minimal 5 langkah bernomor, operasional, dan sesuai waktu belajar.
 6. Produk/bukti belajar harus selaras dengan asesmen dan rubrik/lampiran soal yang sudah ada bila tersedia.
-7. Refleksi siswa minimal 3 pertanyaan yang menilai pemahaman, strategi belajar, dan tindak lanjut.
+7. Field langkahKerja WAJIB berupa minimal 5 poin bernomor dengan newline antar poin, contoh: "1. ...\\n2. ...\\n3. ...". Jangan menulis semua langkah dalam satu paragraf.
+8. Field refleksi WAJIB berupa minimal 3 pertanyaan bernomor dengan newline antar pertanyaan, contoh: "1. ...?\\n2. ...?\\n3. ...?". Jangan menulis refleksi dalam satu paragraf.
+9. Field produkBukti wajib eksplisit memakai frasa "Produk/bukti belajar:" dan menyebut data/hasil kerja, kesimpulan, atau bukti kinerja yang dikumpulkan siswa.
 
 KONTEKS MODUL:
 - Mapel: ${rppData.mapel}
@@ -1529,7 +1554,7 @@ Keluarkan JSON Array murni tepat ${expectedLkpdTotal} objek. Jangan menambah nar
 
     const payload = {
       contents: [{ parts: [{ text: prompt }] }],
-      systemInstruction: { parts: [{ text: "Keluarkan JSON Array murni tanpa markdown. Fokus hanya pada LKPD per pertemuan. Jangan membuat kisi-kisi, bank soal, rubrik, atau Modul Ajar. Setiap LKPD harus mengikuti kegiatan pembelajaran yang diberikan dan menghasilkan bukti belajar yang dapat dinilai." }] },
+      systemInstruction: { parts: [{ text: "Keluarkan JSON Array murni tanpa markdown. Fokus hanya pada LKPD per pertemuan. Jangan membuat kisi-kisi, bank soal, rubrik, atau Modul Ajar. Field langkahKerja dan refleksi wajib memakai newline \\n antar nomor, bukan satu paragraf. ProdukBukti wajib menyebut Produk/bukti belajar, data/hasil, kesimpulan, atau bukti kinerja." }] },
       generationConfig: stableGenerationConfig({ temperature: 0.12, topP: 0.78, responseMimeType: "application/json", responseSchema: lkpdSchema })
     };
 
@@ -1588,7 +1613,7 @@ Keluarkan JSON Array murni tepat ${expectedLkpdTotal} objek. Jangan menambah nar
 
     if (fieldKey === 'cp') { fieldSpecificInstruction += `\nRumuskan CP formal sesuai mapel dan fase. Jangan menjadi tujuan harian. Ikuti rujukan ini: ${mapelCpGuidance}`; }
     else if (fieldKey === 'tp') { fieldSpecificInstruction += "\nBuat minimal 3 Tujuan Pembelajaran bernomor. Setiap TP harus menurunkan CP dan rujukan CP mapel, memakai kata kerja operasional terukur, menyebut konteks/topik, dan dapat diukur asesmen."; }
-    else if (fieldKey === 'materiEsensial') { fieldSpecificInstruction += "\nBuat ringkas saja: konsep inti, submateri, istilah penting, prinsip/prosedur, dan batasan materi. Pilih materi yang khas sesuai rujukan CP mapel. Jangan menulis rangkuman panjang."; }
+    else if (fieldKey === 'materiEsensial') { fieldSpecificInstruction += "\nBuat ringkasan materi yang cukup lengkap, minimal 6 poin bernomor. Wajib memuat konsep inti, submateri, istilah penting, prinsip/prosedur, contoh atau konteks nyata, miskonsepsi yang perlu diantisipasi, dan batasan materi. Pilih materi yang khas sesuai rujukan CP mapel dan topik."; }
     else if (fieldKey === 'kompetensiAwal') { fieldSpecificInstruction += "\nTulis prasyarat materi secara eksplisit. Hindari teks generik. Setiap poin harus berupa kemampuan awal yang perlu dimiliki siswa sebelum mempelajari topik."; }
     else if (fieldKey === 'situasiNyataSiswa') { fieldSpecificInstruction += "\nBuat minimal 3 poin: konteks lokal siswa, masalah/fenomena nyata, dan bukti/data sederhana yang dapat diamati. Jangan generik."; }
     else if (fieldKey === 'kesiapanSiswa') { fieldSpecificInstruction += "\nPisahkan aspek: Kognitif, Motivasi, Kebiasaan Belajar, dan Kebutuhan Dukungan. Berikan konteks kelas SMP yang realistis."; }
@@ -1604,7 +1629,7 @@ Keluarkan JSON Array murni tepat ${expectedLkpdTotal} objek. Jangan menambah nar
     else if (fieldKey === 'kisiKisi') { fieldSpecificInstruction += `\nWAJIB mengikuti rencana jumlah soal berikut: ${getAssessmentPlanText()}. Buat tepat ${expectedAssessmentTotal} baris sesuai urutan nomor berikut:\n${getAssessmentSequenceText()}\nKolom 'level' HANYA isi dengan level pada urutan tersebut. Bentuk soal dan nomor tidak boleh berubah. Indikator harus menurunkan CP/TP/materi modul ajar yang sudah dibuat.`; }
     else if (fieldKey === 'bankSoal') { const stringKisi = rppData.kisiKisi.map(k => `No.${k.nomor} (Level: ${k.level}, Bentuk: ${k.bentuk}): ${k.indikator}`).join(' | '); sequentialContext += `URUTAN WAJIB NOMOR SOAL:\n${getAssessmentSequenceText()}\nKISI-KISI SEBAGAI ACUAN MUTLAK:\n[ ${stringKisi || 'Acak'} ]\n`; fieldSpecificInstruction += `\nWAJIB membuat bank soal HOTS dan/atau LITERASI-NUMERASI sesuai semua baris kisi-kisi di atas dan urutan wajib nomor soal. Jumlah harus tepat ${expectedAssessmentTotal}; nomor, bentuk, dan level tidak boleh berubah dari rencana.\nKolom soal HANYA berisi stimulus minimal 3 kalimat atau 2 kalimat panjang yang memuat konteks, data/fakta/angka, masalah, dan pertanyaan/perintah; jangan menaruh opsi A-D, premis-respon, pedoman jawaban, atau kunci di kolom soal.\nKolom opsi wajib: PG/PG Kompleks hanya opsi A-D; Menjodohkan format "Premis / Kolom A:" 1-4 lalu "Respon / Kolom B:" A-D; Isian Singkat isi "-"; Uraian berisi kunci/pedoman ringkas TANPA label "Pedoman Jawaban:" dan kunci "-"; Praktik/Proyek berisi rambu produk/bukti dan kunci "-".\nKHUSUS PG Kompleks: Opsi A, B, C, D dan WAJIB TEPAT 2 OPSI BENAR (Kunci: contoh B dan D). Jangan memakai format Premis/Kolom A.\nKHUSUS MENJODOHKAN: BUKAN pilihan ganda. Kunci minimal 4 pasangan acak, contoh: 1-B, 2-D, 3-A, 4-C.\nPENTING: prioritaskan kepatuhan mutlak pada kisi-kisi, stimulus HOTS, literasi, numerasi, dan evidensi Praktik/Proyek.`; }
     else if (fieldKey === 'rubrikPenilaian') { const bentukRubrik = getBentukPenilaianList().join(', '); const aturanSkor = getBentukPenilaianList().map(b => `${b}: ${skorBentuk[b] || 'skor disesuaikan indikator'}`).join(' | '); sequentialContext += `Bentuk penilaian dari kisi-kisi: ${bentukRubrik}\nAturan skor: ${aturanSkor}\n`; fieldSpecificInstruction += `\nBuat tepat 1 rubrik untuk setiap bentuk penilaian dari kisi-kisi: ${bentukRubrik}. Kolom skor hanya berisi rentang nilai singkat, misalnya 0-1, 0-5, atau 0-10. Kolom kriteria berisi representasi skor per baris dengan format "Skor 9-10: ...", "Skor 7-8: ...", tanpa label "Kriteria:" atau "Rentang Nilai:".`; }
-    else if (fieldKey === 'lkpd') { sequentialContext += `RINGKASAN KEGIATAN PER PERTEMUAN:\n${getPertemuanActivitySummary(rppData)}\n`; fieldSpecificInstruction += `\nBuat LKPD tepat ${syncPertemuanPembelajaran(rppData).length} bagian sesuai jumlah pertemuan. Setiap bagian harus mengikuti kegiatan awal-inti-penutup, target kognitif, dan asesmen pada pertemuan terkait. Jangan membuat LKPD generik. Setiap LKPD wajib memuat pertemuan, judul, tujuan, petunjuk, sumberBahan, langkahKerja, produkBukti, dan refleksi.`; }
+    else if (fieldKey === 'lkpd') { sequentialContext += `RINGKASAN KEGIATAN PER PERTEMUAN:\n${getPertemuanActivitySummary(rppData)}\n`; fieldSpecificInstruction += `\nBuat LKPD tepat ${syncPertemuanPembelajaran(rppData).length} bagian sesuai jumlah pertemuan. Setiap bagian harus mengikuti kegiatan awal-inti-penutup, target kognitif, dan asesmen pada pertemuan terkait. Jangan membuat LKPD generik. Setiap LKPD wajib memuat pertemuan, judul, tujuan, petunjuk, sumberBahan, langkahKerja, produkBukti, dan refleksi. Field langkahKerja wajib minimal 5 poin bernomor dengan newline antar poin (1. ...\\n2. ...). Field refleksi wajib minimal 3 pertanyaan bernomor dengan newline antar poin. Field produkBukti wajib eksplisit memakai frasa "Produk/bukti belajar:" serta menyebut data/hasil kerja, kesimpulan, atau bukti kinerja.`; }
 
     let prompt = `Tugas Anda: Merancang spesifik bagian "${fieldTitle}" tanpa basa-basi.\n${sequentialContext}\nATURAN KETAT: ${fieldSpecificInstruction}`;
     let payload = { contents: [{ parts: [{ text: prompt }] }], systemInstruction: { parts: [{ text: "Keluarkan output sesuai permintaan, dilarang memberi pengantar. Gunakan 1 kali enter/newline (\\n) agar poin rapi ke bawah. Patuhi instruksi sinkronisasi dan rujukan CP mapel." }] }, generationConfig: stableGenerationConfig() };
@@ -1614,7 +1639,7 @@ Keluarkan JSON Array murni tepat ${expectedLkpdTotal} objek. Jangan menambah nar
       if (type === 'array_kisi') schemaObj = { type: "ARRAY", items: { type: "OBJECT", properties: { materi: { type: "STRING" }, indikator: { type: "STRING" }, level: { type: "STRING", description: "Hanya: C1, C2, C3, C4, C5, C6" }, bentuk: { type: "STRING", description: "Hanya: PG, PG Kompleks, Menjodohkan, Isian Singkat, Uraian, Praktik, Proyek" }, nomor: { type: "STRING" } }, required: ["materi","indikator","level","bentuk","nomor"] } };
       else if (type === 'array_soal') { prompt += `\nFormat JSON Array tepat ${expectedAssessmentTotal} butir, mengikuti semua baris kisi-kisi dan urutan wajib nomor soal. Jangan menambah atau mengurangi butir. Tambahkan butir Praktik/Proyek hanya jika bentuk tersebut ada di kisi-kisi/rencana.`; schemaObj = { type: "ARRAY", items: { type: "OBJECT", properties: { soal: { type: "STRING" }, opsi: { type: "STRING" }, kunci: { type: "STRING" } }, required: ["soal","opsi","kunci"] } }; }
       else if (type === 'array_rubrik') { prompt += `\nFormat JSON Array dengan jumlah baris sesuai bentuk penilaian unik dari kisi-kisi: ${getBentukPenilaianList().join(', ')}.`; schemaObj = { type: "ARRAY", items: { type: "OBJECT", properties: { bentukPenilaian: { type: "STRING" }, skor: { type: "STRING" }, kriteria: { type: "STRING" } }, required: ["bentukPenilaian","skor","kriteria"] } }; }
-      else if (type === 'array_lkpd') { prompt += `\nFormat JSON Array tepat ${syncPertemuanPembelajaran(rppData).length} LKPD, satu objek untuk setiap pertemuan.`; schemaObj = { type: "ARRAY", items: { type: "OBJECT", properties: { pertemuan: { type: "STRING" }, judul: { type: "STRING" }, tujuan: { type: "STRING" }, petunjuk: { type: "STRING" }, sumberBahan: { type: "STRING" }, langkahKerja: { type: "STRING" }, produkBukti: { type: "STRING" }, refleksi: { type: "STRING" } }, required: ["pertemuan","judul","tujuan","petunjuk","sumberBahan","langkahKerja","produkBukti","refleksi"] } }; }
+      else if (type === 'array_lkpd') { prompt += `\nFormat JSON Array tepat ${syncPertemuanPembelajaran(rppData).length} LKPD, satu objek untuk setiap pertemuan. Pada setiap objek, langkahKerja dan refleksi harus berisi newline \\n antar nomor, bukan paragraf satu baris.`; schemaObj = { type: "ARRAY", items: { type: "OBJECT", properties: { pertemuan: { type: "STRING" }, judul: { type: "STRING" }, tujuan: { type: "STRING" }, petunjuk: { type: "STRING" }, sumberBahan: { type: "STRING" }, langkahKerja: { type: "STRING" }, produkBukti: { type: "STRING" }, refleksi: { type: "STRING" } }, required: ["pertemuan","judul","tujuan","petunjuk","sumberBahan","langkahKerja","produkBukti","refleksi"] } }; }
       payload.generationConfig = stableGenerationConfig({
         ...(isAssessmentField || isLkpdField ? { temperature: 0.12, topP: 0.78 } : {}),
         responseMimeType: "application/json",
@@ -1959,7 +1984,7 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
 <tr><td colspan="4" class="section-head" style="text-align:left">2. DESAIN PEMBELAJARAN</td></tr>
 <tr><td class="t-label">Capaian Pemb.</td><td colspan="3" class="t-content">${formatText(rppData.cp)}</td></tr>
 <tr><td class="t-label">Tujuan Pemb.</td><td colspan="3" class="t-content">${formatText(rppData.tp)}</td></tr>
-<tr><td class="t-label">Materi Esensial</td><td colspan="3" class="t-content">${formatText(rppData.materiEsensial)}</td></tr>
+<tr><td class="t-label">Ringkasan Materi / Materi Esensial</td><td colspan="3" class="t-content">${formatText(rppData.materiEsensial)}</td></tr>
 <tr><td class="t-label">Lintas Disiplin</td><td colspan="3" class="t-content">${formatText(rppData.lintasDisiplin)}</td></tr>
 <tr>
   <td colspan="2" class="t-content" style="width:50%; vertical-align:top;">${formatBlock('Praktik Pedagogis:', rppData.praktikPedagogis)}</td>
@@ -2043,6 +2068,7 @@ ${pertemuanWordRows}
     const tpCount = countLines(rppData.tp);
     if (!cleanStr(rppData.situasiNyataSiswa)) warnings.push("Situasi nyata lingkungan siswa belum diisi sebagai konteks PM.");
     if (!cleanStr(rppData.materiEsensial)) warnings.push("Materi esensial/pokok materi belum diisi di TAHAP 2.");
+    if (cleanStr(rppData.materiEsensial) && countLines(rppData.materiEsensial) < 5) warnings.push("Ringkasan materi/materi esensial masih terlalu pendek; sebaiknya minimal 5 poin berisi konsep inti, submateri, istilah penting, prinsip/prosedur, contoh/konteks nyata, dan batasan materi.");
     if (cleanStr(rppData.kompetensiAwal) && (countLines(rppData.kompetensiAwal) < 2 || !/(prasyarat|sebelum|telah|mampu|pernah|dasar|awal|memahami|menjelaskan|mengidentifikasi)/i.test(rppData.kompetensiAwal))) warnings.push("Kompetensi awal perlu lebih eksplisit sebagai prasyarat materi.");
     if (cleanStr(rppData.kesiapanSiswa) && !/(kognitif|motivasi|kebiasaan|dukungan|sosial|emosi)/i.test(rppData.kesiapanSiswa)) warnings.push("Kesiapan peserta didik sebaiknya memuat kognitif, motivasi, kebiasaan belajar, dan kebutuhan dukungan.");
     if (cleanStr(rppData.karakteristikMateri) && !/(faktual|konseptual|prosedural|kontekstual|lintas|disiplin)/i.test(rppData.karakteristikMateri)) warnings.push("Karakteristik materi perlu menyebut sifat faktual/konseptual/prosedural/kontekstual/lintas disiplin.");
@@ -2387,8 +2413,8 @@ ${pertemuanWordRows}
                     </div>
 
                     <div>
-                      <LabelWithHint onRegenerate={() => handleRegenerateSpecific('materiEsensial', 'Materi Esensial / Pokok Materi')} isLoading={individualLoading['materiEsensial']} hint="Isi singkat materi yang benar-benar diajarkan, bukan karakteristik materinya.">Materi Esensial / Pokok Materi</LabelWithHint>
-                      <textarea name="materiEsensial" value={rppData.materiEsensial} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none whitespace-pre-wrap" placeholder="Contoh: konsep inti, submateri, istilah penting, prinsip/prosedur, atau batasan materi..."></textarea>
+                      <LabelWithHint onRegenerate={() => handleRegenerateSpecific('materiEsensial', 'Ringkasan Materi / Materi Esensial')} isLoading={individualLoading['materiEsensial']} hint="Isi ringkasan materi yang cukup lengkap: konsep inti, submateri, istilah penting, prinsip/prosedur, contoh/konteks nyata, miskonsepsi, dan batasan materi.">Ringkasan Materi / Materi Esensial</LabelWithHint>
+                      <textarea name="materiEsensial" value={rppData.materiEsensial} onChange={handleInputChange} rows="5" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none whitespace-pre-wrap" placeholder="Contoh:\n1. Konsep inti: ...\n2. Submateri: ...\n3. Istilah penting: ...\n4. Prinsip/prosedur: ...\n5. Contoh/konteks nyata: ...\n6. Batasan materi: ..."></textarea>
                     </div>
 
                     <div>
@@ -2736,7 +2762,7 @@ ${pertemuanWordRows}
                   <div className="space-y-4 sm:space-y-6 text-sm sm:text-base text-slate-700">
                     <div className="p-3 sm:p-4 border-l-4 border-indigo-400 bg-white shadow-sm mb-4"><strong className="block text-indigo-900 mb-2">Capaian Pembelajaran</strong><p className="whitespace-pre-wrap leading-relaxed">{rppData.cp||"-"}</p></div>
                     <div className="p-3 sm:p-4 border-l-4 border-indigo-500 bg-white shadow-sm mb-4"><strong className="block text-indigo-900 mb-2">Tujuan Pembelajaran</strong><p className="whitespace-pre-wrap font-medium leading-relaxed">{rppData.tp||"-"}</p></div>
-                    <div className="p-3 sm:p-4 border-l-4 border-indigo-500 bg-white shadow-sm mb-4"><strong className="block text-indigo-900 mb-2">Materi Esensial / Pokok Materi</strong><p className="whitespace-pre-wrap font-medium leading-relaxed">{rppData.materiEsensial||"-"}</p></div>
+                    <div className="p-3 sm:p-4 border-l-4 border-indigo-500 bg-white shadow-sm mb-4"><strong className="block text-indigo-900 mb-2">Ringkasan Materi / Materi Esensial</strong><p className="whitespace-pre-wrap font-medium leading-relaxed">{rppData.materiEsensial||"-"}</p></div>
                     <div className="p-3 sm:p-4 border-l-4 border-indigo-500 bg-white shadow-sm mb-4"><strong className="block text-indigo-900 mb-2">Lintas Disiplin Ilmu</strong><p className="whitespace-pre-wrap font-medium leading-relaxed">{rppData.lintasDisiplin||"-"}</p></div>
 
                     <div className="bg-indigo-50/50 p-4 sm:p-5 rounded-xl border border-indigo-100 min-w-0"><h4 className="font-bold text-indigo-900 border-b pb-2 mb-4">Kerangka Pembelajaran</h4>
