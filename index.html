@@ -88,9 +88,10 @@ const Accordion = ({ title, icon, subtitle, children, defaultOpen = false, isCom
 const defaultLabelHints = {
   "Nama Sekolah": "- Identitas satuan pendidikan.\n- Dikunci agar kop dan arsip dokumen konsisten.",
   "Tahun Pelajaran": "- Tulis format 2025/2026.\n- Dipakai sebagai metadata dokumen dan arsip sekolah.",
+  "Semester": "- Pilih semester dokumen.\n- Akan ditampilkan pada identitas dokumen hasil export.",
   "Nama Kepala Sekolah": "- Isi nama lengkap dan NIP bila ada.\n- Digunakan pada lembar pengesahan dokumen.",
   "Nama Guru Penyusun": "- Isi nama lengkap, gelar, dan NIP/NUPTK bila ada.\n- Pastikan sama dengan data administrasi sekolah.",
-  "Mata Pelajaran": "- Pilih mapel sesuai struktur Kurikulum Nasional.\n- Mapel menjadi acuan CP, TP, materi, dan asesmen.",
+  "Mata Pelajaran": "- Pilih mapel sesuai struktur kurikulum, termasuk muatan lokal bila berlaku.\n- Mapel menjadi acuan CP, TP, materi, dan asesmen.",
   "Fase / Kelas": "- Pilih fase dan kelas yang sesuai dengan CP.\n- Jangan mencampur CP fase lain agar TP dan asesmen tidak melenceng.",
   "Topik Pembelajaran": "- Tulis topik esensial yang akan dipelajari.\n- Hindari topik terlalu luas agar kegiatan dan asesmen fokus.",
   "Alokasi Waktu": "- Tulis durasi belajar, misalnya 2 x 40 Menit.\n- Sesuaikan kedalaman kegiatan dengan waktu nyata di kelas.",
@@ -104,6 +105,7 @@ const defaultLabelHints = {
   "Capaian Pembelajaran": "- Isi CP resmi sesuai fase dan mapel.\n- CP menjadi sumber penurunan TP, kegiatan, dan asesmen.",
   "Lintas Disiplin Ilmu": "- Tulis keterkaitan nyata antarmapel atau bidang kehidupan.\n- Hindari hanya menempel daftar mata pelajaran tanpa fungsi.",
   "Tujuan Pembelajaran": "- Gunakan kata kerja operasional yang dapat diukur.\n- Pastikan TP menurunkan CP dan dapat diuji lewat asesmen.",
+  "Materi Esensial / Pokok Materi": "- Tulis sedikit isi materi yang benar-benar diajarkan.\n- Cukup konsep inti, submateri, istilah penting, atau batasan materi agar kegiatan tidak melebar.",
   "Praktik Pedagogis": "- Tulis strategi belajar mendalam yang nyata, bukan hanya label.\n- Contoh: inkuiri, studi kasus, proyek, diskusi berbasis data, praktik kinerja.",
   "Kemitraan Pembelajaran": "- Tulis peran teman sebaya, orang tua, komunitas, atau narasumber bila relevan.\n- Kemitraan harus membantu tercapainya TP.",
   "Lingkungan Pembelajaran": "- Jelaskan ruang, alat, budaya kelas, keamanan psikologis, dan aturan kerja.\n- Pastikan mendukung belajar sadar, bermakna, dan menggembirakan.",
@@ -155,8 +157,11 @@ function App() {
   const [individualLoading, setIndividualLoading] = useState({});
   const [countdown, setCountdown] = useState(0); 
   const [aiHistory, setAiHistory] = useState([]);
+  const [showInstruksiHint, setShowInstruksiHint] = useState(false);
   
   const [instruksiKhusus, setInstruksiKhusus] = useState(() => localStorage.getItem('asistenGuru_instruksiKhusus_v43') || ""); 
+  const [instruksiKhususAsesmen, setInstruksiKhususAsesmen] = useState(() => localStorage.getItem('asistenGuru_instruksiKhususAsesmen_v1') || "");
+  const [instruksiKhususLkpd, setInstruksiKhususLkpd] = useState(() => localStorage.getItem('asistenGuru_instruksiKhususLkpd_v1') || "");
   
   const [showApiModal, setShowApiModal] = useState(false);
   const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('gemini_api_key_eksternal_v2') || sessionStorage.getItem('gemini_api_key_eksternal_v2') || "");
@@ -200,6 +205,8 @@ function App() {
   const isAnyLoading = isGenerating || Object.values(individualLoading).some(v => v === true);
 
   useEffect(() => { localStorage.setItem('asistenGuru_instruksiKhusus_v43', instruksiKhusus); }, [instruksiKhusus]);
+  useEffect(() => { localStorage.setItem('asistenGuru_instruksiKhususAsesmen_v1', instruksiKhususAsesmen); }, [instruksiKhususAsesmen]);
+  useEffect(() => { localStorage.setItem('asistenGuru_instruksiKhususLkpd_v1', instruksiKhususLkpd); }, [instruksiKhususLkpd]);
 
   useEffect(() => {
     let timer;
@@ -237,6 +244,74 @@ function App() {
     Uraian: "5 = lengkap, benar, beralasan, dan memakai bukti\n4 = benar tetapi kurang rinci\n3 = cukup tepat tetapi bukti terbatas\n2 = sebagian konsep benar\n1 = sangat terbatas\n0 = salah/kosong",
     Praktik: "9-10 = kinerja sangat kreatif, akurat, mandiri, dan demonstrasi jelas\n7-8 = kinerja baik, konsep tepat, tetapi detail/kelancaran masih dapat ditingkatkan\n5-6 = kinerja cukup, sebagian prosedur tepat, tetapi bukti dan penjelasan belum kuat\n1-4 = kinerja sangat terbatas dan membutuhkan banyak bimbingan\n0 = tidak menunjukkan evidensi",
     Proyek: "9-10 = produk sangat kreatif, berfungsi sangat baik, demonstrasi jelas, dan penjelasan konsep sangat akurat\n7-8 = produk baik dan berfungsi, tetapi pengembangan ide atau penjelasan konsep belum mendalam\n5-6 = produk cukup, sebagian kriteria terpenuhi, tetapi fungsi/bukti masih terbatas\n1-4 = produk belum memenuhi sebagian besar kriteria dan membutuhkan banyak perbaikan\n0 = tidak mengumpulkan produk/evidensi"
+  };
+  const mapelOptions = [
+    "Ilmu Pengetahuan Alam (IPA)",
+    "Informatika",
+    "Matematika",
+    "Bahasa Indonesia",
+    "Bahasa Jawa",
+    "Bahasa Inggris",
+    "IPS",
+    "Pendidikan Pancasila",
+    "PAI",
+    "PJOK",
+    "Seni Budaya",
+    "Prakarya",
+    "Koding dan Kecerdasan Artifisial (KKA)",
+    "Kokurikuler"
+  ];
+  const instruksiKhususStandar = `Prioritaskan konteks sekolah Adiwiyata: hubungkan topik dengan kepedulian lingkungan, pengelolaan sampah, hemat energi/air, kebun/taman sekolah, kebersihan kelas, atau observasi lingkungan sekitar sekolah.
+Sisipkan literasi: siswa membaca teks/data/foto/infografis pendek, menemukan gagasan penting, mengecek kredibilitas informasi, dan menyampaikan simpulan dengan bahasa sendiri.
+Sisipkan numerasi: gunakan data sederhana berupa tabel, persentase, perbandingan, ukuran, grafik, skor observasi, atau perhitungan kontekstual sesuai mapel.
+Aktivitas khusus: buat minimal satu kegiatan observasi/wawancara/eksperimen/studi kasus/proyek mini yang menghasilkan bukti belajar nyata.
+Pastikan kegiatan tetap realistis untuk alokasi waktu, sesuai CP mapel dan Fase D, serta menampilkan Mindful, Meaningful, Joyful Learning.`;
+  const getMapelCpGuidance = (mapel = "", kelas = "") => {
+    const mapelText = cleanStr(mapel).toLowerCase();
+    const faseText = cleanStr(kelas) || "fase/kelas yang dipilih";
+    if (mapelText.includes("koding") || mapelText.includes("kecerdasan artifisial") || /\bkka\b/i.test(mapel)) {
+      return `Rujukan CP 046/H/KR/2025 Koding dan Kecerdasan Artifisial untuk ${faseText}: tekankan berpikir komputasional, literasi digital, algoritma pemrograman, analisis data, literasi dan etika KA, serta pemanfaatan/pengembangan KA. Untuk SMP/Fase D, arahkan siswa mengelola data, memecahkan masalah sederhana secara sistematis, menulis instruksi, memproduksi konten digital, memahami sensor/kualitas data, manfaat dan dampak KA, etika data pribadi, risiko bias/halusinasi/deepfake, memakai KA sebagai alat bantu secara kritis, dan menulis input/prompt bermakna. Kegiatan boleh plugged, unplugged, atau berbasis internet, tetapi tetap human-centered, aman, etis, dan tidak membuat siswa bergantung penuh pada jawaban KA.`;
+    }
+    if (mapelText.includes("bahasa jawa")) {
+      return `Rujukan muatan lokal Bahasa Jawa untuk ${faseText}: perlakukan sebagai pembelajaran bahasa daerah Jawa, bukan Bahasa Indonesia umum. Selaraskan CP, TP, materi, kegiatan, dan asesmen dengan bahasa, sastra, aksara, budaya Jawa, unggah-ungguh basa, undha-usuk, dan paramasastra. Untuk SMP/Fase D, arahkan siswa berkomunikasi dan bernalar dalam bahasa Jawa sesuai konteks sosial-budaya; menyimak, membaca/memirsa, berbicara/mempresentasikan, dan menulis gagasan secara logis, kritis, kreatif; serta memakai huruf Latin dan aksara Jawa bila relevan. Materi dapat memuat pacelathon, pawarta, geguritan, cerkak, tembang, cerita rakyat/wayang, aksara Jawa, dan praktik unggah-ungguh sesuai konteks Jawa Tengah.`;
+    }
+    if (mapelText.includes("ipa") || mapelText.includes("ilmu pengetahuan alam")) {
+      return `Rujukan CP 046/H/KR/2025 IPA untuk ${faseText}: gunakan dua elemen terpadu Pemahaman IPA dan Keterampilan Proses. Fase D mencakup makhluk hidup dan lingkungannya, klasifikasi/sifat/perubahan materi, sistem organ, interaksi ekosistem dan perubahan iklim, pewarisan sifat, bioteknologi konvensional, pengukuran, gerak-gaya-tekanan, usaha-energi, kalor, gelombang, listrik-magnet, energi ramah lingkungan, bumi-bulan-matahari, tata surya, fenomena alam, dan perubahan iklim. Keterampilan proses wajib tampak: mengamati, mempertanyakan/memprediksi, merencanakan dan melakukan penyelidikan, memproses/menganalisis data, mengevaluasi/refleksi, dan mengomunikasikan hasil.`;
+    }
+    if (mapelText.includes("informatika")) {
+      return `Rujukan CP 046/H/KR/2025 Informatika untuk ${faseText}: Fase D menekankan Berpikir Komputasional dan Literasi Digital. Arahkan siswa menerapkan berpikir komputasional pada masalah sehari-hari dan komputasi, memahami himpunan data terstruktur sederhana, lembar kerja pengolah data, menyelesaikan persoalan data berstruktur volume kecil, serta menulis instruksi/pseudocode dengan kosakata atau simbol terbatas. Literasi digital mencakup mesin pencari, kredibilitas informasi, fakta-opini-hoaks, media pers digital, dokumen/lembar kerja/presentasi, komponen dan cara kerja komputer, jaringan lokal/internet, ruang publik virtual, produksi/diseminasi konten digital, rekam jejak digital, empati/toleransi, perundungan digital, keamanan sandi, malware, data pribadi, identitas digital, dan mindfulness digital.`;
+    }
+    if (mapelText.includes("matematika")) {
+      return `Rujukan CP 046/H/KR/2025 Matematika untuk ${faseText}: Fase D mencakup Bilangan, Aljabar, Pengukuran, Geometri, Analisis Data dan Peluang. Turunkan topik ke pemecahan masalah dan penalaran matematis melalui bilangan bulat/rasional/desimal/berpangkat/akar/notasi ilmiah, operasi bilangan real, estimasi, rasio/skala/proporsi/laju perubahan termasuk literasi finansial; pola dan bentuk aljabar, relasi dan fungsi, persamaan/pertidaksamaan linear, SPLDV; keliling/luas/volume, lingkaran, bangun ruang dan perubahan proporsional; geometri transformasi/kongruensi/kesebangunan; serta penyelidikan data, peluang, tabel/grafik, interpretasi, dan argumen berbasis data.`;
+    }
+    if (mapelText.includes("bahasa indonesia")) {
+      return `Rujukan CP 046/H/KR/2025 Bahasa Indonesia untuk ${faseText}: gunakan elemen Menyimak, Membaca dan Memirsa, Berbicara dan Mempresentasikan, serta Menulis. Fase D mengarahkan siswa menganalisis gagasan, pandangan, arahan, pesan, unsur intrinsik teks sastra/nonsastra aural; menganalisis dan menginterpretasi informasi tersurat/tersirat dari teks visual/audiovisual/multimodal; mengevaluasi kualitas dan kredibilitas informasi; mempresentasikan usul/solusi secara logis, kritis, dan kreatif; menyajikan ungkapan kepedulian; serta menulis gagasan, pandangan, pesan, pengalaman, imajinasi, pendapat pro/kontra dalam berbagai tipe teks dengan kosakata denotatif, konotatif, dan kiasan.`;
+    }
+    if (mapelText.includes("bahasa inggris")) {
+      return `Rujukan CP 046/H/KR/2025 Bahasa Inggris untuk ${faseText}: Fase D setara penguatan menuju A2 CEFR dengan elemen Listening-Speaking, Reading-Viewing, dan Writing-Presenting. Arahkan siswa memahami alur informasi, gagasan utama, informasi rinci, tersurat dan tersirat dari teks lisan, tulis, visual, atau multimodal tentang topik sehari-hari/minat; merespons sesuai konteks; mengungkapkan gagasan dan pengalaman secara lisan/tulis/multimodal dengan kalimat sederhana dan majemuk, formal atau informal; menggunakan struktur teks dan unsur kebahasaan tepat; serta menyampaikan pendapat dan mempertahankan argumen terkait isu dekat kehidupan siswa.`;
+    }
+    if (mapelText === "ips" || mapelText.includes("ilmu pengetahuan sosial")) {
+      return `Rujukan CP 046/H/KR/2025 IPS untuk ${faseText}: gunakan elemen Pemahaman Konsep dan Keterampilan Proses secara terpadu. Fase D mencakup kondisi geografis Indonesia, konektivitas antarruang, pemanfaatan dan pelestarian sumber daya alam, perubahan iklim dan bencana, SDGs, kegiatan ekonomi, harga, pasar, lembaga keuangan, perdagangan internasional, pertumbuhan ekonomi era digital, interaksi/lembaga/dinamika/perubahan sosial, keberagaman sosial budaya, serta keterhubungan sejarah lokal-nasional-global. Keterampilan proses mencakup mengamati fenomena sosial, menanya, mengumpulkan informasi primer/sekunder, mengorganisasi dan memprioritaskan gagasan, simulasi/studi kasus/situasi nyata, mengevaluasi, merefleksi, mengomunikasikan, dan menyusun rencana aksi.`;
+    }
+    if (mapelText.includes("pendidikan pancasila")) {
+      return `Rujukan CP 046/H/KR/2025 Pendidikan Pancasila untuk ${faseText}: Fase D mencakup elemen Pancasila, UUD NRI 1945, Bhinneka Tunggal Ika, dan NKRI. Arahkan siswa memahami sejarah kelahiran Pancasila, kedudukan Pancasila sebagai dasar negara/pandangan hidup/ideologi, keterkaitan Pancasila dengan UUD 1945, Bhinneka Tunggal Ika dan NKRI; menerapkan norma dan aturan, tata urutan peraturan, hak dan kewajiban warga negara, kemerdekaan berpendapat dalam era keterbukaan informasi; mengidentifikasi keberagaman dan menerima perbedaan; melestarikan tradisi/kearifan lokal/budaya daerah; serta memahami Proklamasi, wilayah NKRI dalam wawasan nusantara, dan partisipasi menjaga keutuhan NKRI.`;
+    }
+    if (mapelText === "pai" || mapelText.includes("agama islam")) {
+      return `Rujukan CP 046/H/KR/2025 Pendidikan Agama Islam dan Budi Pekerti untuk ${faseText}: Fase D mencakup Al-Qur'an Hadis, Akidah, Akhlak, Fikih, dan Sejarah Peradaban Islam. Arahkan CP/TP/materi pada pemahaman ayat Al-Qur'an dan hadis tentang iman, takwa, toleransi, cinta tanah air, semangat keilmuan, sabar menghadapi musibah/ujian; rukun iman dan penguat iman; ikhlas, syukur, cinta rasul, husnuzan, kasih sayang kepada sesama dan lingkungan; ketentuan sujud, salat, kewajiban terhadap jenazah, haji/umrah, penyembelihan, kurban, akikah, rukhsah dalam mazhab fikih; serta peradaban Bani Umayyah, Abbasiyah, Fatimiyah, Turki Usmani, Syafawi, dan Mughal.`;
+    }
+    if (mapelText.includes("pjok") || mapelText.includes("jasmani")) {
+      return `Rujukan CP 046/H/KR/2025 PJOK untuk ${faseText}: Fase D mencakup Terampil Bergerak, Belajar Melalui Gerak, Bergaya Hidup Aktif, dan Memilih Hidup yang Menyehatkan. Arahkan siswa menerapkan keterampilan gerak dan mentransfernya ke berbagai situasi, memperagakan strategi gerak, membuktikan strategi efektif, memodifikasi aturan untuk fair play dan partisipasi inklusif, mempraktikkan kepemimpinan/kolaborasi/pengambilan keputusan kelompok, berpartisipasi dalam aktivitas jasmani dan menjelaskan reaksi tubuh terhadap intensitas, mencegah perilaku sedenter, menganalisis risiko kesehatan gaya hidup, merancang pola makan sehat, serta mempraktikkan penanganan cedera berdasarkan prinsip pertolongan pertama.`;
+    }
+    if (mapelText.includes("seni budaya")) {
+      return `Rujukan CP 046/H/KR/2025 Seni Budaya untuk ${faseText}: pilih cabang seni sesuai topik, lalu gunakan elemen Mengalami, Merefleksikan, Berpikir dan Bekerja Artistik, Menciptakan, dan Berdampak. Seni Musik Fase D: unsur nada, irama, melodi, alat musik/teknologi setempat, genre/era, praktik musik daerah/Nusantara/modern, lagu sederhana, dan kepedulian isu sekitar melalui musik. Seni Rupa: unsur rupa, prinsip desain, apresiasi karya, variasi teknik alat/bahan, bahan lingkungan sekitar, karya berdasarkan pengalaman/pengamatan, fungsi dan ekspresi. Seni Tari: latar belakang, jenis, fungsi, nilai tari, konsep tari kreasi, unsur utama/pendukung, desain lantai/level, kebanggaan pada tari tradisi. Seni Teater: olah tubuh/mimik/vokal, analisis karakter, tata artistik panggung sederhana, teknologi digital, alur cerita, lakon, dan pertunjukan relevan kehidupan murid.`;
+    }
+    if (mapelText.includes("prakarya")) {
+      return `Rujukan CP 046/H/KR/2025 Prakarya untuk ${faseText}: pilih strand sesuai topik, lalu gunakan siklus observasi/eksplorasi, desain/perencanaan, produksi, evaluasi/refleksi. Budi daya: produk budi daya aman berbasis potensi lingkungan/kearifan lokal, modifikasi bahan/alat/teknik, kemasan sederhana. Kerajinan: karakteristik bentuk, bahan, alat, teknik, prosedur, desain produk, displai produk, evaluasi proses dan produk. Pengolahan: karakteristik bahan, alat, teknik pengolahan, pengemasan/penyajian pangan atau nonpangan, rancangan modifikasi, produksi dengan K3, refleksi tahap produksi. Rekayasa: produk teknologi tepat guna yang kreatif, inovatif, ergonomis, modifikasi bahan/alat/teknik/prosedur, prototipe/model, dampak lingkungan dan kehidupan sehari-hari.`;
+    }
+    if (mapelText.includes("kokurikuler")) {
+      return `Kokurikuler bukan CP intrakurikuler tunggal. Susun rancangan berbasis tujuan kegiatan, dimensi profil lulusan, KSE, konteks sekolah, produk/bukti, refleksi, dan dampak nyata. Jika kegiatan terkait P5, jaga agar aktivitas, asesmen, dan refleksi menguatkan karakter, kolaborasi, kepedulian lingkungan/sosial, literasi, numerasi, dan budaya sekolah.`;
+    }
+    return `Rujukan CP untuk ${faseText}: gunakan CP resmi sesuai mata pelajaran dan fase. Jangan mengubah CP menjadi tujuan harian; turunkan CP ke TP, materi, kegiatan, dan asesmen secara logis sesuai topik.`;
   };
   const pertemuanFieldKeys = [
     "kegiatanAwal",
@@ -281,9 +356,9 @@ function App() {
     return pertemuanFieldKeys.reduce((next, key) => ({ ...next, [key]: first[key] ?? data[key] ?? "" }), data);
   };
   const getPertemuanFases = (row = {}) => [
-    { t: "AWAL", sub: "Pendahuluan", c: "blue", ak: row.kegiatanAwal, tk: row.pengalamanMemahami, as: row.asesmenAwal, ic: "brain" },
-    { t: "INTI", sub: "Elaborasi", c: "emerald", ak: row.kegiatanInti, tk: row.pengalamanMengaplikasi, as: row.asesmenProses, ic: "cogs" },
-    { t: "AKHIR", sub: "Penutup", c: "fuchsia", ak: row.kegiatanPenutup, tk: row.pengalamanMerefleksi, as: row.asesmenAkhir, ic: "undo" }
+    { t: "AWAL", sub: "Pendahuluan", c: "blue", ak: row.kegiatanAwal, tk: removeRepeatedTargetTriplet(row.pengalamanMemahami), as: row.asesmenAwal, ic: "brain" },
+    { t: "INTI", sub: "Elaborasi", c: "emerald", ak: row.kegiatanInti, tk: removeRepeatedTargetTriplet(row.pengalamanMengaplikasi), as: row.asesmenProses, ic: "cogs" },
+    { t: "AKHIR", sub: "Penutup", c: "fuchsia", ak: row.kegiatanPenutup, tk: removeRepeatedTargetTriplet(row.pengalamanMerefleksi), as: row.asesmenAkhir, ic: "undo" }
   ];
 
   const defaultAssessmentPlan = [
@@ -295,15 +370,15 @@ function App() {
   ];
 
   const defaultDataObj = {
-    namaSekolah: "SMP Negeri 2 Secang", namaGuru: "YUSUF ARIS SYAMSUDDIN, S.Pd.", tahunPelajaran: "2025/2026", nipGuru: "19950430 202321 1 004", namaKepsek: "SUHARDI, S.Pd., M.M.Pd.", nipKepsek: "19720624 199903 1 002", mapel: "", kelas: "", topik: "", waktu: "2 x 40 Menit", jumlahPertemuan: "1 Pertemuan", kompetensiAwal: "", kesiapanSiswa: "", karakteristikMateri: "", situasiNyataSiswa: "",
+    namaSekolah: "SMP Negeri 2 Secang", namaGuru: "YUSUF ARIS SYAMSUDDIN, S.Pd.", tahunPelajaran: "2025/2026", semester: "Ganjil", nipGuru: "19950430 202321 1 004", namaKepsek: "SUHARDI, S.Pd., M.M.Pd.", nipKepsek: "19720624 199903 1 002", mapel: "", kelas: "", topik: "", waktu: "2 x 40 Menit", jumlahPertemuan: "1 Pertemuan", kompetensiAwal: "", kesiapanSiswa: "", karakteristikMateri: "", situasiNyataSiswa: "",
     profilLulusan: { keimanan: false, kewargaan: false, penalaran: false, kreativitas: false, kolaborasi: false, kemandirian: false, kesehatan: false, komunikasi: false },
     profilAlasan: "",
     kseLulusan: { kesadaranDiri: false, manajemenDiri: false, kesadaranSosial: false, keterampilanBerelasi: false, keputusanBertanggungJawab: false },
     kseAlasan: "",
-    cp: "", lintasDisiplin: "", tp: "", praktikPedagogis: "Pembelajaran Mendalam", kemitraanPembelajaran: "", lingkunganPembelajaran: "", pemanfaatanDigital: "",
+    cp: "", lintasDisiplin: "", tp: "", materiEsensial: "", praktikPedagogis: "Pembelajaran Mendalam", kemitraanPembelajaran: "", lingkunganPembelajaran: "", pemanfaatanDigital: "",
     kegiatanAwal: "", kegiatanInti: "", kegiatanPenutup: "", pengalamanMemahami: "", pengalamanMengaplikasi: "", pengalamanMerefleksi: "", asesmenAwal: "", asesmenProses: "", asesmenAkhir: "", pertemuanPembelajaran: [makeEmptyPertemuan(0)], catatanRefleksi: "",
     rencanaAsesmen: defaultAssessmentPlan.map(row => ({ ...row })),
-    kisiKisi: [], bankSoal: [], rubrikPenilaian: []
+    kisiKisi: [], bankSoal: [], rubrikPenilaian: [], lkpd: []
   };
 
   const cloneData = (data) => JSON.parse(JSON.stringify(data || defaultDataObj));
@@ -319,7 +394,8 @@ function App() {
       rencanaAsesmen: Array.isArray(p.rencanaAsesmen) && p.rencanaAsesmen.length ? p.rencanaAsesmen : defaultAssessmentPlan.map(row => ({ ...row })),
       kisiKisi: Array.isArray(p.kisiKisi) ? p.kisiKisi : [],
       bankSoal: Array.isArray(p.bankSoal) ? p.bankSoal : [],
-      rubrikPenilaian: Array.isArray(p.rubrikPenilaian) ? p.rubrikPenilaian : []
+      rubrikPenilaian: Array.isArray(p.rubrikPenilaian) ? p.rubrikPenilaian : [],
+      lkpd: Array.isArray(p.lkpd) ? p.lkpd : []
     }, pertemuanPembelajaran);
   };
   const getActivityTitle = (data, index = 1) => {
@@ -392,6 +468,7 @@ function App() {
       namaSekolah: rppData.namaSekolah,
       namaGuru: rppData.namaGuru,
       tahunPelajaran: rppData.tahunPelajaran,
+      semester: rppData.semester,
       nipGuru: rppData.nipGuru,
       namaKepsek: rppData.namaKepsek,
       nipKepsek: rppData.nipKepsek,
@@ -455,7 +532,8 @@ function App() {
       const next = { ...p, [name]: value };
       if (name !== "jumlahPertemuan") return next;
       const pertemuanPembelajaran = syncPertemuanPembelajaran(next, getJumlahPertemuanValue(value));
-      return mirrorFirstPertemuanFields({ ...next, pertemuanPembelajaran }, pertemuanPembelajaran);
+      const withPertemuan = mirrorFirstPertemuanFields({ ...next, pertemuanPembelajaran }, pertemuanPembelajaran);
+      return { ...withPertemuan, lkpd: mapLkpdRows(withPertemuan.lkpd, withPertemuan) };
     });
   };
   const handlePertemuanFieldChange = (index, fieldKey, value) => {
@@ -487,6 +565,8 @@ function App() {
     setAiHistory([]);
     setIsEditing(true);
     setInstruksiKhusus("");
+    setInstruksiKhususAsesmen("");
+    setInstruksiKhususLkpd("");
   });
 
   const cleanStr = (str) => {
@@ -500,6 +580,14 @@ function App() {
   };
 
   const countMeaningfulLines = (value) => cleanStr(value).split(/\n+/).filter(line => line.replace(/^[-\d\.\)\s]+/, '').trim().length > 18).length;
+  const hasNumberedOneToThree = (value) => [1, 2, 3].every(num => new RegExp(`(^|\\n)\\s*${num}[\\.)]\\s+`, "i").test(cleanStr(value)));
+  const removeRepeatedTargetTriplet = (value) => {
+    const text = cleanStr(value);
+    const lines = text.split(/\n+/).map(line => line.trim()).filter(Boolean);
+    if (!lines.length) return "";
+    const secondStart = lines.findIndex((line, index) => index > 0 && /^1[\.)]\s+/.test(line) && hasNumberedOneToThree(lines.slice(0, index).join('\n')) && hasNumberedOneToThree(lines.slice(index).join('\n')));
+    return secondStart > -1 ? lines.slice(0, secondStart).join('\n') : text;
+  };
 
   const ensureSituasiNyata = (value, data = rppData) => {
     const text = cleanStr(value);
@@ -510,7 +598,8 @@ function App() {
   };
 
   const ensureExperienceText = (value, label, data = rppData) => {
-    const text = cleanStr(value);
+    const text = removeRepeatedTargetTriplet(value);
+    if (hasNumberedOneToThree(text)) return text;
     if (countMeaningfulLines(text) >= 3 && /(konsep|bukti|data|kasus|strategi|refleksi|menerapkan|menganalisis|menyimpulkan|mengevaluasi|merancang)/i.test(text)) return text;
     const topic = cleanStr(data.topik) || "materi";
     const templates = {
@@ -518,8 +607,29 @@ function App() {
       mengaplikasi: `1. Siswa menerapkan konsep ${topic} pada kasus baru yang dekat dengan kehidupan mereka.\n2. Siswa memakai bukti/data sederhana untuk memilih strategi, menyusun alasan, dan membuat produk/kinerja.\n3. Siswa membandingkan hasil kerja dengan kriteria keberhasilan dan memperbaiki jawabannya melalui umpan balik.`,
       merefleksi: `1. Siswa menuliskan strategi berpikir yang paling membantu saat memahami ${topic}.\n2. Siswa menilai bukti pemahaman dirinya, kesulitan yang tersisa, dan bantuan yang dibutuhkan.\n3. Siswa merumuskan rencana perbaikan belajar untuk pertemuan atau tugas berikutnya.`
     };
+    if (/(^|\n)\s*\d+[\.)]\s+/.test(text)) return text;
     return cleanStr(`${text ? `${text}\n` : ""}${templates[label] || templates.memahami}`);
   };
+
+  useEffect(() => {
+    setRppData(prev => {
+      const rows = syncPertemuanPembelajaran(prev);
+      let changed = false;
+      const cleanedRows = rows.map(row => {
+        const next = { ...row };
+        ["pengalamanMemahami", "pengalamanMengaplikasi", "pengalamanMerefleksi"].forEach(key => {
+          const cleaned = removeRepeatedTargetTriplet(next[key]);
+          if (cleaned !== next[key]) {
+            next[key] = cleaned;
+            changed = true;
+          }
+        });
+        return next;
+      });
+      if (!changed) return prev;
+      return mirrorFirstPertemuanFields({ ...prev, pertemuanPembelajaran: cleanedRows }, cleanedRows);
+    });
+  }, []);
 
   const normalizeBentuk = (value) => {
     const v = cleanStr(value).toLowerCase();
@@ -634,16 +744,23 @@ function App() {
   const kkoByLevel = { C1: "mengidentifikasi", C2: "menjelaskan", C3: "menerapkan", C4: "menganalisis", C5: "mengevaluasi", C6: "merancang" };
   const getExpectedAssessmentSequence = (planData = rppData) => {
     const planned = expandAssessmentBlueprint(planData);
-    const total = Math.max(10, planned.length || 10);
+    const hasPlanRows = Array.isArray(planData.rencanaAsesmen) && planData.rencanaAsesmen.length > 0;
+    if (!planned.length && hasPlanRows) return [];
+    const total = planned.length || 10;
     return Array.from({ length: total }).map((_, i) => planned[i] || { bentuk: bentukSoalUrut[i] || "Uraian", level: i < 2 ? "C3" : i < 8 ? "C4" : "C5" });
+  };
+  const getAssessmentSequenceText = (planData = rppData) => {
+    const sequence = getExpectedAssessmentSequence(planData);
+    return sequence.length ? sequence.map((shape, index) => `No. ${index + 1}: ${shape.bentuk} level ${shape.level}`).join('\n') : "Belum ada rencana soal valid.";
   };
   const getDefaultKisiRow = (shape, index, planData = rppData) => {
     const topic = cleanStr(planData.topik) || "materi pembelajaran";
     const context = cleanStr(planData.situasiNyataSiswa) || "situasi nyata di lingkungan siswa";
+    const tp = cleanStr(planData.tp).replace(/\n+/g, '; ').slice(0, 260) || "tujuan pembelajaran pada modul ajar";
     const verb = kkoByLevel[shape.level] || "menganalisis";
     return {
       materi: topic,
-      indikator: `${verb.charAt(0).toUpperCase() + verb.slice(1)} ${topic} melalui stimulus/kasus kontekstual tentang ${context} sesuai tujuan pembelajaran.`,
+      indikator: `${verb.charAt(0).toUpperCase() + verb.slice(1)} ${topic} melalui stimulus/kasus kontekstual tentang ${context} sesuai TP modul: ${tp}.`,
       level: shape.level,
       bentuk: shape.bentuk,
       nomor: String(index + 1)
@@ -801,6 +918,55 @@ function App() {
     return { ...row, soal: normalized.soal, opsi: normalized.opsi, kunci: normalized.kunci };
   };
 
+  const getPertemuanActivitySummary = (data = rppData) => syncPertemuanPembelajaran(data).map((row, index) => (
+    `Pertemuan ${index + 1}: Awal=${cleanStr(row.kegiatanAwal) || '-'} | Inti=${cleanStr(row.kegiatanInti) || '-'} | Penutup=${cleanStr(row.kegiatanPenutup) || '-'} | Target=${[row.pengalamanMemahami, row.pengalamanMengaplikasi, row.pengalamanMerefleksi].filter(Boolean).join(' | ') || '-'}`
+  )).join('\n');
+
+  const getDefaultLkpdRow = (index, data = rppData) => {
+    const pertemuan = syncPertemuanPembelajaran(data)[index] || {};
+    const topic = cleanStr(data.topik) || "topik pembelajaran";
+    const tp = cleanStr(data.tp).replace(/\n+/g, '; ').slice(0, 300) || "tujuan pembelajaran pada modul ajar";
+    const kegiatanInti = cleanStr(pertemuan.kegiatanInti) || "kegiatan inti pembelajaran";
+    const asesmen = [pertemuan.asesmenAwal, pertemuan.asesmenProses, pertemuan.asesmenAkhir].map(cleanStr).filter(Boolean).join('\n');
+    return {
+      id: `lkpd-${index + 1}`,
+      pertemuan: `Pertemuan ${index + 1}`,
+      judul: `LKPD Pertemuan ${index + 1}: ${topic}`,
+      tujuan: `1. Siswa mengerjakan aktivitas LKPD untuk mencapai TP modul: ${tp}.\n2. Siswa menghasilkan bukti belajar yang selaras dengan kegiatan pembelajaran pertemuan ${index + 1}.`,
+      petunjuk: "1. Baca setiap instruksi dengan teliti.\n2. Kerjakan secara mandiri atau berkelompok sesuai arahan guru.\n3. Gunakan data, bukti, atau hasil pengamatan dari kegiatan pembelajaran.\n4. Tulis jawaban dengan alasan yang jelas.",
+      sumberBahan: `Bahan/sumber: catatan kegiatan, materi esensial ${topic}, konteks nyata siswa, alat tulis, dan media/alat yang digunakan pada kegiatan inti.`,
+      langkahKerja: `1. Amati atau baca kembali stimulus/kasus yang digunakan pada kegiatan inti.\n2. Kerjakan tugas sesuai alur kegiatan: ${kegiatanInti}\n3. Catat data, temuan, atau alasan penting yang mendukung jawaban.\n4. Susun produk/jawaban akhir sesuai kriteria keberhasilan.\n5. Periksa kembali jawaban menggunakan umpan balik guru/teman.`,
+      produkBukti: `Produk/bukti belajar: jawaban LKPD, catatan data/pengamatan, kesimpulan, dan/atau produk kinerja yang sesuai dengan asesmen pertemuan.\nAcuan asesmen: ${asesmen || "asesmen awal, proses, dan akhir pada modul ajar."}`,
+      refleksi: "1. Bagian mana yang paling membantu pemahamanmu?\n2. Bukti apa yang menunjukkan kamu sudah memahami materi?\n3. Kesulitan apa yang masih perlu dibantu?\n4. Apa perbaikan yang akan kamu lakukan pada tugas berikutnya?"
+    };
+  };
+
+  const normalizeLkpdRow = (row = {}, index = 0, data = rppData) => {
+    const fallback = getDefaultLkpdRow(index, data);
+    return {
+      id: row.id || fallback.id,
+      pertemuan: cleanStr(row.pertemuan) || fallback.pertemuan,
+      judul: cleanStr(row.judul) || fallback.judul,
+      tujuan: cleanStr(row.tujuan) || fallback.tujuan,
+      petunjuk: cleanStr(row.petunjuk) || fallback.petunjuk,
+      sumberBahan: cleanStr(row.sumberBahan || row.bahanSumber || row.sumber) || fallback.sumberBahan,
+      langkahKerja: cleanStr(row.langkahKerja || row.aktivitas || row.kegiatan) || fallback.langkahKerja,
+      produkBukti: cleanStr(row.produkBukti || row.bukti || row.produk) || fallback.produkBukti,
+      refleksi: cleanStr(row.refleksi) || fallback.refleksi
+    };
+  };
+
+  const mapLkpdRows = (rows, data = rppData) => {
+    const pertemuanRows = syncPertemuanPembelajaran(data);
+    return pertemuanRows.map((_, index) => normalizeLkpdRow(Array.isArray(rows) ? rows[index] : {}, index, data));
+  };
+
+  useEffect(() => {
+    const expectedLength = syncPertemuanPembelajaran(rppData).length;
+    if ((rppData.lkpd || []).length === expectedLength) return;
+    setRppData(prev => ({ ...prev, lkpd: mapLkpdRows(prev.lkpd, prev) }));
+  }, [rppData.jumlahPertemuan, (rppData.lkpd || []).length]);
+
   useEffect(() => {
     if (!rppData.bankSoal.length) return;
     const normalizedRows = rppData.bankSoal.map((row, index) => ({ ...row, ...normalizeBankRowByKisi(row, rppData.kisiKisi[index] || { bentuk: bentukSoalUrut[index] || "" }, index), id: row.id }));
@@ -918,15 +1084,42 @@ function App() {
     const expectedSequence = getExpectedAssessmentSequence(data);
     const expectedTotal = expectedSequence.length;
     const requiredForms = kisi.length ? getBentukPenilaianList(kisi) : [...new Set(blueprint.map(row => row.bentuk))];
+    if (expectedTotal < 1) warnings.push("Rencana Jumlah Soal belum valid. Isi minimal satu bentuk soal dengan jumlah lebih dari 0.");
     if (kisi.length !== expectedTotal) warnings.push(`Kisi-kisi harus tepat ${expectedTotal} baris sesuai rencana jumlah soal, saat ini ${kisi.length}.`);
     const hotsCount = kisi.filter(k => ["C4","C5","C6"].includes(k.level)).length;
     if (kisi.length >= expectedTotal && hotsCount < Math.ceil(expectedTotal * 0.6)) warnings.push(`Kisi-kisi perlu dominan C4-C6, saat ini baru ${hotsCount} indikator.`);
-    blueprint.forEach(plan => {
-      const matching = kisi.filter(k => normalizeBentuk(k.bentuk) === plan.bentuk && cleanStr(k.level).toUpperCase() === plan.level).length;
-      if (matching < plan.jumlah) warnings.push(`Rencana ${plan.bentuk} level ${plan.level} perlu ${plan.jumlah} soal, saat ini ${matching}.`);
+    const expectedGroups = {};
+    const actualGroups = {};
+    expectedSequence.forEach(shape => {
+      const key = `${shape.bentuk}|${shape.level}`;
+      expectedGroups[key] = (expectedGroups[key] || 0) + 1;
+    });
+    kisi.forEach(row => {
+      const key = `${normalizeBentuk(row.bentuk)}|${cleanStr(row.level).toUpperCase()}`;
+      actualGroups[key] = (actualGroups[key] || 0) + 1;
+    });
+    Object.keys(expectedGroups).forEach(key => {
+      const [form, level] = key.split('|');
+      const actual = actualGroups[key] || 0;
+      if (actual !== expectedGroups[key]) warnings.push(`Rencana ${form} level ${level} harus tepat ${expectedGroups[key]} soal, saat ini ${actual}.`);
+    });
+    Object.keys(actualGroups).forEach(key => {
+      if (!expectedGroups[key]) {
+        const [form, level] = key.split('|');
+        warnings.push(`Kisi-kisi memuat ${actualGroups[key]} soal ${form} level ${level} di luar rencana.`);
+      }
     });
     kisi.forEach((k, i) => {
-      if (!["C1","C2","C3","C4","C5","C6"].includes(k.level)) warnings.push(`Kisi-kisi nomor ${i + 1}: level kognitif belum valid.`);
+      if (!["C1","C2","C3","C4","C5","C6"].includes(cleanStr(k.level).toUpperCase())) warnings.push(`Kisi-kisi nomor ${i + 1}: level kognitif belum valid.`);
+      const expected = expectedSequence[i];
+      if (expected) {
+        if (String(k.nomor || i + 1) !== String(i + 1)) warnings.push(`Kisi-kisi nomor ${i + 1}: kolom nomor harus ${i + 1}.`);
+        if (normalizeBentuk(k.bentuk) !== expected.bentuk) warnings.push(`Kisi-kisi nomor ${i + 1}: bentuk harus ${expected.bentuk} sesuai rencana.`);
+        if (cleanStr(k.level).toUpperCase() !== expected.level) warnings.push(`Kisi-kisi nomor ${i + 1}: level harus ${expected.level} sesuai rencana.`);
+      }
+      if (cleanStr(k.indikator) && ![data.tp, data.cp, data.materiEsensial, data.topik].some(src => cleanStr(src).split(/\s+/).some(word => word.length > 6 && cleanStr(k.indikator).toLowerCase().includes(word.toLowerCase())))) {
+        warnings.push(`Kisi-kisi nomor ${i + 1}: indikator perlu lebih tampak menurunkan CP/TP/materi modul.`);
+      }
     });
     if (bank.length !== expectedTotal) warnings.push(`Bank soal harus tepat ${expectedTotal} butir sesuai rencana jumlah soal, saat ini ${bank.length}.`);
     bank.forEach((b, i) => {
@@ -957,6 +1150,23 @@ function App() {
       const form = normalizeBentuk(r.bentukPenilaian);
       if (!cleanStr(r.bentukPenilaian)) warnings.push(`Rubrik nomor ${i + 1}: bentuk penilaian belum diisi.`);
       if (!hasRubrikScoreLogic(form, r.skor, r.kriteria)) warnings.push(`Rubrik ${r.bentukPenilaian || i + 1}: aturan skor belum sesuai bentuk penilaian.`);
+    });
+    return warnings;
+  };
+
+  const validateLkpdStructure = (data = rppData) => {
+    const warnings = [];
+    const pertemuanRows = syncPertemuanPembelajaran(data);
+    const lkpdRows = Array.isArray(data.lkpd) ? data.lkpd : [];
+    if (lkpdRows.length !== pertemuanRows.length) warnings.push(`LKPD harus tepat ${pertemuanRows.length} bagian sesuai jumlah pertemuan, saat ini ${lkpdRows.length}.`);
+    lkpdRows.forEach((row, index) => {
+      const merged = cleanStr(`${row.judul} ${row.tujuan} ${row.petunjuk} ${row.sumberBahan} ${row.langkahKerja} ${row.produkBukti} ${row.refleksi}`).toLowerCase();
+      const pertemuanText = cleanStr(`${pertemuanRows[index]?.kegiatanAwal} ${pertemuanRows[index]?.kegiatanInti} ${pertemuanRows[index]?.kegiatanPenutup} ${pertemuanRows[index]?.pengalamanMemahami} ${pertemuanRows[index]?.pengalamanMengaplikasi} ${pertemuanRows[index]?.pengalamanMerefleksi} ${pertemuanRows[index]?.asesmenAwal} ${pertemuanRows[index]?.asesmenProses} ${pertemuanRows[index]?.asesmenAkhir}`).toLowerCase();
+      if (!cleanStr(row.judul)) warnings.push(`LKPD pertemuan ${index + 1}: judul belum diisi.`);
+      if (countMeaningfulLines(row.tujuan) < 1) warnings.push(`LKPD pertemuan ${index + 1}: tujuan belum jelas.`);
+      if (countMeaningfulLines(row.langkahKerja) < 3) warnings.push(`LKPD pertemuan ${index + 1}: langkah kerja perlu minimal 3 langkah operasional.`);
+      if (!/(produk|bukti|jawaban|data|hasil|kinerja|kesimpulan)/i.test(row.produkBukti || "")) warnings.push(`LKPD pertemuan ${index + 1}: produk/bukti belajar perlu lebih eksplisit.`);
+      if (pertemuanText && merged && !pertemuanText.split(/\s+/).some(word => word.length > 7 && merged.includes(word))) warnings.push(`LKPD pertemuan ${index + 1}: isi perlu lebih tampak mengikuti kegiatan pembelajaran pertemuan tersebut.`);
     });
     return warnings;
   };
@@ -1037,21 +1247,26 @@ function App() {
     setCountdown(12);
 
     const jumlahPertemuan = getJumlahPertemuanValue(rppData.jumlahPertemuan);
+    const mapelCpGuidance = getMapelCpGuidance(rppData.mapel, rppData.kelas);
     const prompt = `Anda adalah ahli kurikulum dan Pembelajaran Mendalam. Tugas Anda HANYA menyusun Modul Ajar/RPM, bukan menyusun kisi-kisi, bank soal, atau rubrik lampiran.
 
 ATURAN TETAP KURIKULER:
 1. Ikuti alur CP -> analisis materi -> kompetensi awal -> TP -> pengalaman memahami, mengaplikasi, merefleksi -> asesmen awal, proses, akhir -> refleksi guru.
-2. CP harus formal sesuai mapel dan fase. Jangan mengubah CP menjadi tujuan harian. Jika mapel IPA Fase D, CP harus bernuansa elemen Pemahaman IPA dan Keterampilan Proses, lalu dikaitkan dengan topik tanpa keluar dari CP resmi.
+2. CP harus formal sesuai mapel dan fase. Jangan mengubah CP menjadi tujuan harian. Ikuti RUJUKAN CP MAPEL agar Bahasa Jawa dan Koding/KA tidak diperlakukan sebagai mapel umum.
 3. Tujuan Pembelajaran WAJIB minimal 3 butir bernomor, memakai kata kerja operasional terukur, dan jelas menurunkan CP ke topik.
 4. Kompetensi awal harus berupa prasyarat materi yang spesifik, bukan teks generik. Awali tiap poin dengan kemampuan prasyarat konkret.
 5. Kesiapan peserta didik wajib membedakan kognitif, motivasi, kebiasaan belajar, dan kebutuhan dukungan.
 6. Karakteristik materi wajib menjelaskan sifat faktual, konseptual, prosedural, kontekstual, dan/atau lintas disiplin.
-7. Situasi nyata lingkungan siswa wajib eksplisit minimal 3 poin: konteks lokal, masalah/fenomena nyata, dan bukti/data sederhana yang dapat diamati siswa.
-8. Profil lulusan dan KSE wajib tampak sebagai konsekuensi nyata dalam kegiatan, asesmen, atau refleksi.
-9. Aktivitas kelas harus kaya, operasional, dan dapat dipraktikkan guru: kegiatan awal minimal 5 langkah; kegiatan inti minimal 7 langkah; kegiatan penutup minimal 4 langkah.
-10. Target kognitif Memahami, Mengaplikasi, dan Merefleksi masing-masing minimal 3 poin yang menunjukkan proses berpikir siswa, bukan sekadar aktivitas fisik.
-11. Asesmen awal, proses, dan akhir masing-masing harus ditulis tepat 4 poin bernomor dengan pola: 1. Teknik: ..., 2. Bukti: ..., 3. Cara membaca: ..., 4. Tindak lanjut: ...
-12. Jumlah pertemuan adalah ${jumlahPertemuan}. Field pertemuanPembelajaran WAJIB berisi tepat ${jumlahPertemuan} objek. Setiap objek mewakili satu pertemuan dan wajib memuat kegiatanAwal, pengalamanMemahami, asesmenAwal, kegiatanInti, pengalamanMengaplikasi, asesmenProses, kegiatanPenutup, pengalamanMerefleksi, dan asesmenAkhir. Jika lebih dari 1 pertemuan, alur tiap pertemuan harus berbeda dan berurutan, bukan salinan.
+7. Materi esensial/pokok materi wajib ringkas: konsep inti, submateri, istilah penting, prinsip/prosedur, dan batasan materi. Jangan menjadi ringkasan panjang.
+8. Situasi nyata lingkungan siswa wajib eksplisit minimal 3 poin: konteks lokal, masalah/fenomena nyata, dan bukti/data sederhana yang dapat diamati siswa.
+9. Profil lulusan dan KSE wajib tampak sebagai konsekuensi nyata dalam kegiatan, asesmen, atau refleksi.
+10. Aktivitas kelas harus kaya, operasional, dan dapat dipraktikkan guru: kegiatan awal minimal 5 langkah; kegiatan inti minimal 7 langkah; kegiatan penutup minimal 4 langkah.
+11. Target kognitif Memahami, Mengaplikasi, dan Merefleksi masing-masing minimal 3 poin yang menunjukkan proses berpikir siswa, bukan sekadar aktivitas fisik.
+12. Asesmen awal, proses, dan akhir masing-masing harus ditulis tepat 4 poin bernomor dengan pola: 1. Teknik: ..., 2. Bukti: ..., 3. Cara membaca: ..., 4. Tindak lanjut: ...
+13. Jumlah pertemuan adalah ${jumlahPertemuan}. Field pertemuanPembelajaran WAJIB berisi tepat ${jumlahPertemuan} objek. Setiap objek mewakili satu pertemuan dan wajib memuat kegiatanAwal, pengalamanMemahami, asesmenAwal, kegiatanInti, pengalamanMengaplikasi, asesmenProses, kegiatanPenutup, pengalamanMerefleksi, dan asesmenAkhir. Jika lebih dari 1 pertemuan, alur tiap pertemuan harus berbeda dan berurutan, bukan salinan.
+
+RUJUKAN CP MAPEL:
+${mapelCpGuidance}
 
 KONTEKS KELAS DAN GURU:
 - Mapel: ${rppData.mapel}
@@ -1061,6 +1276,7 @@ KONTEKS KELAS DAN GURU:
 - CP saat ini: ${rppData.cp || 'Belum dirumuskan'}
 - Analisis materi saat ini: ${rppData.karakteristikMateri || 'Belum dirumuskan'}
 - Tujuan Pembelajaran saat ini: ${rppData.tp || 'Belum dirumuskan'}
+- Materi esensial saat ini: ${rppData.materiEsensial || 'Belum dirumuskan'}
 - Kompetensi awal saat ini: ${rppData.kompetensiAwal || 'Belum dirumuskan'}
 - Kesiapan peserta didik saat ini: ${rppData.kesiapanSiswa || 'Belum dirumuskan'}
 - Situasi nyata lingkungan siswa: ${rppData.situasiNyataSiswa || 'Belum dirumuskan'}
@@ -1071,11 +1287,11 @@ KONTEKS KELAS DAN GURU:
 ${instruksiKhusus ? `- Instruksi khusus guru: ${instruksiKhusus}` : ''}
 
 FORMAT OUTPUT:
-Keluarkan JSON murni. Semua field wajib terisi, spesifik untuk mapel/kelas/topik, berupa poin bernomor memakai newline (\\n), tanpa basa-basi. Untuk kompetensi awal, situasi nyata, pengalaman belajar, kegiatan, dan refleksi, gunakan kalimat operasional yang memuat konteks nyata, bukti belajar, dan tindakan siswa. Field pertemuanPembelajaran harus tepat ${jumlahPertemuan} objek sesuai jumlah pertemuan. Jangan keluarkan field kisiKisi, bankSoal, atau rubrikPenilaian.`;
+Keluarkan JSON murni. Semua field wajib terisi, spesifik untuk mapel/kelas/topik, berupa poin bernomor memakai newline (\\n), tanpa basa-basi. Untuk kompetensi awal, situasi nyata, pengalaman belajar, kegiatan, dan refleksi, gunakan kalimat operasional yang memuat konteks nyata, bukti belajar, dan tindakan siswa. Field pertemuanPembelajaran harus tepat ${jumlahPertemuan} objek sesuai jumlah pertemuan. Jangan keluarkan field kisiKisi, bankSoal, rubrikPenilaian, atau lkpd.`;
 
     const payload = {
       contents: [{ parts: [{ text: prompt }] }],
-      systemInstruction: { parts: [{ text: "Keluarkan JSON murni tanpa markdown. Fokus hanya pada Modul Ajar/RPM. Selaraskan CP, TP, kegiatan, pengalaman belajar, asesmen kelas, profil lulusan, dan KSE." }] },
+      systemInstruction: { parts: [{ text: "Keluarkan JSON murni tanpa markdown. Fokus hanya pada Modul Ajar/RPM. Selaraskan CP, TP, materi esensial, kegiatan, pengalaman belajar, asesmen kelas, profil lulusan, dan KSE. Gunakan rujukan CP mapel yang diberikan, terutama untuk Bahasa Jawa dan Koding/KA." }] },
       generationConfig: stableGenerationConfig({
         responseMimeType: "application/json",
         responseSchema: {
@@ -1085,7 +1301,7 @@ Keluarkan JSON murni. Semua field wajib terisi, spesifik untuk mapel/kelas/topik
             profilLulusan: { type: "ARRAY", items: { type: "STRING" }, description: "Pilih array key yang relevan HANYA dari: keimanan, kewargaan, penalaran, kreativitas, kolaborasi, kemandirian, kesehatan, komunikasi" },
             kseLulusan: { type: "ARRAY", items: { type: "STRING" }, description: "Pilih array key yang relevan HANYA dari: kesadaranDiri, manajemenDiri, kesadaranSosial, keterampilanBerelasi, keputusanBertanggungJawab" },
             profilAlasan: { type: "STRING" }, kseAlasan: { type: "STRING" },
-            praktikPedagogis: { type: "STRING" }, cp: { type: "STRING" }, lintasDisiplin: { type: "STRING" }, tp: { type: "STRING" },
+            praktikPedagogis: { type: "STRING" }, cp: { type: "STRING" }, lintasDisiplin: { type: "STRING" }, tp: { type: "STRING" }, materiEsensial: { type: "STRING" },
             kemitraanPembelajaran: { type: "STRING" }, lingkunganPembelajaran: { type: "STRING" }, pemanfaatanDigital: { type: "STRING" },
             pertemuanPembelajaran: {
               type: "ARRAY",
@@ -1103,7 +1319,7 @@ Keluarkan JSON murni. Semua field wajib terisi, spesifik untuk mapel/kelas/topik
             kegiatanInti: { type: "STRING" }, pengalamanMengaplikasi: { type: "STRING" }, asesmenProses: { type: "STRING" },
             kegiatanPenutup: { type: "STRING" }, pengalamanMerefleksi: { type: "STRING" }, asesmenAkhir: { type: "STRING" }
           },
-          required: ["kompetensiAwal","kesiapanSiswa","karakteristikMateri","situasiNyataSiswa","profilLulusan","kseLulusan","profilAlasan","kseAlasan","praktikPedagogis","cp","lintasDisiplin","tp","kemitraanPembelajaran","lingkunganPembelajaran","pemanfaatanDigital","pertemuanPembelajaran"]
+          required: ["kompetensiAwal","kesiapanSiswa","karakteristikMateri","situasiNyataSiswa","profilLulusan","kseLulusan","profilAlasan","kseAlasan","praktikPedagogis","cp","lintasDisiplin","tp","materiEsensial","kemitraanPembelajaran","lingkunganPembelajaran","pemanfaatanDigital","pertemuanPembelajaran"]
         }
       })
     };
@@ -1126,7 +1342,7 @@ Keluarkan JSON murni. Semua field wajib terisi, spesifik untuk mapel/kelas/topik
           ...prev,
           kompetensiAwal: cleanStr(aiData.kompetensiAwal) || prev.kompetensiAwal, kesiapanSiswa: cleanStr(aiData.kesiapanSiswa) || prev.kesiapanSiswa, karakteristikMateri: cleanStr(aiData.karakteristikMateri) || prev.karakteristikMateri, situasiNyataSiswa: ensureSituasiNyata(aiData.situasiNyataSiswa || prev.situasiNyataSiswa, prev),
           profilLulusan: aiData.profilLulusan ? newProfil : prev.profilLulusan, profilAlasan: cleanStr(aiData.profilAlasan) || prev.profilAlasan, kseLulusan: aiData.kseLulusan ? newKse : prev.kseLulusan, kseAlasan: cleanStr(aiData.kseAlasan) || prev.kseAlasan,
-          praktikPedagogis: cleanStr(aiData.praktikPedagogis) || prev.praktikPedagogis, cp: cleanStr(aiData.cp) || prev.cp, lintasDisiplin: cleanStr(aiData.lintasDisiplin) || prev.lintasDisiplin, tp: cleanStr(aiData.tp) || prev.tp,
+          praktikPedagogis: cleanStr(aiData.praktikPedagogis) || prev.praktikPedagogis, cp: cleanStr(aiData.cp) || prev.cp, lintasDisiplin: cleanStr(aiData.lintasDisiplin) || prev.lintasDisiplin, tp: cleanStr(aiData.tp) || prev.tp, materiEsensial: cleanStr(aiData.materiEsensial) || prev.materiEsensial,
           kemitraanPembelajaran: cleanStr(aiData.kemitraanPembelajaran) || prev.kemitraanPembelajaran, lingkunganPembelajaran: cleanStr(aiData.lingkunganPembelajaran) || prev.lingkunganPembelajaran, pemanfaatanDigital: cleanStr(aiData.pemanfaatanDigital) || prev.pemanfaatanDigital,
           pertemuanPembelajaran
         }, pertemuanPembelajaran);
@@ -1147,15 +1363,22 @@ Keluarkan JSON murni. Semua field wajib terisi, spesifik untuk mapel/kelas/topik
     setActiveGenerateMode("asesmen");
     setCountdown(15);
     const expectedTotal = getExpectedAssessmentSequence().length;
+    if (expectedTotal < 1) {
+      setIsGenerating(false);
+      setActiveGenerateMode("");
+      notify("Rencana Soal Belum Valid", "Isi minimal satu baris Rencana Jumlah Soal dengan jumlah lebih dari 0 sebelum generate instrumen penilaian.", "warning");
+      return;
+    }
+    const mapelCpGuidance = getMapelCpGuidance(rppData.mapel, rppData.kelas);
     const assessmentPertemuanSummary = syncPertemuanPembelajaran(rppData).map((row, index) => (
       `Pertemuan ${index + 1}: Inti=${cleanStr(row.kegiatanInti) || '-'} | Asesmen=${[row.asesmenAwal, row.asesmenProses, row.asesmenAkhir].filter(Boolean).join(' | ') || '-'}`
     )).join('\n');
 
-    const prompt = `Anda adalah ahli asesmen Pembelajaran Mendalam. Tugas Anda HANYA menyusun Instrumen Penilaian: kisi-kisi, bank soal, dan rubrik. Jangan menulis ulang Modul Ajar/RPM.
+    const prompt = `Anda adalah ahli asesmen Pembelajaran Mendalam. Tugas Anda HANYA menyusun Lampiran Soal: kisi-kisi, bank soal, dan rubrik. Jangan menulis ulang Modul Ajar/RPM dan jangan membuat LKPD.
 
 ATURAN TETAP ASESMEN:
 1. Kisi-kisi harus menurunkan CP dan TP secara logis.
-2. Kisi-kisi WAJIB mengikuti Rencana Jumlah Soal secara berurutan dan tepat: jumlah, bentuk, level kognitif, dan nomor soal tidak boleh berubah.
+2. Kisi-kisi WAJIB mengikuti URUTAN WAJIB NOMOR SOAL secara berurutan dan tepat: jumlah, bentuk, level kognitif, dan nomor soal tidak boleh berubah.
 3. Bank soal wajib 100% mengikuti kisi-kisi: nomor, bentuk, level kognitif, materi, dan indikator.
 4. Setiap soal wajib memiliki stimulus HOTS/literasi-numerasi yang jelas: minimal 3 kalimat atau 2 kalimat panjang berisi konteks lokal, data/fakta/angka/tabel sederhana, dan masalah yang perlu dianalisis. Jangan membuat stimulus satu kalimat pendek.
 5. Kolom soal HANYA berisi stimulus dan pertanyaan/perintah. Jangan menaruh opsi A-D, premis-respon, atau pedoman jawaban di kolom soal.
@@ -1167,26 +1390,34 @@ ATURAN TETAP ASESMEN:
    - Praktik/Proyek: kolom opsi berisi rambu pengerjaan/produk/bukti dan kolom kunci isi "-".
 7. PG Kompleks wajib tepat 2 jawaban benar. Menjodohkan wajib punya minimal 4 pasangan dan tidak urut 1-A, 2-B, 3-C, 4-D.
 8. Rubrik wajib 1 baris untuk setiap bentuk penilaian unik yang muncul di kisi-kisi. Kolom skor berisi rentang nilai singkat, misalnya 0-1, 0-5, atau 0-10. Kolom kriteria berisi representasi skor per baris, misalnya "Skor 9-10: Model sangat kreatif, berfungsi sangat baik, demonstrasi jelas, dan penjelasan konsep akurat.", tanpa label "Kriteria:".
+9. Jangan membuat LKPD pada proses ini. LKPD punya tombol generate sendiri agar prompt tidak bercampur dengan lampiran soal.
 
 KONTEKS MODUL:
 - Mapel: ${rppData.mapel}
 - Fase/Kelas: ${rppData.kelas}
+- Rujukan CP mapel: ${mapelCpGuidance}
 - Topik: ${rppData.topik}
 - CP: ${rppData.cp || '-'}
 - TP: ${rppData.tp || '-'}
-- Materi esensial: ${rppData.karakteristikMateri || '-'}
+- Materi esensial: ${rppData.materiEsensial || rppData.karakteristikMateri || '-'}
 - Kompetensi awal: ${rppData.kompetensiAwal || '-'}
 - Situasi nyata siswa: ${rppData.situasiNyataSiswa || '-'}
+- Ringkasan kegiatan lengkap per pertemuan:
+${getPertemuanActivitySummary(rppData) || '-'}
 - Kegiatan dan asesmen per pertemuan:
 ${assessmentPertemuanSummary || '-'}
 - Instruksi khusus guru sebagai konteks: ${instruksiKhusus || '-'}
+- Instruksi khusus Lampiran Soal: ${instruksiKhususAsesmen || '-'}
 
 RENCANA JUMLAH SOAL:
 ${getAssessmentPlanText()}
 Total wajib: tepat ${expectedTotal} butir kisi-kisi dan tepat ${expectedTotal} butir bank soal.
 
+URUTAN WAJIB NOMOR SOAL:
+${getAssessmentSequenceText()}
+
 FORMAT OUTPUT:
-Keluarkan JSON murni dengan field kisiKisi, bankSoal, rubrikPenilaian. Jangan menambah narasi di luar JSON.`;
+Keluarkan JSON murni dengan field kisiKisi, bankSoal, dan rubrikPenilaian. Jangan menambah narasi di luar JSON. Jangan keluarkan field lkpd.`;
 
     const assessmentSchema = {
       type: "OBJECT",
@@ -1200,8 +1431,8 @@ Keluarkan JSON murni dengan field kisiKisi, bankSoal, rubrikPenilaian. Jangan me
 
     const payload = {
       contents: [{ parts: [{ text: prompt }] }],
-      systemInstruction: { parts: [{ text: "Keluarkan JSON murni tanpa markdown. Fokus hanya pada instrumen penilaian. Bank soal wajib berbasis stimulus, opsi/pedoman jawab terpisah dari soal, dan rubrik mengikuti bentuk unik di kisi-kisi." }] },
-      generationConfig: stableGenerationConfig({ responseMimeType: "application/json", responseSchema: assessmentSchema })
+      systemInstruction: { parts: [{ text: "Keluarkan JSON murni tanpa markdown. Fokus hanya pada Lampiran Soal: kisi-kisi, bank soal, dan rubrik. Jangan membuat LKPD. Jangan mengubah urutan nomor, bentuk soal, level kognitif, atau total dari rencana soal. Gunakan rujukan CP mapel agar konteks, materi, indikator, stimulus, dan rubrik khas mapel. Bank soal wajib berbasis stimulus, opsi/pedoman jawab terpisah dari soal, dan rubrik mengikuti bentuk unik di kisi-kisi." }] },
+      generationConfig: stableGenerationConfig({ temperature: 0.12, topP: 0.78, responseMimeType: "application/json", responseSchema: assessmentSchema })
     };
 
     try {
@@ -1213,16 +1444,113 @@ Keluarkan JSON murni dengan field kisiKisi, bankSoal, rubrikPenilaian. Jangan me
       const generatedKisi = mapKisiRows(aiData.kisiKisi || [], rppData);
       const generatedBank = mapBankRows(aiData.bankSoal || [], generatedKisi);
       const generatedRubrik = mapRubrikByKisi(aiData.rubrikPenilaian || [], generatedKisi);
-      if (generatedKisi.length < expectedTotal || generatedBank.length < expectedTotal) throw new Error(`Instrumen belum memenuhi total minimal ${expectedTotal} butir. Silakan generate ulang.`);
+      if (generatedKisi.length !== expectedTotal || generatedBank.length !== expectedTotal) throw new Error(`Instrumen harus tepat ${expectedTotal} butir sesuai rencana jumlah soal. Silakan generate ulang.`);
 
-      saveAiSnapshot("Generate Instrumen Penilaian");
+      saveAiSnapshot("Generate Lampiran Soal");
       setRppData(prev => ({ ...prev, kisiKisi: generatedKisi, bankSoal: generatedBank, rubrikPenilaian: generatedRubrik }));
       const warnings = validateAssessmentStructure({ ...rppData, kisiKisi: generatedKisi, bankSoal: generatedBank, rubrikPenilaian: generatedRubrik });
-      if (warnings.length) notify("Catatan Validasi Instrumen", "- " + warnings.slice(0, 10).join("\n- "), "warning");
-      else notify("Instrumen Penilaian Selesai", "Kisi-kisi, bank soal, dan rubrik sudah digenerate sesuai rencana jumlah soal.", "success");
+      if (warnings.length) notify("Catatan Validasi Lampiran Soal", "- " + warnings.slice(0, 10).join("\n- "), "warning");
+      else notify("Lampiran Soal Selesai", "Kisi-kisi, bank soal, dan rubrik sudah digenerate sesuai rencana jumlah soal.", "success");
     } catch (error) {
       if (!hasActiveApiKey() || error.message.toLowerCase().includes("api key") || error.message.includes("API_KEY_INVALID")) { setTempApiKey(geminiApiKey); setShowApiModal(true); }
-      else notify("Generate Instrumen Belum Berhasil", "Sistem AI belum berhasil menyusun instrumen penilaian.\n\nDetail: " + error.message, "error");
+      else notify("Generate Lampiran Soal Belum Berhasil", "Sistem AI belum berhasil menyusun kisi-kisi, bank soal, dan rubrik.\n\nDetail: " + error.message, "error");
+    } finally { setIsGenerating(false); setActiveGenerateMode(""); }
+  };
+
+  const handleGenerateLkpdAI = async () => {
+    if (!rppData.topik || !rppData.mapel || !rppData.kelas) {
+      notify("Data Belum Lengkap", "Mohon isi Mata Pelajaran, Fase/Kelas, dan Topik Pembelajaran terlebih dahulu.", "warning");
+      return;
+    }
+    const expectedLkpdTotal = syncPertemuanPembelajaran(rppData).length;
+    if (expectedLkpdTotal < 1) {
+      notify("Jumlah Pertemuan Belum Valid", "Isi Jml. Pertemuan terlebih dahulu sebelum generate LKPD.", "warning");
+      return;
+    }
+    setIsGenerating(true);
+    setActiveGenerateMode("lkpd");
+    setCountdown(12);
+
+    const mapelCpGuidance = getMapelCpGuidance(rppData.mapel, rppData.kelas);
+    const kisiSummary = rppData.kisiKisi.length ? rppData.kisiKisi.map((row, index) => `No.${index + 1}/${row.nomor || index + 1}: ${row.bentuk || '-'} ${row.level || '-'} - ${row.indikator || '-'}`).join('\n') : '-';
+    const rubrikSummary = rppData.rubrikPenilaian.length ? rppData.rubrikPenilaian.map(row => `${row.bentukPenilaian || '-'} (${row.skor || '-'}): ${cleanStr(row.kriteria) || '-'}`).join('\n') : '-';
+    const prompt = `Anda adalah ahli LKPD Pembelajaran Mendalam. Tugas Anda HANYA menyusun Lampiran LKPD. Jangan membuat Modul Ajar, kisi-kisi, bank soal, atau rubrik.
+
+ATURAN TETAP LKPD:
+1. Buat tepat ${expectedLkpdTotal} LKPD, satu LKPD untuk setiap pertemuan.
+2. Setiap LKPD wajib mengikuti kegiatan pembelajaran pertemuan terkait: kegiatan awal, kegiatan inti, kegiatan penutup, target memahami, mengaplikasi, merefleksi, serta asesmen awal/proses/akhir.
+3. LKPD tidak boleh generik. Langkah kerja harus dapat langsung dipakai siswa dan memuat aktivitas membaca/mengamati data, berdiskusi/menalar, menghasilkan produk/bukti, dan refleksi.
+4. Setiap LKPD wajib memuat field: pertemuan, judul, tujuan, petunjuk, sumberBahan, langkahKerja, produkBukti, dan refleksi.
+5. Tujuan LKPD harus menurunkan TP dan materi esensial. Langkah kerja minimal 5 langkah bernomor, operasional, dan sesuai waktu belajar.
+6. Produk/bukti belajar harus selaras dengan asesmen dan rubrik/lampiran soal yang sudah ada bila tersedia.
+7. Refleksi siswa minimal 3 pertanyaan yang menilai pemahaman, strategi belajar, dan tindak lanjut.
+
+KONTEKS MODUL:
+- Mapel: ${rppData.mapel}
+- Fase/Kelas: ${rppData.kelas}
+- Rujukan CP mapel: ${mapelCpGuidance}
+- Topik: ${rppData.topik}
+- CP: ${rppData.cp || '-'}
+- TP: ${rppData.tp || '-'}
+- Materi esensial: ${rppData.materiEsensial || rppData.karakteristikMateri || '-'}
+- Kompetensi awal: ${rppData.kompetensiAwal || '-'}
+- Situasi nyata siswa: ${rppData.situasiNyataSiswa || '-'}
+- Profil lulusan dipilih: ${Object.keys(rppData.profilLulusan).filter(k => rppData.profilLulusan[k]).map(k => profilLabels[k]).join(', ') || '-'}
+- KSE dipilih: ${Object.keys(rppData.kseLulusan).filter(k => rppData.kseLulusan[k]).map(k => kseLabels[k]).join(', ') || '-'}
+- Ringkasan kegiatan lengkap per pertemuan:
+${getPertemuanActivitySummary(rppData) || '-'}
+- Ringkasan kisi-kisi soal sebagai acuan bukti belajar:
+${kisiSummary}
+- Ringkasan rubrik sebagai acuan kualitas produk:
+${rubrikSummary}
+- Instruksi khusus guru sebagai konteks: ${instruksiKhusus || '-'}
+- Instruksi khusus LKPD: ${instruksiKhususLkpd || '-'}
+
+FORMAT OUTPUT:
+Keluarkan JSON Array murni tepat ${expectedLkpdTotal} objek. Jangan menambah narasi di luar JSON.`;
+
+    const lkpdSchema = {
+      type: "ARRAY",
+      items: {
+        type: "OBJECT",
+        properties: {
+          pertemuan: { type: "STRING" },
+          judul: { type: "STRING" },
+          tujuan: { type: "STRING" },
+          petunjuk: { type: "STRING" },
+          sumberBahan: { type: "STRING" },
+          langkahKerja: { type: "STRING" },
+          produkBukti: { type: "STRING" },
+          refleksi: { type: "STRING" }
+        },
+        required: ["pertemuan","judul","tujuan","petunjuk","sumberBahan","langkahKerja","produkBukti","refleksi"]
+      }
+    };
+
+    const payload = {
+      contents: [{ parts: [{ text: prompt }] }],
+      systemInstruction: { parts: [{ text: "Keluarkan JSON Array murni tanpa markdown. Fokus hanya pada LKPD per pertemuan. Jangan membuat kisi-kisi, bank soal, rubrik, atau Modul Ajar. Setiap LKPD harus mengikuti kegiatan pembelajaran yang diberikan dan menghasilkan bukti belajar yang dapat dinilai." }] },
+      generationConfig: stableGenerationConfig({ temperature: 0.12, topP: 0.78, responseMimeType: "application/json", responseSchema: lkpdSchema })
+    };
+
+    try {
+      const result = await callGeminiAPI(payload);
+      let aiText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      if (!aiText) throw new Error("Respons AI kosong atau tidak berisi JSON LKPD.");
+      aiText = aiText.replace(/```json/gi, '').replace(/```/g, '').trim();
+      const aiData = JSON.parse(aiText);
+      if (!Array.isArray(aiData)) throw new Error("Output AI bukan JSON Array LKPD.");
+      if (aiData.length !== expectedLkpdTotal) throw new Error(`LKPD harus tepat ${expectedLkpdTotal} bagian sesuai jumlah pertemuan. Respons AI berjumlah ${aiData.length}.`);
+      const generatedLkpd = mapLkpdRows(aiData, rppData);
+
+      saveAiSnapshot("Generate LKPD");
+      setRppData(prev => ({ ...prev, lkpd: generatedLkpd }));
+      const warnings = validateLkpdStructure({ ...rppData, lkpd: generatedLkpd });
+      if (warnings.length) notify("Catatan Validasi LKPD", "- " + warnings.slice(0, 10).join("\n- "), "warning");
+      else notify("LKPD Selesai", "LKPD sudah digenerate terpisah sesuai jumlah pertemuan dan kegiatan pembelajaran.", "success");
+    } catch (error) {
+      if (!hasActiveApiKey() || error.message.toLowerCase().includes("api key") || error.message.includes("API_KEY_INVALID")) { setTempApiKey(geminiApiKey); setShowApiModal(true); }
+      else notify("Generate LKPD Belum Berhasil", "Sistem AI belum berhasil menyusun LKPD.\n\nDetail: " + error.message, "error");
     } finally { setIsGenerating(false); setActiveGenerateMode(""); }
   };
 
@@ -1236,18 +1564,31 @@ Keluarkan JSON murni dengan field kisiKisi, bankSoal, rubrikPenilaian. Jangan me
     const targetPertemuan = pertemuanIndex !== null ? syncPertemuanPembelajaran(rppData)[pertemuanIndex] || {} : rppData;
     setIndividualLoading(prev => ({...prev, [loadingKey]: true}));
     setCountdown(8);
-    const expectedAssessmentTotal = Math.max(rppData.kisiKisi.length, getExpectedAssessmentSequence().length);
+    const expectedAssessmentTotal = getExpectedAssessmentSequence().length;
+    if (["kisiKisi", "bankSoal", "rubrikPenilaian"].includes(fieldKey) && expectedAssessmentTotal < 1) {
+      setIndividualLoading(prev => ({...prev, [loadingKey]: false}));
+      notify("Rencana Soal Belum Valid", "Isi minimal satu baris Rencana Jumlah Soal dengan jumlah lebih dari 0 sebelum generate lampiran instrumen.", "warning");
+      return;
+    }
+    const mapelCpGuidance = getMapelCpGuidance(rppData.mapel, rppData.kelas);
 
-    let sequentialContext = `Konteks Saat Ini:\n- Mapel: ${rppData.mapel}\n- Fase/Kelas: ${rppData.kelas || '-'}\n- Topik: ${rppData.topik}\n- CP: ${rppData.cp || '-'}\n- Analisis Materi: ${rppData.karakteristikMateri || '-'}\n- Situasi Nyata Siswa: ${rppData.situasiNyataSiswa || '-'}\n- Kompetensi Awal: ${rppData.kompetensiAwal || '-'}\n- TP: ${rppData.tp || '-'}\n- Jumlah Pertemuan: ${rppData.jumlahPertemuan || '-'}${pertemuanIndex !== null ? `\n- Bagian yang sedang dibuat: Pertemuan ${pertemuanIndex + 1}` : ''}\n- Profil Lulusan: ${Object.keys(rppData.profilLulusan).filter(k => rppData.profilLulusan[k]).map(k => profilLabels[k]).join(', ') || '-'}\n- Alasan Profil: ${rppData.profilAlasan || '-'}\n- KSE: ${Object.keys(rppData.kseLulusan).filter(k => rppData.kseLulusan[k]).map(k => kseLabels[k]).join(', ') || '-'}\n- Alasan KSE: ${rppData.kseAlasan || '-'}\n- Kegiatan Awal: ${targetPertemuan.kegiatanAwal || '-'}\n- Kegiatan Inti: ${targetPertemuan.kegiatanInti || '-'}\n- Asesmen: ${[targetPertemuan.asesmenAwal, targetPertemuan.asesmenProses, targetPertemuan.asesmenAkhir].filter(Boolean).join(' | ') || '-'}\n`;
-    let fieldSpecificInstruction = "Jabarkan dengan penomoran/bullet point (1., 2., atau -). Jaga sinkronisasi dengan CP, analisis materi, kompetensi awal, TP, kegiatan, asesmen, dan rubrik.";
+    let sequentialContext = `Konteks Saat Ini:\n- Mapel: ${rppData.mapel}\n- Fase/Kelas: ${rppData.kelas || '-'}\n- Rujukan CP Mapel: ${mapelCpGuidance}\n- Topik: ${rppData.topik}\n- CP: ${rppData.cp || '-'}\n- Analisis Materi: ${rppData.karakteristikMateri || '-'}\n- Materi Esensial: ${rppData.materiEsensial || '-'}\n- Situasi Nyata Siswa: ${rppData.situasiNyataSiswa || '-'}\n- Kompetensi Awal: ${rppData.kompetensiAwal || '-'}\n- TP: ${rppData.tp || '-'}\n- Jumlah Pertemuan: ${rppData.jumlahPertemuan || '-'}${pertemuanIndex !== null ? `\n- Bagian yang sedang dibuat: Pertemuan ${pertemuanIndex + 1}` : ''}\n- Profil Lulusan: ${Object.keys(rppData.profilLulusan).filter(k => rppData.profilLulusan[k]).map(k => profilLabels[k]).join(', ') || '-'}\n- Alasan Profil: ${rppData.profilAlasan || '-'}\n- KSE: ${Object.keys(rppData.kseLulusan).filter(k => rppData.kseLulusan[k]).map(k => kseLabels[k]).join(', ') || '-'}\n- Alasan KSE: ${rppData.kseAlasan || '-'}\n- Kegiatan Awal: ${targetPertemuan.kegiatanAwal || '-'}\n- Kegiatan Inti: ${targetPertemuan.kegiatanInti || '-'}\n- Asesmen: ${[targetPertemuan.asesmenAwal, targetPertemuan.asesmenProses, targetPertemuan.asesmenAkhir].filter(Boolean).join(' | ') || '-'}\n`;
+    let fieldSpecificInstruction = "Jabarkan dengan penomoran/bullet point (1., 2., atau -). Jaga sinkronisasi dengan CP, rujukan CP mapel, analisis materi, kompetensi awal, TP, kegiatan, asesmen, dan rubrik.";
+    const isAssessmentField = ["kisiKisi", "bankSoal", "rubrikPenilaian"].includes(fieldKey);
+    const isLkpdField = fieldKey === "lkpd";
     
-    // Hanya tambahkan instruksi khusus JIKA BUKAN kisi-kisi atau bank soal (Soal/Kisi harus murni HOTS menguji kedalaman)
-    if (instruksiKhusus && fieldKey !== 'kisiKisi' && fieldKey !== 'bankSoal') { 
+    // Instruksi khusus modul, lampiran soal, dan LKPD dipisahkan agar prompt tetap fokus.
+    if (isAssessmentField && instruksiKhususAsesmen) {
+        fieldSpecificInstruction += `\nPENTING (INSTRUKSI KHUSUS LAMPIRAN SOAL): ${instruksiKhususAsesmen}`;
+    } else if (isLkpdField && instruksiKhususLkpd) {
+        fieldSpecificInstruction += `\nPENTING (INSTRUKSI KHUSUS LKPD): ${instruksiKhususLkpd}`;
+    } else if (instruksiKhusus && !isAssessmentField && !isLkpdField) { 
         fieldSpecificInstruction += `\n🔥 PENTING (INSTRUKSI KHUSUS): ${instruksiKhusus}`; 
     }
 
-    if (fieldKey === 'cp') { fieldSpecificInstruction += "\nRumuskan CP formal sesuai mapel dan fase. Jangan menjadi tujuan harian. Untuk IPA Fase D, jaga nuansa elemen Pemahaman IPA dan Keterampilan Proses, lalu kaitkan dengan topik secara wajar."; }
-    else if (fieldKey === 'tp') { fieldSpecificInstruction += "\nBuat minimal 3 Tujuan Pembelajaran bernomor. Setiap TP harus menurunkan CP, memakai kata kerja operasional terukur, menyebut konteks/topik, dan dapat diukur asesmen."; }
+    if (fieldKey === 'cp') { fieldSpecificInstruction += `\nRumuskan CP formal sesuai mapel dan fase. Jangan menjadi tujuan harian. Ikuti rujukan ini: ${mapelCpGuidance}`; }
+    else if (fieldKey === 'tp') { fieldSpecificInstruction += "\nBuat minimal 3 Tujuan Pembelajaran bernomor. Setiap TP harus menurunkan CP dan rujukan CP mapel, memakai kata kerja operasional terukur, menyebut konteks/topik, dan dapat diukur asesmen."; }
+    else if (fieldKey === 'materiEsensial') { fieldSpecificInstruction += "\nBuat ringkas saja: konsep inti, submateri, istilah penting, prinsip/prosedur, dan batasan materi. Pilih materi yang khas sesuai rujukan CP mapel. Jangan menulis rangkuman panjang."; }
     else if (fieldKey === 'kompetensiAwal') { fieldSpecificInstruction += "\nTulis prasyarat materi secara eksplisit. Hindari teks generik. Setiap poin harus berupa kemampuan awal yang perlu dimiliki siswa sebelum mempelajari topik."; }
     else if (fieldKey === 'situasiNyataSiswa') { fieldSpecificInstruction += "\nBuat minimal 3 poin: konteks lokal siswa, masalah/fenomena nyata, dan bukti/data sederhana yang dapat diamati. Jangan generik."; }
     else if (fieldKey === 'kesiapanSiswa') { fieldSpecificInstruction += "\nPisahkan aspek: Kognitif, Motivasi, Kebiasaan Belajar, dan Kebutuhan Dukungan. Berikan konteks kelas SMP yang realistis."; }
@@ -1260,19 +1601,25 @@ Keluarkan JSON murni dengan field kisiKisi, bankSoal, rubrikPenilaian. Jangan me
     else if (fieldKey === 'pengalamanMerefleksi') { fieldSpecificInstruction += "\nBuat minimal 3 poin regulasi diri siswa: strategi belajar, bukti pemahaman, kesulitan, perbaikan, dan rencana belajar berikutnya."; }
     else if (fieldKey === 'asesmenAkhir') { fieldSpecificInstruction += "\nTulis tepat 4 poin bernomor dengan format: 1. Teknik: ..., 2. Bukti: ..., 3. Cara membaca: ..., 4. Tindak lanjut: ..."; }
     else if (fieldKey === 'kegiatanPenutup') { sequentialContext += `Kegiatan Inti Sebelumnya: ${targetPertemuan.kegiatanInti || '-'}\n`; fieldSpecificInstruction += "\nBuat minimal 4 langkah penutup: sintesis, refleksi strategi berpikir, umpan balik, tindak lanjut/remedial-pengayaan, dan koneksi pertemuan berikutnya."; }
-    else if (fieldKey === 'kisiKisi') { fieldSpecificInstruction += `\nWAJIB mengikuti rencana jumlah soal berikut: ${getAssessmentPlanText()}. Buat tepat ${expectedAssessmentTotal} baris. Kolom 'level' HANYA isi dengan: C1-C6 dan minimal 60% indikator C4-C6. Bentuk Praktik/Proyek boleh dipakai bila ada pada rencana asesmen atau TP membutuhkan evidensi otentik.`; }
-    else if (fieldKey === 'bankSoal') { const stringKisi = rppData.kisiKisi.map(k => `No.${k.nomor} (Level: ${k.level}, Bentuk: ${k.bentuk}): ${k.indikator}`).join(' | '); sequentialContext += `KISI-KISI SEBAGAI ACUAN MUTLAK:\n[ ${stringKisi || 'Acak'} ]\n`; fieldSpecificInstruction += `\nWAJIB membuat bank soal HOTS dan/atau LITERASI-NUMERASI sesuai semua baris kisi-kisi di atas. Kolom soal HANYA berisi stimulus minimal 3 kalimat atau 2 kalimat panjang yang memuat konteks, data/fakta/angka, masalah, dan pertanyaan/perintah; jangan menaruh opsi A-D, premis-respon, pedoman jawaban, atau kunci di kolom soal.\nKolom opsi wajib: PG/PG Kompleks hanya opsi A-D; Menjodohkan format "Premis / Kolom A:" 1-4 lalu "Respon / Kolom B:" A-D; Isian Singkat isi "-"; Uraian berisi kunci/pedoman ringkas TANPA label "Pedoman Jawaban:" dan kunci "-"; Praktik/Proyek berisi rambu produk/bukti dan kunci "-".\nKHUSUS PG Kompleks: Opsi A, B, C, D dan WAJIB TEPAT 2 OPSI BENAR (Kunci: contoh B dan D). Jangan memakai format Premis/Kolom A.\nKHUSUS MENJODOHKAN: BUKAN pilihan ganda. Kunci minimal 4 pasangan acak, contoh: 1-B, 2-D, 3-A, 4-C.\nPENTING: prioritaskan kepatuhan mutlak pada kisi-kisi, stimulus HOTS, literasi, numerasi, dan evidensi Praktik/Proyek.`; }
+    else if (fieldKey === 'kisiKisi') { fieldSpecificInstruction += `\nWAJIB mengikuti rencana jumlah soal berikut: ${getAssessmentPlanText()}. Buat tepat ${expectedAssessmentTotal} baris sesuai urutan nomor berikut:\n${getAssessmentSequenceText()}\nKolom 'level' HANYA isi dengan level pada urutan tersebut. Bentuk soal dan nomor tidak boleh berubah. Indikator harus menurunkan CP/TP/materi modul ajar yang sudah dibuat.`; }
+    else if (fieldKey === 'bankSoal') { const stringKisi = rppData.kisiKisi.map(k => `No.${k.nomor} (Level: ${k.level}, Bentuk: ${k.bentuk}): ${k.indikator}`).join(' | '); sequentialContext += `URUTAN WAJIB NOMOR SOAL:\n${getAssessmentSequenceText()}\nKISI-KISI SEBAGAI ACUAN MUTLAK:\n[ ${stringKisi || 'Acak'} ]\n`; fieldSpecificInstruction += `\nWAJIB membuat bank soal HOTS dan/atau LITERASI-NUMERASI sesuai semua baris kisi-kisi di atas dan urutan wajib nomor soal. Jumlah harus tepat ${expectedAssessmentTotal}; nomor, bentuk, dan level tidak boleh berubah dari rencana.\nKolom soal HANYA berisi stimulus minimal 3 kalimat atau 2 kalimat panjang yang memuat konteks, data/fakta/angka, masalah, dan pertanyaan/perintah; jangan menaruh opsi A-D, premis-respon, pedoman jawaban, atau kunci di kolom soal.\nKolom opsi wajib: PG/PG Kompleks hanya opsi A-D; Menjodohkan format "Premis / Kolom A:" 1-4 lalu "Respon / Kolom B:" A-D; Isian Singkat isi "-"; Uraian berisi kunci/pedoman ringkas TANPA label "Pedoman Jawaban:" dan kunci "-"; Praktik/Proyek berisi rambu produk/bukti dan kunci "-".\nKHUSUS PG Kompleks: Opsi A, B, C, D dan WAJIB TEPAT 2 OPSI BENAR (Kunci: contoh B dan D). Jangan memakai format Premis/Kolom A.\nKHUSUS MENJODOHKAN: BUKAN pilihan ganda. Kunci minimal 4 pasangan acak, contoh: 1-B, 2-D, 3-A, 4-C.\nPENTING: prioritaskan kepatuhan mutlak pada kisi-kisi, stimulus HOTS, literasi, numerasi, dan evidensi Praktik/Proyek.`; }
     else if (fieldKey === 'rubrikPenilaian') { const bentukRubrik = getBentukPenilaianList().join(', '); const aturanSkor = getBentukPenilaianList().map(b => `${b}: ${skorBentuk[b] || 'skor disesuaikan indikator'}`).join(' | '); sequentialContext += `Bentuk penilaian dari kisi-kisi: ${bentukRubrik}\nAturan skor: ${aturanSkor}\n`; fieldSpecificInstruction += `\nBuat tepat 1 rubrik untuk setiap bentuk penilaian dari kisi-kisi: ${bentukRubrik}. Kolom skor hanya berisi rentang nilai singkat, misalnya 0-1, 0-5, atau 0-10. Kolom kriteria berisi representasi skor per baris dengan format "Skor 9-10: ...", "Skor 7-8: ...", tanpa label "Kriteria:" atau "Rentang Nilai:".`; }
+    else if (fieldKey === 'lkpd') { sequentialContext += `RINGKASAN KEGIATAN PER PERTEMUAN:\n${getPertemuanActivitySummary(rppData)}\n`; fieldSpecificInstruction += `\nBuat LKPD tepat ${syncPertemuanPembelajaran(rppData).length} bagian sesuai jumlah pertemuan. Setiap bagian harus mengikuti kegiatan awal-inti-penutup, target kognitif, dan asesmen pada pertemuan terkait. Jangan membuat LKPD generik. Setiap LKPD wajib memuat pertemuan, judul, tujuan, petunjuk, sumberBahan, langkahKerja, produkBukti, dan refleksi.`; }
 
     let prompt = `Tugas Anda: Merancang spesifik bagian "${fieldTitle}" tanpa basa-basi.\n${sequentialContext}\nATURAN KETAT: ${fieldSpecificInstruction}`;
-    let payload = { contents: [{ parts: [{ text: prompt }] }], systemInstruction: { parts: [{ text: "Keluarkan output sesuai permintaan, dilarang memberi pengantar. Gunakan 1 kali enter/newline (\\n) agar poin rapi ke bawah. Patuhi instruksi sinkronisasi." }] }, generationConfig: stableGenerationConfig() };
+    let payload = { contents: [{ parts: [{ text: prompt }] }], systemInstruction: { parts: [{ text: "Keluarkan output sesuai permintaan, dilarang memberi pengantar. Gunakan 1 kali enter/newline (\\n) agar poin rapi ke bawah. Patuhi instruksi sinkronisasi dan rujukan CP mapel." }] }, generationConfig: stableGenerationConfig() };
 
     if (type === 'string') { prompt += `\n\nHANYA kembalikan teks isian.`; } else {
       let schemaObj = {};
       if (type === 'array_kisi') schemaObj = { type: "ARRAY", items: { type: "OBJECT", properties: { materi: { type: "STRING" }, indikator: { type: "STRING" }, level: { type: "STRING", description: "Hanya: C1, C2, C3, C4, C5, C6" }, bentuk: { type: "STRING", description: "Hanya: PG, PG Kompleks, Menjodohkan, Isian Singkat, Uraian, Praktik, Proyek" }, nomor: { type: "STRING" } }, required: ["materi","indikator","level","bentuk","nomor"] } };
-      else if (type === 'array_soal') { prompt += `\nFormat JSON Array tepat ${expectedAssessmentTotal} butir, mengikuti semua baris kisi-kisi bila sudah ada. Tambahkan butir Praktik/Proyek jika bentuk tersebut ada di kisi-kisi.`; schemaObj = { type: "ARRAY", items: { type: "OBJECT", properties: { soal: { type: "STRING" }, opsi: { type: "STRING" }, kunci: { type: "STRING" } }, required: ["soal","opsi","kunci"] } }; }
+      else if (type === 'array_soal') { prompt += `\nFormat JSON Array tepat ${expectedAssessmentTotal} butir, mengikuti semua baris kisi-kisi dan urutan wajib nomor soal. Jangan menambah atau mengurangi butir. Tambahkan butir Praktik/Proyek hanya jika bentuk tersebut ada di kisi-kisi/rencana.`; schemaObj = { type: "ARRAY", items: { type: "OBJECT", properties: { soal: { type: "STRING" }, opsi: { type: "STRING" }, kunci: { type: "STRING" } }, required: ["soal","opsi","kunci"] } }; }
       else if (type === 'array_rubrik') { prompt += `\nFormat JSON Array dengan jumlah baris sesuai bentuk penilaian unik dari kisi-kisi: ${getBentukPenilaianList().join(', ')}.`; schemaObj = { type: "ARRAY", items: { type: "OBJECT", properties: { bentukPenilaian: { type: "STRING" }, skor: { type: "STRING" }, kriteria: { type: "STRING" } }, required: ["bentukPenilaian","skor","kriteria"] } }; }
-      payload.generationConfig = stableGenerationConfig({ responseMimeType: "application/json", responseSchema: schemaObj });
+      else if (type === 'array_lkpd') { prompt += `\nFormat JSON Array tepat ${syncPertemuanPembelajaran(rppData).length} LKPD, satu objek untuk setiap pertemuan.`; schemaObj = { type: "ARRAY", items: { type: "OBJECT", properties: { pertemuan: { type: "STRING" }, judul: { type: "STRING" }, tujuan: { type: "STRING" }, petunjuk: { type: "STRING" }, sumberBahan: { type: "STRING" }, langkahKerja: { type: "STRING" }, produkBukti: { type: "STRING" }, refleksi: { type: "STRING" } }, required: ["pertemuan","judul","tujuan","petunjuk","sumberBahan","langkahKerja","produkBukti","refleksi"] } }; }
+      payload.generationConfig = stableGenerationConfig({
+        ...(isAssessmentField || isLkpdField ? { temperature: 0.12, topP: 0.78 } : {}),
+        responseMimeType: "application/json",
+        responseSchema: schemaObj
+      });
     }
     payload.contents = [{ parts: [{ text: prompt }] }];
 
@@ -1299,23 +1646,29 @@ Keluarkan JSON murni dengan field kisiKisi, bankSoal, rubrikPenilaian. Jangan me
         aiText = aiText.replace(/```json/gi, '').replace(/```/g, '').trim();
         const aiData = JSON.parse(aiText);
         if (!Array.isArray(aiData)) throw new Error("Output AI bukan JSON Array.");
-        if (type === 'array_kisi' && aiData.length < expectedAssessmentTotal) {
-          notify("Hasil AI Belum Valid", `Kisi-kisi minimal ${expectedAssessmentTotal} baris sesuai rencana, tetapi saat ini berjumlah ${aiData.length}. Silakan regenerate ulang.`, "warning");
+        if (type === 'array_kisi' && aiData.length !== expectedAssessmentTotal) {
+          notify("Hasil AI Belum Valid", `Kisi-kisi harus tepat ${expectedAssessmentTotal} baris sesuai rencana, tetapi respons AI berjumlah ${aiData.length}. Silakan regenerate ulang.`, "warning");
           return;
         }
-        if (type === 'array_soal' && aiData.length < expectedAssessmentTotal) {
-          notify("Hasil AI Belum Valid", `Bank soal minimal ${expectedAssessmentTotal} butir sesuai kisi-kisi/rencana, tetapi saat ini berjumlah ${aiData.length}. Silakan regenerate ulang.`, "warning");
+        if (type === 'array_soal' && aiData.length !== expectedAssessmentTotal) {
+          notify("Hasil AI Belum Valid", `Bank soal harus tepat ${expectedAssessmentTotal} butir sesuai kisi-kisi/rencana, tetapi respons AI berjumlah ${aiData.length}. Silakan regenerate ulang.`, "warning");
+          return;
+        }
+        if (type === 'array_lkpd' && aiData.length !== syncPertemuanPembelajaran(rppData).length) {
+          notify("Hasil AI Belum Valid", `LKPD harus tepat ${syncPertemuanPembelajaran(rppData).length} bagian sesuai jumlah pertemuan, tetapi respons AI berjumlah ${aiData.length}. Silakan regenerate ulang.`, "warning");
           return;
         }
         let mappedData = aiData.map((item, i) => ({ id: Date.now() + fieldKey + i, ...item }));
         if(type === 'array_kisi') mappedData = mapKisiRows(aiData, rppData);
         else if(type === 'array_soal') mappedData = mapBankRows(aiData, rppData.kisiKisi);
         else if(type === 'array_rubrik') mappedData = mapRubrikByKisi(aiData);
+        else if(type === 'array_lkpd') mappedData = mapLkpdRows(aiData, rppData);
         const nextData = { ...rppData, [fieldKey]: mappedData };
-        const allWarnings = validateAssessmentStructure(nextData);
+        const allWarnings = type === 'array_lkpd' ? validateLkpdStructure(nextData) : validateAssessmentStructure(nextData);
         const warnings = fieldKey === 'rubrikPenilaian' ? allWarnings.filter(w => w.toLowerCase().includes('rubrik')) :
           fieldKey === 'bankSoal' ? allWarnings.filter(w => w.toLowerCase().includes('soal')) :
           fieldKey === 'kisiKisi' ? allWarnings.filter(w => w.toLowerCase().includes('kisi')) :
+          fieldKey === 'lkpd' ? allWarnings.filter(w => w.toLowerCase().includes('lkpd')) :
           allWarnings;
         if (warnings.length) notify("Catatan Validasi Bagian Ini", "- " + warnings.slice(0, 10).join("\n- "), "warning");
         saveAiSnapshot(`Regenerate ${fieldTitle}`);
@@ -1342,11 +1695,13 @@ Keluarkan JSON murni dengan field kisiKisi, bankSoal, rubrikPenilaian. Jangan me
     setCountdown(8);
 
     const bentuk = normalizeBentuk(kisi.bentuk);
+    const mapelCpGuidance = getMapelCpGuidance(rppData.mapel, rppData.kelas);
     const prompt = `Generate ulang SATU butir Bank Soal nomor ${index + 1} sesuai kisi-kisi berikut.
 
 KONTEKS:
 - Mapel: ${rppData.mapel}
 - Fase/Kelas: ${rppData.kelas || '-'}
+- Rujukan CP mapel: ${mapelCpGuidance}
 - Topik: ${rppData.topik}
 - CP: ${rppData.cp || '-'}
 - TP: ${rppData.tp || '-'}
@@ -1355,6 +1710,7 @@ KONTEKS:
 - Indikator soal: ${kisi.indikator || '-'}
 - Level kognitif: ${kisi.level || '-'}
 - Bentuk soal: ${bentuk || '-'}
+- Instruksi khusus Lampiran Soal: ${instruksiKhususAsesmen || '-'}
 
 ATURAN:
 1. Kolom soal hanya berisi stimulus HOTS/literasi-numerasi minimal 3 kalimat atau 2 kalimat panjang dan pertanyaan/perintah. Stimulus harus memuat konteks, data/fakta/angka/informasi, dan masalah yang perlu dianalisis. Jangan masukkan opsi A-D, premis-respon, pedoman jawaban, atau kunci ke kolom soal.
@@ -1370,8 +1726,10 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
 
     const payload = {
       contents: [{ parts: [{ text: prompt }] }],
-      systemInstruction: { parts: [{ text: "Keluarkan JSON object murni tanpa markdown. Fokus hanya satu butir soal. Pisahkan stimulus/pertanyaan dari opsi atau pedoman jawab." }] },
+      systemInstruction: { parts: [{ text: "Keluarkan JSON object murni tanpa markdown. Fokus hanya satu butir soal. Gunakan rujukan CP mapel agar stimulus dan indikator khas mapel. Pisahkan stimulus/pertanyaan dari opsi atau pedoman jawab." }] },
       generationConfig: stableGenerationConfig({
+        temperature: 0.12,
+        topP: 0.78,
         responseMimeType: "application/json",
         responseSchema: { type: "OBJECT", properties: { soal: { type: "STRING" }, opsi: { type: "STRING" }, kunci: { type: "STRING" } }, required: ["soal","opsi","kunci"] }
       })
@@ -1557,6 +1915,15 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
     }).join('') : `<tr><td colspan="4" style="text-align:center;${tdStyle}">Tidak ada soal</td></tr>`;
     const rubrikRowsForExport = rppData.kisiKisi.length ? mapRubrikByKisi(rppData.rubrikPenilaian, rppData.kisiKisi) : rppData.rubrikPenilaian;
     const rRowsTable = rubrikRowsForExport.length > 0 ? rubrikRowsForExport.map(r => `<tr><td style="text-align:center;font-weight:bold;${tdStyle}">${formatText(r.bentukPenilaian)}</td><td style="text-align:center;font-weight:bold;${tdStyle}">${escapeHtml(getRubrikMaxScore(r))}</td><td style="${tdStyle}">${formatText(getRubrikDescriptionForExport(r))}</td></tr>`).join('') : `<tr><td colspan="3" style="text-align:center;${tdStyle}">Tidak ada rubrik</td></tr>`;
+    const lkpdRowsForExport = mapLkpdRows(rppData.lkpd, rppData);
+    const lkpdRowsTable = lkpdRowsForExport.length > 0 ? lkpdRowsForExport.map((row, index) => `<tr><td colspan="2" class="t-header-sub">LKPD ${index + 1}: ${escapeHtml(row.judul || row.pertemuan || `Pertemuan ${index + 1}`)}</td></tr>
+<tr><td class="t-label">Pertemuan</td><td class="t-content">${escapeHtml(row.pertemuan || `Pertemuan ${index + 1}`)}</td></tr>
+<tr><td class="t-label">Tujuan</td><td class="t-content">${formatText(row.tujuan)}</td></tr>
+<tr><td class="t-label">Petunjuk</td><td class="t-content">${formatText(row.petunjuk)}</td></tr>
+<tr><td class="t-label">Sumber/Bahan</td><td class="t-content">${formatText(row.sumberBahan)}</td></tr>
+<tr><td class="t-label">Langkah Kerja</td><td class="t-content">${formatText(row.langkahKerja)}</td></tr>
+<tr><td class="t-label">Produk/Bukti</td><td class="t-content">${formatText(row.produkBukti)}</td></tr>
+<tr><td class="t-label">Refleksi Siswa</td><td class="t-content">${formatText(row.refleksi)}</td></tr>`).join('') : `<tr><td colspan="2" style="text-align:center;${tdStyle}">Tidak ada LKPD</td></tr>`;
     
     let pKeys = Object.keys(profilLabels);
     let kKeys = Object.keys(kseLabels);
@@ -1565,11 +1932,11 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
     const pertemuanWordRows = syncPertemuanPembelajaran(rppData).map((pertemuan, index) => `
 <tr><td colspan="4" class="t-header-sub">Pertemuan ${index + 1}</td></tr>
 <tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 1:<br/>Pendahuluan</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa">${formatBlock('Aktivitas Kelas (Langkah Fisik):', pertemuan.kegiatanAwal)}</td></tr>
-<tr><td colspan="2" class="t-content" style="width:42%">${formatBlock('Target: Memahami', pertemuan.pengalamanMemahami)}</td><td class="t-content" style="width:42%;background:#f8fafc">${formatBlock('Asesmen Awal:', pertemuan.asesmenAwal, { assessment: true })}</td></tr>
+<tr><td colspan="2" class="t-content" style="width:42%">${formatBlock('Target: Memahami', removeRepeatedTargetTriplet(pertemuan.pengalamanMemahami))}</td><td class="t-content" style="width:42%;background:#f8fafc">${formatBlock('Asesmen Awal:', pertemuan.asesmenAwal, { assessment: true })}</td></tr>
 <tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 2:<br/>Inti</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa">${formatBlock('Aktivitas Kelas (Langkah Fisik):', pertemuan.kegiatanInti)}</td></tr>
-<tr><td colspan="2" class="t-content" style="width:42%">${formatBlock('Target: Mengaplikasi / Memaknai', pertemuan.pengalamanMengaplikasi)}</td><td class="t-content" style="width:42%;background:#f8fafc">${formatBlock('Asesmen Proses:', pertemuan.asesmenProses, { assessment: true })}</td></tr>
+<tr><td colspan="2" class="t-content" style="width:42%">${formatBlock('Target: Mengaplikasi / Memaknai', removeRepeatedTargetTriplet(pertemuan.pengalamanMengaplikasi))}</td><td class="t-content" style="width:42%;background:#f8fafc">${formatBlock('Asesmen Proses:', pertemuan.asesmenProses, { assessment: true })}</td></tr>
 <tr><td class="t-label" rowspan="2" style="vertical-align:middle;text-align:center">Fase 3:<br/>Penutup</td><td colspan="3" class="t-content" style="width:84%;background:#fafafa">${formatBlock('Aktivitas Kelas (Langkah Fisik):', pertemuan.kegiatanPenutup)}</td></tr>
-<tr><td colspan="2" class="t-content" style="width:42%">${formatBlock('Target: Merefleksi', pertemuan.pengalamanMerefleksi)}</td><td class="t-content" style="width:42%;background:#f8fafc">${formatBlock('Asesmen Akhir:', pertemuan.asesmenAkhir, { assessment: true })}</td></tr>`).join('');
+<tr><td colspan="2" class="t-content" style="width:42%">${formatBlock('Target: Merefleksi', removeRepeatedTargetTriplet(pertemuan.pengalamanMerefleksi))}</td><td class="t-content" style="width:42%;background:#f8fafc">${formatBlock('Asesmen Akhir:', pertemuan.asesmenAkhir, { assessment: true })}</td></tr>`).join('');
 
     return `<html xmlns:o='urn:schemas-microsoft-com:office:office' xmlns:w='urn:schemas-microsoft-com:office:word' xmlns='http://www.w3.org/TR/REC-html40'><head><meta charset='utf-8'><title>RPP</title><style>@page WordSection1{size:595.3pt 841.9pt;margin:36pt;mso-header-margin:24pt;mso-footer-margin:24pt;mso-paper-source:0;}div.WordSection1{page:WordSection1;}body{font-family:'Times New Roman',Times,serif;font-size:11pt;line-height:1.05;color:#000;margin:0;padding:0;}p{margin-top:0;margin-bottom:0;mso-margin-top-alt:0cm;mso-margin-bottom-alt:0cm;mso-para-margin:0;text-align:justify;}td{font-size:11pt;line-height:1.05;vertical-align:top;text-align:justify;}th{font-size:11pt;line-height:1.05;vertical-align:middle;}.kop{border-bottom:2px solid black;padding-bottom:3pt;margin-bottom:4pt;text-align:center;line-height:1.05;}.kop p{margin:0;text-align:center;mso-para-margin:0;}.kop-line1{font-size:14pt;font-weight:bold;text-transform:uppercase;line-height:1.05;}.kop-line2{font-size:18pt;font-weight:bold;text-transform:uppercase;margin:0;letter-spacing:0;line-height:1.05;}.kop-line3{font-size:11pt;font-style:italic;line-height:1.05;}.t-table{width:100%;border-collapse:collapse;margin-bottom:4pt;page-break-inside:auto;}.t-table th{background-color:#dbeafe;padding:3px;text-align:center;vertical-align:middle;border:1px solid black;font-size:11pt;font-weight:bold;text-transform:uppercase;}.section-head{background-color:#dbeafe;border:1px solid black;padding:3px;text-align:left!important;vertical-align:middle;font-size:11pt;font-weight:bold;text-transform:uppercase;}.t-label{width:16%;background-color:#f8fafc;border:1px solid black;padding:3px;font-weight:bold;vertical-align:middle;font-size:11pt;text-align:left;}.t-content{border:1px solid black;padding:3px;vertical-align:top;font-size:11pt;text-align:justify;}.t-content-half{width:34%;border:1px solid black;padding:3px;vertical-align:middle;font-size:11pt;text-align:justify;}.t-header-sub{background-color:#e2e8f0;border:1px solid black;padding:3px;text-align:left;font-weight:bold;font-size:11pt;}.text-line{margin:0 0 1pt 0;mso-para-margin:0;text-align:justify;line-height:1.05;mso-line-height-rule:exactly;}.cell-title{margin:0 0 1pt 0;mso-para-margin:0;text-align:left;font-weight:bold;line-height:1.05;mso-line-height-rule:exactly;}.num-list,.letter-list,.lower-letter-list,.bullet-list{margin-top:0;margin-bottom:0;margin-left:6pt;padding-left:12pt;text-align:justify;list-style-position:outside;}.num-list li,.letter-list li,.lower-letter-list li,.bullet-list li{margin:0 0 1pt 0;padding-left:2pt;text-align:justify;line-height:1.05;mso-line-height-rule:exactly;}.matching-line{margin:0;text-align:left;line-height:1.05;mso-line-height-rule:exactly;}.matching-marker{font-weight:bold;}.page-break{page-break-before:always;mso-break-before:page;margin:0;height:0;line-height:1pt;font-size:1pt;}h3,h4{font-size:12pt;}thead{display:table-header-group;}tfoot{display:table-footer-group;}tr{page-break-inside:auto;page-break-after:auto;}</style></head><body><div class="WordSection1">
 <div class="kop"><p class="kop-line1">PEMERINTAH KABUPATEN MAGELANG</p><p class="kop-line1">DINAS PENDIDIKAN DAN KEBUDAYAAN</p><p class="kop-line2">${String(rppData.namaSekolah || 'SMP NEGERI 2 SECANG').toUpperCase()}</p><p class="kop-line3">Jalan Raya Secang, Kab. Magelang, Jawa Tengah 56195 | Telepon: (0293) 3195355</p></div>
@@ -1577,6 +1944,7 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
 <table class="t-table"><tr><th colspan="4">INFORMASI UMUM</th></tr>
 <tr><td class="t-label">Nama Penyusun</td><td class="t-content-half">${rppData.namaGuru}</td><td class="t-label">Fase / Kelas</td><td class="t-content-half">${rppData.kelas}</td></tr>
 <tr><td class="t-label">Mata Pelajaran</td><td class="t-content-half">${rppData.mapel}</td><td class="t-label">Alokasi Waktu</td><td class="t-content-half">${rppData.waktu} / ${rppData.jumlahPertemuan}</td></tr>
+<tr><td class="t-label">Tahun Pelajaran</td><td class="t-content-half">${rppData.tahunPelajaran}</td><td class="t-label">Semester</td><td class="t-content-half">${rppData.semester || '........................'}</td></tr>
 <tr><td colspan="4" class="section-head" style="text-align:left">1. IDENTIFIKASI</td></tr>
 <tr>
   <td colspan="2" class="t-content" style="width:50%; vertical-align:top;">${formatBlock('Komp. Awal:', rppData.kompetensiAwal)}</td>
@@ -1585,10 +1953,13 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
 <tr><td class="t-label">Karakter Materi</td><td colspan="3" class="t-content">${formatText(rppData.karakteristikMateri)}</td></tr>
 <tr><td class="t-label">Konteks Nyata Siswa</td><td colspan="3" class="t-content">${formatText(rppData.situasiNyataSiswa)}</td></tr>
 <tr><td class="t-label">Dimensi Lulusan</td><td colspan="3" class="t-content" style="padding:2px 3px;line-height:1.1">${profilHtml}</td></tr>
+<tr><td class="t-label">Alasan & Konsekuensi Dimensi</td><td colspan="3" class="t-content">${formatText(rppData.profilAlasan || '-')}</td></tr>
 <tr><td class="t-label" style="color:#1e40af">Komp. Sosial Emos.</td><td colspan="3" class="t-content" style="padding:2px 3px;line-height:1.1;background-color:#eff6ff">${kseHtml}</td></tr>
+<tr><td class="t-label" style="color:#1e40af">Alasan & Konsekuensi KSE</td><td colspan="3" class="t-content" style="background-color:#eff6ff">${formatText(rppData.kseAlasan || '-')}</td></tr>
 <tr><td colspan="4" class="section-head" style="text-align:left">2. DESAIN PEMBELAJARAN</td></tr>
 <tr><td class="t-label">Capaian Pemb.</td><td colspan="3" class="t-content">${formatText(rppData.cp)}</td></tr>
 <tr><td class="t-label">Tujuan Pemb.</td><td colspan="3" class="t-content">${formatText(rppData.tp)}</td></tr>
+<tr><td class="t-label">Materi Esensial</td><td colspan="3" class="t-content">${formatText(rppData.materiEsensial)}</td></tr>
 <tr><td class="t-label">Lintas Disiplin</td><td colspan="3" class="t-content">${formatText(rppData.lintasDisiplin)}</td></tr>
 <tr>
   <td colspan="2" class="t-content" style="width:50%; vertical-align:top;">${formatBlock('Praktik Pedagogis:', rppData.praktikPedagogis)}</td>
@@ -1617,6 +1988,9 @@ ${pertemuanWordRows}
 <p style="margin:0;line-height:8pt;font-size:8pt;text-align:left">&nbsp;</p>
 <p style="margin:0 0 3pt 0;font-size:11pt;text-align:left"><strong>C. Rubrik Penilaian Kinerja/Uraian</strong></p>
 <table style="width:100%;border-collapse:collapse;margin-bottom:10pt;"><thead style="display:table-header-group"><tr><th width="14%" style="${thStyle}">Bentuk Penilaian</th><th width="12%" style="${thStyle}">Rentang Nilai</th><th width="74%" style="${thStyle}">Deskripsi Indikator Penilaian</th></tr></thead><tbody>${rRowsTable}</tbody></table>
+<p style="margin:0;line-height:8pt;font-size:8pt;text-align:left">&nbsp;</p>
+<p style="margin:0 0 3pt 0;font-size:11pt;text-align:left"><strong>D. Lampiran LKPD (Lembar Kerja Peserta Didik)</strong></p>
+<table style="width:100%;border-collapse:collapse;margin-bottom:10pt;"><tbody>${lkpdRowsTable}</tbody></table>
 </div></body></html>`;
   };
 
@@ -1629,7 +2003,7 @@ ${pertemuanWordRows}
     if (!cleanStr(rppData.mapel)) warnings.push("Mata Pelajaran belum diisi.");
     if (!cleanStr(rppData.kelas)) warnings.push("Fase/Kelas belum diisi.");
     if (!cleanStr(rppData.topik)) warnings.push("Topik Pembelajaran belum diisi.");
-    if (rppData.kisiKisi.length === 0 && rppData.bankSoal.length === 0 && rppData.rubrikPenilaian.length === 0) warnings.push("Lampiran asesmen masih kosong.");
+    if (rppData.kisiKisi.length === 0 && rppData.bankSoal.length === 0 && rppData.rubrikPenilaian.length === 0) warnings.push("Lampiran soal masih kosong.");
     if (!warnings.length) {
       action();
       return;
@@ -1668,6 +2042,7 @@ ${pertemuanWordRows}
     const countLines = (value) => cleanStr(value).split(/\n+/).filter(line => line.replace(/^[-\d\.\)\s]+/, '').trim().length > 18).length;
     const tpCount = countLines(rppData.tp);
     if (!cleanStr(rppData.situasiNyataSiswa)) warnings.push("Situasi nyata lingkungan siswa belum diisi sebagai konteks PM.");
+    if (!cleanStr(rppData.materiEsensial)) warnings.push("Materi esensial/pokok materi belum diisi di TAHAP 2.");
     if (cleanStr(rppData.kompetensiAwal) && (countLines(rppData.kompetensiAwal) < 2 || !/(prasyarat|sebelum|telah|mampu|pernah|dasar|awal|memahami|menjelaskan|mengidentifikasi)/i.test(rppData.kompetensiAwal))) warnings.push("Kompetensi awal perlu lebih eksplisit sebagai prasyarat materi.");
     if (cleanStr(rppData.kesiapanSiswa) && !/(kognitif|motivasi|kebiasaan|dukungan|sosial|emosi)/i.test(rppData.kesiapanSiswa)) warnings.push("Kesiapan peserta didik sebaiknya memuat kognitif, motivasi, kebiasaan belajar, dan kebutuhan dukungan.");
     if (cleanStr(rppData.karakteristikMateri) && !/(faktual|konseptual|prosedural|kontekstual|lintas|disiplin)/i.test(rppData.karakteristikMateri)) warnings.push("Karakteristik materi perlu menyebut sifat faktual/konseptual/prosedural/kontekstual/lintas disiplin.");
@@ -1677,6 +2052,14 @@ ${pertemuanWordRows}
     if (tp && kegiatan && !tp.split(/\s+/).some(w => w.length > 6 && kegiatan.includes(w))) warnings.push("Kegiatan belajar belum cukup menampakkan latihan terhadap TP.");
     if (tp && asesmen && !tp.split(/\s+/).some(w => w.length > 6 && asesmen.includes(w))) warnings.push("Asesmen belum cukup jelas mengukur TP.");
     if (pertemuanRows.some(row => countLines(row.pengalamanMemahami) < 2 || countLines(row.pengalamanMengaplikasi) < 2 || countLines(row.pengalamanMerefleksi) < 2)) warnings.push("Pengalaman belajar di setiap pertemuan perlu lebih eksplisit memuat memahami, mengaplikasi, dan merefleksi.");
+    const mapelText = cleanStr(rppData.mapel).toLowerCase();
+    const curricularText = cleanStr(`${rppData.cp} ${rppData.tp} ${rppData.materiEsensial} ${rppData.karakteristikMateri} ${rppData.lintasDisiplin} ${kegiatan} ${asesmen}`).toLowerCase();
+    if (mapelText.includes("bahasa jawa") && curricularText && !/(jawa|unggah|undha|aksara|sastra|geguritan|tembang|cerkak|wayang|paramasastra|pacelathon|pawarta)/i.test(curricularText)) {
+      warnings.push("Bahasa Jawa perlu tampak sebagai bahasa/sastra/aksara/budaya Jawa, bukan bahasa umum.");
+    }
+    if ((mapelText.includes("koding") || mapelText.includes("kecerdasan artifisial") || /\bkka\b/i.test(rppData.mapel)) && curricularText && !/(komputasional|algoritma|data|digital|kecerdasan artifisial|\bka\b|prompt|deepfake|etika|sensor|pemrograman)/i.test(curricularText)) {
+      warnings.push("Koding/KA perlu memuat berpikir komputasional, literasi digital, data, algoritma, etika, atau pemanfaatan KA.");
+    }
     return warnings;
   };
 
@@ -1796,7 +2179,7 @@ ${pertemuanWordRows}
             });
           });
           const buffer = await wb.xlsx.writeBuffer();
-          saveBlob(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), `${getCustomFileName('Instrumen Penilaian')}.xlsx`);
+          saveBlob(new Blob([buffer], { type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" }), `${getCustomFileName('Lampiran Soal')}.xlsx`);
           return;
         } catch (error) {
           notify("ExcelJS Bermasalah", "Ekspor styling penuh belum berhasil, aplikasi memakai ekspor Excel cadangan.\n\nDetail: " + error.message, "warning");
@@ -1818,11 +2201,12 @@ ${pertemuanWordRows}
         ws['!autofilter'] = { ref: ws['!ref'] };
         XLSX.utils.book_append_sheet(wb, ws, sheet.name);
       });
-      XLSX.writeFile(wb, `${getCustomFileName('Instrumen Penilaian')}.xlsx`);
+      XLSX.writeFile(wb, `${getCustomFileName('Lampiran Soal')}.xlsx`);
     });
   };
 
   const currentAssessmentWarnings = isEditing ? validateAssessmentStructure(rppData) : [];
+  const currentLkpdWarnings = isEditing ? validateLkpdStructure(rppData) : [];
   const activePertemuanRows = syncPertemuanPembelajaran(rppData);
 
   return (
@@ -1873,13 +2257,14 @@ ${pertemuanWordRows}
                 <Card className="p-4 sm:p-6 border-t-4 border-t-slate-800 shadow-md">
                   <h3 className="font-bold text-slate-800 text-base sm:text-lg mb-4 border-b pb-2"><i className="fas fa-id-card mr-2 text-slate-600"></i> Informasi Umum & Pengesahan</h3>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 text-sm mb-6 bg-slate-50 p-4 sm:p-5 rounded-lg border border-slate-200">
-                    <div><LabelWithHint>Nama Sekolah</LabelWithHint><input type="text" name="namaSekolah" value={rppData.namaSekolah} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none bg-slate-100" readOnly/></div>
+                    <div><LabelWithHint>Nama Sekolah</LabelWithHint><input type="text" name="namaSekolah" value={rppData.namaSekolah} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none bg-slate-100"/></div>
                     <div><LabelWithHint>Tahun Pelajaran</LabelWithHint><input type="text" name="tahunPelajaran" value={rppData.tahunPelajaran} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none" /></div>
+                    <div><LabelWithHint>Semester</LabelWithHint><input type="text" name="semester" value={rppData.semester} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none" placeholder="Ganjil / Genap" /></div>
                     <div><LabelWithHint>Nama Kepala Sekolah</LabelWithHint><input type="text" name="namaKepsek" value={rppData.namaKepsek} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none" placeholder="Nama Kepala Sekolah" /><input type="text" name="nipKepsek" value={rppData.nipKepsek} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none mt-2" placeholder="NIP Kepala Sekolah" /></div>
                     <div><LabelWithHint>Nama Guru Penyusun</LabelWithHint><input type="text" name="namaGuru" value={rppData.namaGuru} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none" placeholder="Nama Guru" /><input type="text" name="nipGuru" value={rppData.nipGuru} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none mt-2" placeholder="NIP Guru" /></div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6 text-sm">
-                    <div><LabelWithHint>Mata Pelajaran</LabelWithHint><select name="mapel" value={rppData.mapel} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none bg-white"><option value="">-- Pilih --</option><option value="Ilmu Pengetahuan Alam (IPA)">Ilmu Pengetahuan Alam (IPA)</option><option value="Informatika">Informatika</option><option value="Matematika">Matematika</option><option value="Bahasa Indonesia">Bahasa Indonesia</option><option value="Bahasa Inggris">Bahasa Inggris</option><option value="IPS">IPS</option><option value="Pendidikan Pancasila">Pendidikan Pancasila</option><option value="PAI">PAI</option><option value="PJOK">PJOK</option><option value="Seni Budaya">Seni Budaya</option><option value="Prakarya">Prakarya</option><option value="Kokurikuler">Kokurikuler</option></select></div>
+                    <div><LabelWithHint>Mata Pelajaran</LabelWithHint><select name="mapel" value={rppData.mapel} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none bg-white"><option value="">-- Pilih --</option>{mapelOptions.map(option => <option key={option} value={option}>{option}</option>)}</select></div>
                     <div><LabelWithHint>Fase / Kelas</LabelWithHint><select name="kelas" value={rppData.kelas} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none bg-white"><option value="">-- Pilih --</option><option value="Fase D / Kelas VII">Fase D / Kelas VII</option><option value="Fase D / Kelas VIII">Fase D / Kelas VIII</option><option value="Fase D / Kelas IX">Fase D / Kelas IX</option></select></div>
                     <div><LabelWithHint>Topik Pembelajaran</LabelWithHint><input type="text" name="topik" value={rppData.topik} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none font-semibold text-blue-900 bg-blue-50" /></div>
                     <div className="flex flex-col sm:flex-row gap-4"><div className="flex-1"><LabelWithHint>Alokasi Waktu</LabelWithHint><input type="text" name="waktu" value={rppData.waktu} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none" /></div><div className="flex-1"><LabelWithHint>Jml. Pertemuan</LabelWithHint><input type="text" name="jumlahPertemuan" value={rppData.jumlahPertemuan} onChange={handleInputChange} className="w-full p-2.5 border border-slate-300 rounded focus:ring-2 focus:ring-slate-500 outline-none" /></div></div>
@@ -1896,7 +2281,18 @@ ${pertemuanWordRows}
                         Sistem AI akan menganalisis data secara berurutan dan merancang skenario <strong>HOTS, Mindful, Meaningful, & Joyful</strong>. 
                       </p>
                       <div className="bg-white/10 p-3 sm:p-4 md:p-5 rounded-xl border border-white/20 backdrop-blur-sm shadow-inner">
-                        <label className="block text-white font-bold mb-2 sm:mb-3 text-xs sm:text-sm tracking-wide flex items-center"><i className="fas fa-pen-nib mr-2"></i>INSTRUKSI KHUSUS (DI PRIORITASKAN 100%):</label>
+                        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2 sm:mb-3">
+                          <label className="block text-white font-bold text-xs sm:text-sm tracking-wide flex items-center"><i className="fas fa-pen-nib mr-2"></i>INSTRUKSI KHUSUS (DI PRIORITASKAN 100%):</label>
+                          <button type="button" onClick={() => setShowInstruksiHint(prev => !prev)} className="self-start sm:self-auto px-3 py-1.5 rounded-lg bg-white/90 text-indigo-800 hover:bg-white text-[11px] sm:text-xs font-black shadow-sm border border-white/60 flex items-center"><i className={`fas ${showInstruksiHint ? 'fa-times' : 'fa-circle-info'} mr-2`}></i>{showInstruksiHint ? 'Tutup Petunjuk' : 'Petunjuk Prompt'}</button>
+                        </div>
+                        {showInstruksiHint ? (
+                          <div className="mb-3 bg-white text-slate-800 border border-fuchsia-100 rounded-lg p-3 shadow-lg">
+                            <div className="flex flex-col lg:flex-row gap-3 lg:items-start lg:justify-between">
+                              <div className="text-xs sm:text-sm leading-relaxed whitespace-pre-wrap flex-1">{instruksiKhususStandar}</div>
+                              <button type="button" onClick={() => setInstruksiKhusus(instruksiKhususStandar)} className="px-3 py-2 bg-indigo-700 text-white rounded-lg text-xs font-black hover:bg-indigo-800 shrink-0 flex items-center justify-center"><i className="fas fa-wand-magic-sparkles mr-2"></i>Pakai Contoh</button>
+                            </div>
+                          </div>
+                        ) : null}
                         <textarea value={instruksiKhusus} onChange={(e) => setInstruksiKhusus(e.target.value)} rows="2" placeholder="Contoh: Fokus pada konteks kehidupan petani..." className="w-full p-3 sm:p-4 rounded-lg bg-white text-slate-800 text-xs sm:text-sm focus:ring-4 focus:ring-fuchsia-400/50 border-none outline-none resize-y placeholder-slate-400 font-medium"></textarea>
                       </div>
                     </div>
@@ -1985,16 +2381,19 @@ ${pertemuanWordRows}
                       <textarea name="cp" value={rppData.cp} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none whitespace-pre-wrap"></textarea>
                     </div>
                     
-                    {/* Dua Kolom untuk Lintas Disiplin & TP */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <LabelWithHint onRegenerate={() => handleRegenerateSpecific('lintasDisiplin', 'Lintas Disiplin Ilmu yang Relevan')} isLoading={individualLoading['lintasDisiplin']} hint="Kaitan antarmapel agar pembelajaran utuh.">Lintas Disiplin Ilmu</LabelWithHint>
-                        <textarea name="lintasDisiplin" value={rppData.lintasDisiplin} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none whitespace-pre-wrap"></textarea>
-                      </div>
-                      <div>
-                        <LabelWithHint onRegenerate={() => handleRegenerateSpecific('tp', 'Tujuan Pembelajaran dengan rumusan ABCD')} isLoading={individualLoading['tp']}>Tujuan Pembelajaran</LabelWithHint>
-                        <textarea name="tp" value={rppData.tp} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none whitespace-pre-wrap"></textarea>
-                      </div>
+                    <div>
+                      <LabelWithHint onRegenerate={() => handleRegenerateSpecific('tp', 'Tujuan Pembelajaran dengan rumusan ABCD')} isLoading={individualLoading['tp']}>Tujuan Pembelajaran</LabelWithHint>
+                      <textarea name="tp" value={rppData.tp} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none whitespace-pre-wrap"></textarea>
+                    </div>
+
+                    <div>
+                      <LabelWithHint onRegenerate={() => handleRegenerateSpecific('materiEsensial', 'Materi Esensial / Pokok Materi')} isLoading={individualLoading['materiEsensial']} hint="Isi singkat materi yang benar-benar diajarkan, bukan karakteristik materinya.">Materi Esensial / Pokok Materi</LabelWithHint>
+                      <textarea name="materiEsensial" value={rppData.materiEsensial} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none whitespace-pre-wrap" placeholder="Contoh: konsep inti, submateri, istilah penting, prinsip/prosedur, atau batasan materi..."></textarea>
+                    </div>
+
+                    <div>
+                      <LabelWithHint onRegenerate={() => handleRegenerateSpecific('lintasDisiplin', 'Lintas Disiplin Ilmu yang Relevan')} isLoading={individualLoading['lintasDisiplin']} hint="Kaitan antarmapel agar pembelajaran utuh.">Lintas Disiplin Ilmu</LabelWithHint>
+                      <textarea name="lintasDisiplin" value={rppData.lintasDisiplin} onChange={handleInputChange} rows="3" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none whitespace-pre-wrap"></textarea>
                     </div>
 
                     <div className="p-4 sm:p-5 bg-white rounded-lg border border-indigo-200 shadow-sm mt-4 min-w-0">
@@ -2100,16 +2499,20 @@ ${pertemuanWordRows}
                 </Card>
 
                 <Card className="p-4 sm:p-6 border-t-4 border-t-orange-500 bg-orange-50/30">
-                  <h4 className="font-bold text-orange-900 text-base sm:text-lg mb-4">Lampiran Instrumen Penilaian</h4>
+                  <h4 className="font-bold text-orange-900 text-base sm:text-lg mb-4">Lampiran Soal dan LKPD</h4>
                   <div className="mb-5 bg-white p-3 sm:p-4 rounded-lg border border-orange-200 shadow-sm overflow-hidden">
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3 mb-3">
                       <div>
                         <h5 className="font-bold text-orange-900 text-sm sm:text-base"><i className="fas fa-sliders mr-2"></i>Rencana Jumlah Soal per Bentuk dan Level</h5>
-                        <p className="text-xs sm:text-sm text-slate-600 mt-1">AI Instrumen Penilaian mengikuti tabel ini agar jumlah, bentuk soal, dan level kognitif tidak rancu.</p>
+                        <p className="text-xs sm:text-sm text-slate-600 mt-1">AI Lampiran Soal mengikuti tabel ini agar jumlah, bentuk soal, dan level kognitif tidak rancu.</p>
                       </div>
                       <button onClick={handleGenerateAssessmentAI} disabled={isGenerating} className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-bold shadow-sm flex items-center justify-center ${isGenerating ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : 'bg-orange-600 text-white hover:bg-orange-700'}`}>
-                        <i className={`fas ${isGenerating && activeGenerateMode === "asesmen" ? 'fa-spinner fa-spin' : 'fa-magic'} mr-2`}></i> Generate Instrumen Penilaian
+                        <i className={`fas ${isGenerating && activeGenerateMode === "asesmen" ? 'fa-spinner fa-spin' : 'fa-magic'} mr-2`}></i> {isGenerating && activeGenerateMode === "asesmen" ? "Menyusun Lampiran Soal..." : "Generate Lampiran Soal"}
                       </button>
+                    </div>
+                    <div className="mb-4 rounded-lg border border-orange-200 bg-orange-50 p-3">
+                      <LabelWithHint className="block text-orange-900 font-black mb-1 text-xs sm:text-sm uppercase" hint="Instruksi ini hanya untuk kisi-kisi, bank soal, dan rubrik. Contoh: buat stimulus berbasis data sekolah, semua soal memakai konteks Adiwiyata, tambahkan soal praktik, atau semua soal memuat literasi-numerasi.">INSTRUKSI KHUSUS LAMPIRAN SOAL (DI PRIORITASKAN 100%)</LabelWithHint>
+                      <textarea value={instruksiKhususAsesmen} onChange={(e) => setInstruksiKhususAsesmen(e.target.value)} rows="3" className="w-full p-3 border border-orange-200 rounded-lg focus:ring-2 focus:ring-orange-500 outline-none bg-white text-sm leading-relaxed whitespace-pre-wrap" placeholder={"Contoh: Semua stimulus soal memakai data/kasus Adiwiyata sekolah, literasi-numerasi harus tampak, PG Kompleks tepat 2 jawaban benar, dan rubrik harus menilai alasan, bukti, dan ketepatan konsep."}></textarea>
                     </div>
                     <div className="w-full overflow-x-auto border border-slate-300 rounded pb-2">
                       <table className="w-full text-left text-sm border-collapse min-w-[620px]">
@@ -2135,13 +2538,13 @@ ${pertemuanWordRows}
                   </div>
 
                   <div className={`mb-5 rounded-lg border p-3 sm:p-4 ${currentAssessmentWarnings.length ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-emerald-50 border-emerald-200 text-emerald-900'}`}>
-                    <h5 className="font-bold text-sm sm:text-base mb-2"><i className={`fas ${currentAssessmentWarnings.length ? 'fa-circle-exclamation' : 'fa-circle-check'} mr-2`}></i>Catatan Validasi Lampiran Instrumen Penilaian</h5>
+                    <h5 className="font-bold text-sm sm:text-base mb-2"><i className={`fas ${currentAssessmentWarnings.length ? 'fa-circle-exclamation' : 'fa-circle-check'} mr-2`}></i>Catatan Validasi Lampiran Soal</h5>
                     {currentAssessmentWarnings.length ? (
                       <ul className="space-y-1 text-xs sm:text-sm">
                         {currentAssessmentWarnings.slice(0, 12).map((warning, i) => <li key={i} className="flex items-start"><span className="font-bold mr-2">-</span><span>{warning}</span></li>)}
                       </ul>
                     ) : (
-                      <p className="text-xs sm:text-sm">Struktur kisi-kisi, bank soal, dan rubrik sudah tampak selaras dengan rencana asesmen.</p>
+                      <p className="text-xs sm:text-sm">Struktur kisi-kisi, bank soal, dan rubrik sudah tampak selaras dengan rencana soal.</p>
                     )}
                   </div>
                   
@@ -2230,6 +2633,51 @@ ${pertemuanWordRows}
                       <button onClick={() => addTableRow('rubrikPenilaian', { bentukPenilaian: "", skor: "", kriteria: "" })} className="px-4 py-2 bg-orange-50 text-sm font-bold text-orange-600 rounded-lg hover:bg-orange-100 flex items-center"><i className="fas fa-plus mr-2"></i> Tambah Rubrik</button>
                     </div>
                   </div>
+
+                  <div className="mt-6 bg-white p-3 sm:p-4 rounded-lg border border-emerald-200 shadow-sm overflow-hidden">
+                    <div className="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-3 mb-3">
+                      <div>
+                        <LabelWithHint onRegenerate={() => handleRegenerateSpecific('lkpd', 'Lampiran LKPD Berdasarkan Kegiatan Pembelajaran', 'array_lkpd')} isLoading={individualLoading['lkpd']} className="font-bold text-emerald-900 text-sm sm:text-base mb-1" hint="LKPD dibuat per pertemuan dan harus mengikuti kegiatan awal, inti, penutup, target kognitif, serta asesmen yang sudah dirancang.">D. Lampiran LKPD (Lembar Kerja Peserta Didik)</LabelWithHint>
+                        <p className="text-xs sm:text-sm text-slate-600">Generate LKPD dipisah agar AI fokus mengikuti kegiatan pembelajaran per pertemuan.</p>
+                      </div>
+                      <button onClick={handleGenerateLkpdAI} disabled={isGenerating} className={`px-4 py-2 rounded-lg text-xs sm:text-sm font-bold shadow-sm flex items-center justify-center ${isGenerating ? 'bg-slate-200 text-slate-500 cursor-not-allowed' : 'bg-emerald-600 text-white hover:bg-emerald-700'}`}>
+                        <i className={`fas ${isGenerating && activeGenerateMode === "lkpd" ? 'fa-spinner fa-spin' : 'fa-file-circle-plus'} mr-2`}></i> {isGenerating && activeGenerateMode === "lkpd" ? "Menyusun LKPD..." : "Generate LKPD"}
+                      </button>
+                    </div>
+                    <div className="mb-4 rounded-lg border border-emerald-200 bg-emerald-50 p-3">
+                      <LabelWithHint className="block text-emerald-900 font-black mb-1 text-xs sm:text-sm uppercase" hint="Instruksi ini hanya untuk LKPD. Contoh: LKPD berbasis observasi lingkungan sekolah, memakai data Adiwiyata, ada literasi-numerasi, produk berupa poster/data tabel/laporan singkat, atau aktivitas kolaboratif kelompok.">INSTRUKSI KHUSUS LKPD (DI PRIORITASKAN 100%)</LabelWithHint>
+                      <textarea value={instruksiKhususLkpd} onChange={(e) => setInstruksiKhususLkpd(e.target.value)} rows="3" className="w-full p-3 border border-emerald-200 rounded-lg focus:ring-2 focus:ring-emerald-500 outline-none bg-white text-sm leading-relaxed whitespace-pre-wrap" placeholder={"Contoh: LKPD harus berupa observasi lingkungan sekolah, memakai data sederhana, memuat aktivitas literasi-numerasi, menghasilkan tabel temuan dan rekomendasi tindakan Adiwiyata."}></textarea>
+                    </div>
+                    <div className={`mb-4 rounded-lg border p-3 sm:p-4 ${currentLkpdWarnings.length ? 'bg-amber-50 border-amber-200 text-amber-900' : 'bg-emerald-50 border-emerald-200 text-emerald-900'}`}>
+                      <h5 className="font-bold text-sm sm:text-base mb-2"><i className={`fas ${currentLkpdWarnings.length ? 'fa-circle-exclamation' : 'fa-circle-check'} mr-2`}></i>Catatan Validasi LKPD</h5>
+                      {currentLkpdWarnings.length ? (
+                        <ul className="space-y-1 text-xs sm:text-sm">
+                          {currentLkpdWarnings.slice(0, 8).map((warning, i) => <li key={i} className="flex items-start"><span className="font-bold mr-2">-</span><span>{warning}</span></li>)}
+                        </ul>
+                      ) : (
+                        <p className="text-xs sm:text-sm">Struktur LKPD sudah tampak mengikuti jumlah pertemuan dan kegiatan pembelajaran.</p>
+                      )}
+                    </div>
+                    <div className="space-y-4">
+                      {mapLkpdRows(rppData.lkpd, rppData).map((row, index) => (
+                        <div key={row.id || index} className="border border-emerald-100 rounded-lg p-3 bg-emerald-50/30">
+                          <div className="flex items-center justify-between gap-2 mb-3">
+                            <h5 className="font-black text-emerald-900 text-sm">{row.pertemuan || `Pertemuan ${index + 1}`}</h5>
+                            <span className="text-[11px] font-bold text-emerald-700 bg-white border border-emerald-100 rounded px-2 py-1">Berbasis kegiatan pembelajaran</span>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                            <div className="md:col-span-2"><label className="block text-xs font-bold text-slate-600 mb-1">Judul LKPD</label><input type="text" className="w-full p-2 border border-slate-300 rounded outline-none focus:ring-2 focus:ring-emerald-500" value={row.judul} onChange={(e) => handleTableChange('lkpd', index, 'judul', e.target.value)} /></div>
+                            <div><label className="block text-xs font-bold text-slate-600 mb-1">Tujuan</label><textarea rows="4" className="w-full p-2 border border-slate-300 rounded outline-none focus:ring-2 focus:ring-emerald-500 whitespace-pre-wrap" value={row.tujuan} onChange={(e) => handleTableChange('lkpd', index, 'tujuan', e.target.value)} /></div>
+                            <div><label className="block text-xs font-bold text-slate-600 mb-1">Petunjuk</label><textarea rows="4" className="w-full p-2 border border-slate-300 rounded outline-none focus:ring-2 focus:ring-emerald-500 whitespace-pre-wrap" value={row.petunjuk} onChange={(e) => handleTableChange('lkpd', index, 'petunjuk', e.target.value)} /></div>
+                            <div className="md:col-span-2"><label className="block text-xs font-bold text-slate-600 mb-1">Sumber/Bahan</label><textarea rows="3" className="w-full p-2 border border-slate-300 rounded outline-none focus:ring-2 focus:ring-emerald-500 whitespace-pre-wrap" value={row.sumberBahan} onChange={(e) => handleTableChange('lkpd', index, 'sumberBahan', e.target.value)} /></div>
+                            <div className="md:col-span-2"><label className="block text-xs font-bold text-slate-600 mb-1">Langkah Kerja</label><textarea rows="5" className="w-full p-2 border border-slate-300 rounded outline-none focus:ring-2 focus:ring-emerald-500 whitespace-pre-wrap" value={row.langkahKerja} onChange={(e) => handleTableChange('lkpd', index, 'langkahKerja', e.target.value)} /></div>
+                            <div><label className="block text-xs font-bold text-slate-600 mb-1">Produk/Bukti Belajar</label><textarea rows="4" className="w-full p-2 border border-slate-300 rounded outline-none focus:ring-2 focus:ring-emerald-500 whitespace-pre-wrap" value={row.produkBukti} onChange={(e) => handleTableChange('lkpd', index, 'produkBukti', e.target.value)} /></div>
+                            <div><label className="block text-xs font-bold text-slate-600 mb-1">Refleksi Siswa</label><textarea rows="4" className="w-full p-2 border border-slate-300 rounded outline-none focus:ring-2 focus:ring-emerald-500 whitespace-pre-wrap" value={row.refleksi} onChange={(e) => handleTableChange('lkpd', index, 'refleksi', e.target.value)} /></div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                 </Card>
 
                 <Card className="p-4 sm:p-6 border-t-4 border-t-red-500 bg-red-50/30">
@@ -2246,7 +2694,7 @@ ${pertemuanWordRows}
                       <div className="col-span-1 sm:col-span-2 md:col-span-1 border-l-4 border-blue-500 bg-blue-50 p-3 rounded-r-lg"><strong className="block text-slate-500 text-xs sm:text-sm uppercase mb-1">Mata Pelajaran</strong><span className="block font-bold text-blue-900 text-base sm:text-lg leading-snug">{rppData.mapel}</span><span className="block text-xs sm:text-sm text-blue-600 font-semibold mt-1">{rppData.kelas}</span></div>
                       <div className="col-span-1 sm:col-span-2 md:col-span-1 border-l-4 border-indigo-500 bg-indigo-50 p-3 rounded-r-lg"><strong className="block text-slate-500 text-xs sm:text-sm uppercase mb-1">Topik Pembelajaran</strong><span className="font-bold text-indigo-900 text-base sm:text-lg">{rppData.topik}</span></div>
                       <div><strong className="block text-slate-500 text-xs sm:text-sm uppercase mb-1">Penyusun</strong>{rppData.namaGuru}</div><div><strong className="block text-slate-500 text-xs sm:text-sm uppercase mb-1">Sekolah</strong>{rppData.namaSekolah}</div>
-                      <div><strong className="block text-slate-500 text-xs sm:text-sm uppercase mb-1">Waktu / Pertemuan</strong>{rppData.waktu} / {rppData.jumlahPertemuan}</div><div><strong className="block text-slate-500 text-xs sm:text-sm uppercase mb-1">Tahun Pelajaran</strong>{rppData.tahunPelajaran}</div>
+                      <div><strong className="block text-slate-500 text-xs sm:text-sm uppercase mb-1">Waktu / Pertemuan</strong>{rppData.waktu} / {rppData.jumlahPertemuan}</div><div><strong className="block text-slate-500 text-xs sm:text-sm uppercase mb-1">Tahun Pelajaran / Semester</strong>{rppData.tahunPelajaran} / {rppData.semester || "-"}</div>
                     </div>
                   </div>
                 </Card>
@@ -2257,7 +2705,7 @@ ${pertemuanWordRows}
                       <div className="bg-slate-50 p-3 sm:p-4 rounded-lg border border-slate-200"><strong className="block text-blue-800 mb-2">Kompetensi Awal</strong><p className="whitespace-pre-wrap leading-relaxed">{rppData.kompetensiAwal||"-"}</p></div>
                       <div className="bg-slate-50 p-3 sm:p-4 rounded-lg border border-slate-200"><strong className="block text-blue-800 mb-2">Kesiapan Siswa</strong><p className="whitespace-pre-wrap leading-relaxed">{rppData.kesiapanSiswa||"-"}</p></div>
                     </div>
-                    <div className="bg-slate-50 p-3 sm:p-4 rounded-lg border border-slate-200"><strong className="block text-blue-800 mb-2">Materi Pelajaran</strong><p className="whitespace-pre-wrap leading-relaxed">{rppData.karakteristikMateri||"-"}</p></div>
+                    <div className="bg-slate-50 p-3 sm:p-4 rounded-lg border border-slate-200"><strong className="block text-blue-800 mb-2">Karakteristik Materi Pelajaran</strong><p className="whitespace-pre-wrap leading-relaxed">{rppData.karakteristikMateri||"-"}</p></div>
                     <div className="bg-slate-50 p-3 sm:p-4 rounded-lg border border-slate-200"><strong className="block text-blue-800 mb-2">Situasi Nyata Lingkungan Siswa</strong><p className="whitespace-pre-wrap leading-relaxed">{rppData.situasiNyataSiswa||"-"}</p></div>
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                       <div className="bg-slate-50 p-3 sm:p-4 rounded-lg border">
@@ -2287,10 +2735,9 @@ ${pertemuanWordRows}
                 <Accordion title="TAHAP 2: Desain Pembelajaran" icon="fas fa-drafting-compass" isCompleted={completedSteps['t2']} onToggleComplete={() => toggleStep('t2')} headerColorClass="bg-indigo-100 text-indigo-700">
                   <div className="space-y-4 sm:space-y-6 text-sm sm:text-base text-slate-700">
                     <div className="p-3 sm:p-4 border-l-4 border-indigo-400 bg-white shadow-sm mb-4"><strong className="block text-indigo-900 mb-2">Capaian Pembelajaran</strong><p className="whitespace-pre-wrap leading-relaxed">{rppData.cp||"-"}</p></div>
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 mb-4">
-                      <div className="p-3 sm:p-4 border-l-4 border-indigo-500 bg-white shadow-sm"><strong className="block text-indigo-900 mb-2">Lintas Disiplin Ilmu</strong><p className="whitespace-pre-wrap font-medium leading-relaxed">{rppData.lintasDisiplin||"-"}</p></div>
-                      <div className="p-3 sm:p-4 border-l-4 border-indigo-500 bg-white shadow-sm"><strong className="block text-indigo-900 mb-2">Tujuan Pembelajaran</strong><p className="whitespace-pre-wrap font-medium leading-relaxed">{rppData.tp||"-"}</p></div>
-                    </div>
+                    <div className="p-3 sm:p-4 border-l-4 border-indigo-500 bg-white shadow-sm mb-4"><strong className="block text-indigo-900 mb-2">Tujuan Pembelajaran</strong><p className="whitespace-pre-wrap font-medium leading-relaxed">{rppData.tp||"-"}</p></div>
+                    <div className="p-3 sm:p-4 border-l-4 border-indigo-500 bg-white shadow-sm mb-4"><strong className="block text-indigo-900 mb-2">Materi Esensial / Pokok Materi</strong><p className="whitespace-pre-wrap font-medium leading-relaxed">{rppData.materiEsensial||"-"}</p></div>
+                    <div className="p-3 sm:p-4 border-l-4 border-indigo-500 bg-white shadow-sm mb-4"><strong className="block text-indigo-900 mb-2">Lintas Disiplin Ilmu</strong><p className="whitespace-pre-wrap font-medium leading-relaxed">{rppData.lintasDisiplin||"-"}</p></div>
 
                     <div className="bg-indigo-50/50 p-4 sm:p-5 rounded-xl border border-indigo-100 min-w-0"><h4 className="font-bold text-indigo-900 border-b pb-2 mb-4">Kerangka Pembelajaran</h4>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 min-w-0">
@@ -2321,9 +2768,9 @@ ${pertemuanWordRows}
                   </div>
                 </Accordion>
 
-                <Accordion title="Instrumen Penilaian (Bank Soal AKM)" icon="fas fa-file-circle-question" isCompleted={completedSteps['bank']} onToggleComplete={() => toggleStep('bank')} headerColorClass="bg-orange-100 text-orange-700">
+                <Accordion title="Lampiran Soal (Bank Soal AKM)" icon="fas fa-file-circle-question" isCompleted={completedSteps['bank']} onToggleComplete={() => toggleStep('bank')} headerColorClass="bg-orange-100 text-orange-700">
                   <div>
-                    <h3 className="font-bold text-orange-800 text-base sm:text-lg mb-4 border-b pb-2">Instrumen Penilaian (Bank Soal)</h3>
+                    <h3 className="font-bold text-orange-800 text-base sm:text-lg mb-4 border-b pb-2">Lampiran Soal (Bank Soal)</h3>
                     <div className="w-full overflow-x-auto border border-slate-300 rounded pb-2">
                       <table className="w-full text-left text-xs sm:text-sm border-collapse min-w-[600px] sm:min-w-[800px]">
                         <thead className="bg-slate-100 text-slate-700 border-b border-slate-300"><tr><th className="p-2 border-r w-10 text-center shrink-0">No</th><th className="p-2 border-r min-w-[300px]">Butir Soal & Stimulus</th><th className="p-2 min-w-[260px]">Pilihan Jawaban / Pedoman Jawab</th></tr></thead>
@@ -2354,6 +2801,30 @@ ${pertemuanWordRows}
                           ))}
                         </tbody>
                       </table>
+                    </div>
+                  </div>
+                </Accordion>
+
+                <Accordion title="Lampiran LKPD (Lembar Kerja Peserta Didik)" icon="fas fa-file-lines" isCompleted={completedSteps['lkpd']} onToggleComplete={() => toggleStep('lkpd')} headerColorClass="bg-emerald-100 text-emerald-800">
+                  <div>
+                    <h3 className="font-bold text-emerald-800 text-base sm:text-lg mb-4 border-b pb-2">LKPD Berdasarkan Kegiatan Pembelajaran</h3>
+                    <div className="space-y-4">
+                      {mapLkpdRows(rppData.lkpd, rppData).map((row, index) => (
+                        <div key={row.id || index} className="border border-emerald-100 rounded-lg bg-emerald-50/30 overflow-hidden">
+                          <div className="bg-emerald-100/80 px-3 py-2 border-b border-emerald-200">
+                            <p className="text-xs font-black uppercase text-emerald-700">{row.pertemuan || `Pertemuan ${index + 1}`}</p>
+                            <h4 className="font-black text-emerald-950 text-sm sm:text-base">{row.judul || '-'}</h4>
+                          </div>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 p-3 text-xs sm:text-sm">
+                            <div className="bg-white border rounded p-3"><strong className="block text-slate-500 uppercase text-[11px] mb-1">Tujuan</strong><div className="whitespace-pre-wrap leading-relaxed">{row.tujuan || '-'}</div></div>
+                            <div className="bg-white border rounded p-3"><strong className="block text-slate-500 uppercase text-[11px] mb-1">Petunjuk</strong><div className="whitespace-pre-wrap leading-relaxed">{row.petunjuk || '-'}</div></div>
+                            <div className="bg-white border rounded p-3 md:col-span-2"><strong className="block text-slate-500 uppercase text-[11px] mb-1">Sumber/Bahan</strong><div className="whitespace-pre-wrap leading-relaxed">{row.sumberBahan || '-'}</div></div>
+                            <div className="bg-white border rounded p-3 md:col-span-2"><strong className="block text-slate-500 uppercase text-[11px] mb-1">Langkah Kerja</strong><div className="whitespace-pre-wrap leading-relaxed">{row.langkahKerja || '-'}</div></div>
+                            <div className="bg-white border rounded p-3"><strong className="block text-slate-500 uppercase text-[11px] mb-1">Produk/Bukti Belajar</strong><div className="whitespace-pre-wrap leading-relaxed">{row.produkBukti || '-'}</div></div>
+                            <div className="bg-white border rounded p-3"><strong className="block text-slate-500 uppercase text-[11px] mb-1">Refleksi Siswa</strong><div className="whitespace-pre-wrap leading-relaxed">{row.refleksi || '-'}</div></div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </Accordion>
@@ -2422,6 +2893,10 @@ ${pertemuanWordRows}
                  countdown > 10 ? "Menganalisis CP, TP, kisi-kisi, dan rencana jumlah soal..." :
                  countdown > 4 ? "Menyusun stimulus HOTS, pilihan jawaban, dan pedoman jawab..." :
                  "Menyelaraskan bank soal dengan rubrik penilaian..."
+               ) : activeGenerateMode === "lkpd" ? (
+                 countdown > 8 ? "Menganalisis kegiatan pembelajaran per pertemuan..." :
+                 countdown > 4 ? "Menyusun langkah kerja dan bukti belajar LKPD..." :
+                 "Menyelaraskan LKPD dengan asesmen dan refleksi siswa..."
                ) : (
                  countdown > 10 ? "Menganalisis Instruksi Khusus dan Konteks Latar Belakang Siswa..." : 
                  countdown > 4 ? "Memformulasikan kegiatan PM dan asesmen kelas..." : 
