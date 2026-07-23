@@ -165,6 +165,36 @@ const resizeAllTextareas = (scope = document) => {
   scope.querySelectorAll('textarea').forEach(resizeTextareaToContent);
 };
 
+const GEMINI_API_KEY_STORAGE = 'gemini_api_key_eksternal_v3';
+const GEMINI_API_KEY_LEGACY_STORAGE = 'gemini_api_key_eksternal_v2';
+const GEMINI_MODEL_STORAGE = 'asistenGuru_geminiModel_v1';
+const GEMINI_DEFAULT_MODEL = 'gemini-3.6-flash';
+const GEMINI_MODEL_PRIORITY = [
+  'gemini-3.6-flash',
+  'gemini-2.5-flash',
+  'gemini-3.5-flash-lite',
+  'gemini-2.5-flash-lite'
+];
+
+const sanitizeGeminiApiKey = (value) => String(value || "")
+  .trim()
+  .replace(/^["'`]+|["'`]+$/g, "")
+  .replace(/\s+/g, "");
+
+const readStoredGeminiApiKey = () => {
+  try {
+    return sanitizeGeminiApiKey(
+      localStorage.getItem(GEMINI_API_KEY_STORAGE)
+      || localStorage.getItem(GEMINI_API_KEY_LEGACY_STORAGE)
+      || sessionStorage.getItem(GEMINI_API_KEY_STORAGE)
+      || sessionStorage.getItem(GEMINI_API_KEY_LEGACY_STORAGE)
+      || ""
+    );
+  } catch (error) {
+    return "";
+  }
+};
+
 function App() {
   const [completedSteps, setCompletedSteps] = useState({});
   const [isEditing, setIsEditing] = useState(false);
@@ -180,42 +210,64 @@ function App() {
   const [instruksiKhususLkpd, setInstruksiKhususLkpd] = useState(() => localStorage.getItem('asistenGuru_instruksiKhususLkpd_v1') || "");
   
   const [showApiModal, setShowApiModal] = useState(false);
-  const [geminiApiKey, setGeminiApiKey] = useState(() => localStorage.getItem('gemini_api_key_eksternal_v2') || sessionStorage.getItem('gemini_api_key_eksternal_v2') || "");
+  const [geminiApiKey, setGeminiApiKey] = useState(readStoredGeminiApiKey);
+  const [geminiModel, setGeminiModel] = useState(() => {
+    try {
+      return localStorage.getItem(GEMINI_MODEL_STORAGE) || GEMINI_DEFAULT_MODEL;
+    } catch (error) {
+      return GEMINI_DEFAULT_MODEL;
+    }
+  });
   const [tempApiKey, setTempApiKey] = useState("");
+  const [isTestingApiKey, setIsTestingApiKey] = useState(false);
+  const [apiKeyFeedback, setApiKeyFeedback] = useState(null);
   const [popup, setPopup] = useState(null);
 
   const notify = (title, message, type = "info") => setPopup({ title, message, type });
   const confirmPopup = (title, message, onConfirm) => setPopup({ title, message, type: "confirm", onConfirm });
 
   const saveApiKey = () => {
-    const cleanedKey = tempApiKey.trim();
+    const cleanedKey = sanitizeGeminiApiKey(tempApiKey);
     if (!cleanedKey) {
-      localStorage.removeItem('gemini_api_key_eksternal_v2');
-      sessionStorage.removeItem('gemini_api_key_eksternal_v2');
+      localStorage.removeItem(GEMINI_API_KEY_STORAGE);
+      localStorage.removeItem(GEMINI_API_KEY_LEGACY_STORAGE);
+      sessionStorage.removeItem(GEMINI_API_KEY_STORAGE);
+      sessionStorage.removeItem(GEMINI_API_KEY_LEGACY_STORAGE);
       setGeminiApiKey("");
+      setApiKeyFeedback(null);
       setShowApiModal(false);
       notify("API Key Dikosongkan", "Generate AI belum bisa berjalan sampai API key Gemini diisi kembali.", "warning");
       return;
     }
-    localStorage.setItem('gemini_api_key_eksternal_v2', cleanedKey);
-    sessionStorage.removeItem('gemini_api_key_eksternal_v2');
+    if (!/^AIza[A-Za-z0-9_-]{20,}$/.test(cleanedKey)) {
+      setApiKeyFeedback({
+        type: "error",
+        message: "Format key belum sesuai. Salin nilai API key lengkap dari Google AI Studio, bukan nama key, Key ID, atau Project ID."
+      });
+      return;
+    }
+    localStorage.setItem(GEMINI_API_KEY_STORAGE, cleanedKey);
+    localStorage.setItem(GEMINI_API_KEY_LEGACY_STORAGE, cleanedKey);
+    sessionStorage.removeItem(GEMINI_API_KEY_STORAGE);
+    sessionStorage.removeItem(GEMINI_API_KEY_LEGACY_STORAGE);
     setGeminiApiKey(cleanedKey);
+    setApiKeyFeedback(null);
     setShowApiModal(false);
-    notify("API Key Tersimpan", "API key berhasil disimpan di localStorage perangkat ini. Generate AI sekarang memakai key tersebut.", "success");
+    notify("API Key Tersimpan", `API key berhasil disimpan di perangkat ini. Generate AI akan memakai ${geminiModel || GEMINI_DEFAULT_MODEL} dan berpindah otomatis ke model kompatibel bila diperlukan.`, "success");
   };
 
   const getInjectedApiKey = () => {
     const candidates = [];
     if (typeof window !== "undefined") {
-      candidates.push(window.GEMINI_API_KEY, window.GOOGLE_API_KEY, window.GOOGLE_GENAI_API_KEY, window.GENERATIVE_LANGUAGE_API_KEY, window.API_KEY, window.__GEMINI_API_KEY__, window.__GOOGLE_API_KEY__, window.__API_KEY__);
+      candidates.push(window.GOOGLE_API_KEY, window.GEMINI_API_KEY, window.GOOGLE_GENAI_API_KEY, window.GENERATIVE_LANGUAGE_API_KEY, window.API_KEY, window.__GOOGLE_API_KEY__, window.__GEMINI_API_KEY__, window.__API_KEY__);
     }
     if (typeof process !== "undefined" && process.env) {
-      candidates.push(process.env.GEMINI_API_KEY, process.env.GOOGLE_API_KEY, process.env.GOOGLE_GENAI_API_KEY, process.env.GENERATIVE_LANGUAGE_API_KEY, process.env.API_KEY);
+      candidates.push(process.env.GOOGLE_API_KEY, process.env.GEMINI_API_KEY, process.env.GOOGLE_GENAI_API_KEY, process.env.GENERATIVE_LANGUAGE_API_KEY, process.env.API_KEY);
     }
-    return (candidates.find(k => typeof k === "string" && k.trim()) || "").trim();
+    return sanitizeGeminiApiKey(candidates.find(k => typeof k === "string" && k.trim()) || "");
   };
 
-  const getActiveApiKey = () => (geminiApiKey || "").trim() || getInjectedApiKey();
+  const getActiveApiKey = () => sanitizeGeminiApiKey(geminiApiKey) || getInjectedApiKey();
   const hasActiveApiKey = () => Boolean(getActiveApiKey());
 
   const isAnyLoading = isGenerating || Object.values(individualLoading).some(v => v === true);
@@ -1726,13 +1778,25 @@ Pembelajaran Mendalam (mindful, meaningful, joyful) dipakai sebagai pendekatan/p
   };
 
   const getAiErrorText = (error) => String(error?.message || error || "");
+  const getAiErrorDetailsText = (error) => {
+    try {
+      return JSON.stringify(error?.apiDetails || []);
+    } catch (detailError) {
+      return "";
+    }
+  };
   const isAiQuotaError = (error) => {
-    const text = `${getAiErrorText(error)} ${error?.apiStatus || ""}`;
+    const text = `${getAiErrorText(error)} ${error?.apiStatus || ""} ${getAiErrorDetailsText(error)}`;
     return Number(error?.httpStatus) === 429 || /(quota|resource[_\s-]*exhausted|rate[_\s-]*limit|free[_\s-]*tier|too many requests|exceeded your current quota)/i.test(text);
   };
-  const isApiCredentialError = (error) => /(API_KEY_INVALID|api key (?:is )?not valid|invalid api key|api key (?:is )?(?:missing|expired)|unauthenticated)/i.test(getAiErrorText(error));
+  const isApiCredentialError = (error) => Number(error?.httpStatus) === 401 || /(API_KEY_INVALID|api key (?:is )?not valid|invalid api key|api key (?:is )?(?:missing|expired)|unauthenticated|unregistered caller)/i.test(`${getAiErrorText(error)} ${error?.apiStatus || ""}`);
+  const isZeroGeminiQuotaError = (error) => {
+    if (!isAiQuotaError(error)) return false;
+    const text = `${getAiErrorText(error)} ${getAiErrorDetailsText(error)}`;
+    return /(?:limit|quotaValue|quota_value)[^0-9]{0,20}0(?:\D|$)/i.test(text);
+  };
   const getAiRetryWaitText = (error) => {
-    const text = `${getAiErrorText(error)} ${error?.retryDelay || ""}`;
+    const text = `${getAiErrorText(error)} ${error?.retryDelay || ""} ${getAiErrorDetailsText(error)}`;
     const secondsMatch = text.match(/(?:retry\s+(?:in|after)\s*|retryDelay[^\d]*)([\d.]+)\s*s/i);
     if (!secondsMatch) return "";
     const seconds = Math.max(1, Math.ceil(Number(secondsMatch[1]) || 0));
@@ -1742,13 +1806,24 @@ Pembelajaran Mendalam (mindful, meaningful, joyful) dipakai sebagai pendekatan/p
   const getFriendlyAiError = (error, actionLabel = "bagian ini") => {
     const text = getAiErrorText(error);
     const status = Number(error?.httpStatus) || 0;
+    if (isApiCredentialError(error)) {
+      return {
+        kind: "credential",
+        title: "API Key Gemini Ditolak",
+        type: "error",
+        message: "API key belum dapat dikenali oleh Gemini. Pastikan yang disalin adalah nilai key lengkap dari Google AI Studio, bukan nama key, Key ID, atau Project ID. Jika key berstatus Blocked/Leaked, buat key baru di Google AI Studio."
+      };
+    }
     if (isAiQuotaError(error)) {
       const retryText = getAiRetryWaitText(error);
+      const zeroQuotaText = isZeroGeminiQuotaError(error)
+        ? "Proyek Google untuk key ini melaporkan kuota API bernilai 0. Pastikan Terms of Service sudah diterima dan proyek memiliki akses Free Tier atau billing aktif di Google AI Studio. "
+        : "";
       return {
         kind: "quota",
         title: "Kuota Generate AI Sedang Habis",
         type: "warning",
-        message: `Kuota generate AI untuk API key yang digunakan telah mencapai batas sementara atau batas harian, sehingga ${actionLabel} belum dapat dibuat.\n\nData dan hasil yang sudah ada tetap tersimpan. ${retryText ? `${retryText} ` : ""}Jika kuota harian telah habis, coba kembali setelah kuota diperbarui atau gunakan API key lain yang masih memiliki kuota.`
+        message: `Kuota generate AI untuk API key yang digunakan belum tersedia atau telah mencapai batas sementara/harian, sehingga ${actionLabel} belum dapat dibuat.\n\n${zeroQuotaText}Data dan hasil yang sudah ada tetap tersimpan. ${retryText ? `${retryText} ` : ""}Jika kuota harian telah habis, coba kembali setelah kuota diperbarui atau gunakan API key lain yang masih memiliki kuota.`
       };
     }
     if (/failed to fetch|network|internet|connection|load failed/i.test(text)) {
@@ -1760,53 +1835,197 @@ Pembelajaran Mendalam (mindful, meaningful, joyful) dipakai sebagai pendekatan/p
     if (error instanceof SyntaxError || /(respons AI kosong|output AI bukan|tidak berisi JSON|harus tepat \d+)/i.test(text)) {
       return { kind: "format", title: "Hasil AI Belum Sesuai", type: "warning", message: `AI belum menghasilkan susunan ${actionLabel} yang lengkap dan sesuai format aplikasi. Coba generate kembali; data sebelumnya tetap tersimpan dan tidak berubah.` };
     }
+    if (/reported as leaked|key.*blocked|blocked.*key/i.test(text)) {
+      return { kind: "credential", title: "API Key Diblokir Google", type: "error", message: "Google menandai API key ini sebagai terblokir atau pernah terekspos. Hapus key tersebut, buat key baru langsung dari Google AI Studio, lalu uji koneksinya sebelum generate." };
+    }
     if (status === 403) {
-      return { kind: "access", title: "Akses Layanan AI Belum Tersedia", type: "warning", message: `API key belum memiliki akses yang diperlukan untuk membuat ${actionLabel}. Periksa pengaturan atau gunakan API key lain yang memiliki akses. Data yang sudah diisi tetap tersimpan.` };
+      return { kind: "access", title: "Akses Gemini Belum Aktif", type: "warning", message: `API key dikenali, tetapi proyek Google belum diizinkan membuat ${actionLabel}. Buka Google AI Studio dengan akun pembuat key, terima persyaratan penggunaan, pastikan Generative Language API aktif, dan periksa apakah key berstatus aktif serta dibatasi khusus untuk Gemini API. Data yang sudah diisi tetap tersimpan.` };
+    }
+    if (status === 404 || /model.*(?:not found|not supported|unavailable)/i.test(text)) {
+      return { kind: "model", title: "Model Gemini Belum Tersedia", type: "warning", message: `Model Gemini yang didukung proyek ini belum ditemukan untuk membuat ${actionLabel}. Aplikasi sudah mencoba model kompatibel yang tersedia; silakan uji kembali key atau periksa akses model di Google AI Studio.` };
+    }
+    if (status === 400) {
+      return { kind: "request", title: "Permintaan Gemini Belum Diterima", type: "warning", message: `Gemini menolak format permintaan untuk membuat ${actionLabel}. Aplikasi tidak mengubah data lama. Uji koneksi API key, lalu coba kembali.` };
     }
     return { kind: "unknown", title: "Generate Belum Berhasil", type: "error", message: `Sistem AI belum berhasil membuat ${actionLabel}. Silakan coba kembali beberapa saat lagi. Data yang sudah diisi tetap tersimpan.` };
   };
   const handleAiFailure = (error, actionLabel) => {
     console.error(`Generate AI gagal: ${actionLabel}`, error);
     const friendly = getFriendlyAiError(error, actionLabel);
-    if (friendly.kind !== "quota" && (!hasActiveApiKey() || isApiCredentialError(error))) {
+    if (!hasActiveApiKey() || friendly.kind === "credential") {
       setTempApiKey(geminiApiKey);
+      setApiKeyFeedback({ type: "error", message: friendly.message });
       setShowApiModal(true);
       return;
     }
     notify(friendly.title, friendly.message, friendly.type);
   };
 
-  const callGeminiAPI = async (payload) => {
-    const apiKey = getActiveApiKey(); 
-    const model = apiKey ? "gemini-2.5-flash" : "gemini-2.5-flash-preview-09-2025";
-    const baseUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
-    const url = apiKey ? baseUrl : `${baseUrl}?key=`;
-    
-    const delays = [1000, 2000, 4000, 8000]; 
+  const normalizeGeminiSchemaTypes = (value) => {
+    if (Array.isArray(value)) return value.map(normalizeGeminiSchemaTypes);
+    if (!value || typeof value !== "object") return value;
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => {
+      if (key === "type" && typeof item === "string" && /^(OBJECT|ARRAY|STRING|NUMBER|INTEGER|BOOLEAN|NULL)$/.test(item)) {
+        return [key, item.toLowerCase()];
+      }
+      return [key, normalizeGeminiSchemaTypes(item)];
+    }));
+  };
+
+  const usesModernGeminiConfig = (model) => /^gemini-3\.(?:5|6)/i.test(model || "");
+
+  const prepareGeminiPayload = (payload, model) => {
+    const prepared = JSON.parse(JSON.stringify(payload || {}));
+    const config = { ...(prepared.generationConfig || {}) };
+    if (usesModernGeminiConfig(model)) {
+      const oldMimeType = config.responseMimeType;
+      const oldSchema = config.responseSchema;
+      const currentTextFormat = config.responseFormat?.text || {};
+      if (oldMimeType || oldSchema || config.responseFormat) {
+        config.responseFormat = {
+          text: {
+            ...currentTextFormat,
+            ...(oldMimeType ? { mimeType: oldMimeType } : {}),
+            ...(oldSchema ? { schema: normalizeGeminiSchemaTypes(oldSchema) } : {}),
+            ...(currentTextFormat.schema ? { schema: normalizeGeminiSchemaTypes(currentTextFormat.schema) } : {})
+          }
+        };
+      }
+      delete config.responseMimeType;
+      delete config.responseSchema;
+      delete config.candidateCount;
+      delete config.temperature;
+      delete config.topP;
+      delete config.topK;
+    }
+    prepared.generationConfig = config;
+    return prepared;
+  };
+
+  const createGeminiRequestError = (response, result, model) => {
+    const apiError = new Error(result?.error?.message || `Layanan Gemini menolak permintaan pada model ${model}.`);
+    apiError.httpStatus = response.status;
+    apiError.apiStatus = result?.error?.status || "";
+    apiError.apiDetails = result?.error?.details || [];
+    apiError.retryDelay = apiError.apiDetails.find(detail => detail?.retryDelay)?.retryDelay || "";
+    apiError.geminiModel = model;
+    return apiError;
+  };
+
+  const shouldTryNextGeminiModel = (error) => {
+    const status = Number(error?.httpStatus) || 0;
+    const text = `${getAiErrorText(error)} ${error?.apiStatus || ""}`;
+    if (status === 404) return true;
+    if (status === 400 && /(model|response.?format|response.?schema|unknown name|unsupported|invalid argument)/i.test(text)) return true;
+    if (status === 403 && /(model.*(?:access|permission|available)|access.*model)/i.test(text)) return true;
+    return isZeroGeminiQuotaError(error);
+  };
+
+  const getGeminiModelCandidates = (preferredModel = geminiModel) => Array.from(new Set([
+    preferredModel,
+    ...GEMINI_MODEL_PRIORITY
+  ].filter(Boolean)));
+
+  const callGeminiAPI = async (payload, options = {}) => {
+    const apiKey = sanitizeGeminiApiKey(options.apiKey || getActiveApiKey());
+    if (!apiKey) {
+      const missingKeyError = new Error("API key Gemini belum diisi.");
+      missingKeyError.httpStatus = 401;
+      missingKeyError.apiStatus = "UNAUTHENTICATED";
+      throw missingKeyError;
+    }
+
+    const models = options.models?.length ? options.models : getGeminiModelCandidates(options.preferredModel);
+    const retryDelays = [0, 1200, 2500];
     let lastError = null;
 
-    for (let i = 0; i <= delays.length; i++) {
-      try {
-        const headers = apiKey ? { 'Content-Type': 'application/json', 'x-goog-api-key': apiKey } : { 'Content-Type': 'application/json' };
-        const res = await fetch(url, { method: 'POST', headers, body: JSON.stringify(payload) });
-        let result = {};
-        try { result = await res.json(); } catch (parseError) {}
-        if (!res.ok) {
-          const apiError = new Error(result.error?.message || "Layanan AI belum dapat memproses permintaan.");
-          apiError.httpStatus = res.status;
-          apiError.apiStatus = result.error?.status || "";
-          apiError.retryDelay = (result.error?.details || []).find(detail => detail?.retryDelay)?.retryDelay || "";
-          throw apiError;
+    for (let modelIndex = 0; modelIndex < models.length; modelIndex++) {
+      const model = models[modelIndex];
+      const url = `https://generativelanguage.googleapis.com/v1beta/models/${encodeURIComponent(model)}:generateContent`;
+      const preparedPayload = prepareGeminiPayload(payload, model);
+
+      for (let attempt = 0; attempt < retryDelays.length; attempt++) {
+        if (retryDelays[attempt]) await new Promise(resolve => setTimeout(resolve, retryDelays[attempt]));
+        try {
+          const response = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "Accept": "application/json",
+              "x-goog-api-key": apiKey
+            },
+            body: JSON.stringify(preparedPayload)
+          });
+          let result = {};
+          try {
+            result = await response.json();
+          } catch (parseError) {
+            result = {};
+          }
+          if (!response.ok) throw createGeminiRequestError(response, result, model);
+
+          if (options.persistModel !== false) {
+            setGeminiModel(model);
+            try {
+              localStorage.setItem(GEMINI_MODEL_STORAGE, model);
+            } catch (storageError) {}
+          }
+          return { ...result, __appGeminiModel: model };
+        } catch (error) {
+          lastError = error;
+          const status = Number(error?.httpStatus) || 0;
+          const canRetrySameModel = !status || status >= 500;
+          if (canRetrySameModel && attempt < retryDelays.length - 1) continue;
+          break;
         }
-        return result;
-      } catch (error) {
-        lastError = error;
-        const status = Number(error?.httpStatus) || 0;
-        if (!apiKey || isApiCredentialError(error) || isAiQuotaError(error) || (status >= 400 && status < 500)) throw error;
-        if (i < delays.length) await new Promise(resolve => setTimeout(resolve, delays[i]));
       }
+
+      if (!shouldTryNextGeminiModel(lastError) || modelIndex === models.length - 1) throw lastError;
     }
-    throw lastError; 
+    throw lastError || new Error("Layanan Gemini belum dapat memproses permintaan.");
+  };
+
+  const testGeminiApiKey = async () => {
+    const keyToTest = sanitizeGeminiApiKey(tempApiKey);
+    if (!/^AIza[A-Za-z0-9_-]{20,}$/.test(keyToTest)) {
+      setApiKeyFeedback({ type: "error", message: "Masukkan nilai API key lengkap dari Google AI Studio terlebih dahulu." });
+      return;
+    }
+    setIsTestingApiKey(true);
+    setApiKeyFeedback({ type: "info", message: "Sedang menguji autentikasi dan akses model Gemini..." });
+    try {
+      const result = await callGeminiAPI({
+        contents: [{ role: "user", parts: [{ text: "Balas tepat dengan kata OK." }] }],
+        generationConfig: { maxOutputTokens: 128 }
+      }, {
+        apiKey: keyToTest,
+        preferredModel: GEMINI_DEFAULT_MODEL,
+        persistModel: false
+      });
+      const responseText = result?.candidates?.[0]?.content?.parts?.map(part => part?.text || "").join("").trim();
+      if (!responseText) throw new Error("Koneksi diterima, tetapi model tidak mengembalikan teks uji.");
+      const workingModel = result.__appGeminiModel || GEMINI_DEFAULT_MODEL;
+      setGeminiModel(workingModel);
+      try {
+        localStorage.setItem(GEMINI_MODEL_STORAGE, workingModel);
+      } catch (storageError) {}
+      setApiKeyFeedback({ type: "success", message: `Koneksi berhasil. Key dapat melakukan generate dengan model ${workingModel}. Silakan simpan key.` });
+    } catch (error) {
+      const friendly = getFriendlyAiError(error, "uji koneksi");
+      setApiKeyFeedback({ type: "error", message: friendly.message });
+    } finally {
+      setIsTestingApiKey(false);
+    }
+  };
+
+  const getGeminiResponseText = (result) => {
+    const parts = result?.candidates?.[0]?.content?.parts;
+    if (!Array.isArray(parts)) return "";
+    return parts
+      .map(part => typeof part?.text === "string" ? part.text : "")
+      .filter(Boolean)
+      .join("")
+      .trim();
   };
 
   const stableGenerationConfig = (extra = {}) => ({
@@ -1857,6 +2076,12 @@ Pembelajaran Mendalam (mindful, meaningful, joyful) dipakai sebagai pendekatan/p
   const handleGenerateAI = async () => {
     if (!rppData.topik || !rppData.mapel || !rppData.kelas) {
       notify("Data Belum Lengkap", "Mohon isi Mata Pelajaran, Fase/Kelas, dan Topik Pembelajaran terlebih dahulu.", "warning");
+      return;
+    }
+    if (!hasActiveApiKey()) {
+      setTempApiKey("");
+      setApiKeyFeedback({ type: "error", message: "Isi dan uji API key Gemini terlebih dahulu agar generate Modul Ajar/RPP dapat berjalan." });
+      setShowApiModal(true);
       return;
     }
     setIsGenerating(true);
@@ -1957,7 +2182,7 @@ Keluarkan JSON murni. Semua field wajib terisi, spesifik untuk mapel/kelas/topik
 
     try {
       const result = await callGeminiAPI(payload);
-      let aiText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      let aiText = getGeminiResponseText(result);
       if (!aiText) throw new Error("Respons AI kosong atau tidak berisi JSON, sehingga kolom tidak dapat diperbarui.");
       aiText = aiText.replace(/```json/gi, '').replace(/```/g, '').trim();
       const aiData = JSON.parse(aiText);
@@ -2071,7 +2296,7 @@ Keluarkan JSON murni dengan field kisiKisi, bankSoal, dan rubrikPenilaian. Janga
 
     try {
       const result = await callGeminiAPI(payload);
-      let aiText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      let aiText = getGeminiResponseText(result);
       if (!aiText) throw new Error("Respons AI kosong atau tidak berisi JSON instrumen.");
       aiText = aiText.replace(/```json/gi, '').replace(/```/g, '').trim();
       const aiData = JSON.parse(aiText);
@@ -2168,7 +2393,7 @@ Keluarkan JSON Array murni tepat ${expectedLkpdTotal} objek. Jangan menambah nar
 
     try {
       const result = await callGeminiAPI(payload);
-      let aiText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      let aiText = getGeminiResponseText(result);
       if (!aiText) throw new Error("Respons AI kosong atau tidak berisi JSON LKPD.");
       aiText = aiText.replace(/```json/gi, '').replace(/```/g, '').trim();
       const aiData = JSON.parse(aiText);
@@ -2273,7 +2498,7 @@ Keluarkan JSON Array murni tepat ${expectedLkpdTotal} objek. Jangan menambah nar
 
     try {
       const result = await callGeminiAPI(payload);
-      let aiText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      let aiText = getGeminiResponseText(result);
       if (!aiText) throw new Error("Respons AI kosong atau tidak berisi data yang dapat dimasukkan ke kolom.");
       if (type === 'string') {
         let cleanedText = cleanStr(aiText).replace(/^(Baik|Berikut|Ini).*?:\n/i, '');
@@ -2397,7 +2622,7 @@ Keluarkan JSON object murni: {"soal":"...","opsi":"...","kunci":"..."}`;
 
     try {
       const result = await callGeminiAPI(payload);
-      let aiText = result?.candidates?.[0]?.content?.parts?.[0]?.text || "";
+      let aiText = getGeminiResponseText(result);
       if (!aiText) throw new Error("Respons AI kosong atau bukan JSON soal.");
       aiText = aiText.replace(/```json/gi, '').replace(/```/g, '').trim();
       const aiData = JSON.parse(aiText);
@@ -3799,7 +4024,7 @@ ${pertemuanWordRows}
             <div className="pb-3 border-b"><h4 className="font-bold flex items-center text-sm sm:text-base"><i className="fas fa-cog text-blue-500 mr-2"></i> Kontrol Form</h4><p className="text-xs sm:text-sm mt-1 text-slate-500">Status: {isEditing ? <span className="text-orange-500 font-bold">Mengedit</span> : <span className="text-green-500 font-bold">Tersimpan</span>}</p></div>
 
             {/* TOMBOL PENGATURAN API KEY MANUAL */}
-            <button onClick={() => { setTempApiKey(geminiApiKey); setShowApiModal(true); }} className={`py-2 px-3 rounded-lg text-xs font-bold text-left flex items-center justify-between border transition-colors ${hasActiveApiKey() ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100' : 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'}`}>
+            <button onClick={() => { setTempApiKey(geminiApiKey); setApiKeyFeedback(null); setShowApiModal(true); }} className={`py-2 px-3 rounded-lg text-xs font-bold text-left flex items-center justify-between border transition-colors ${hasActiveApiKey() ? 'bg-green-50 border-green-200 text-green-700 hover:bg-green-100' : 'bg-red-50 border-red-200 text-red-700 hover:bg-red-100'}`}>
               <span className="flex items-center"><i className={`fas ${hasActiveApiKey() ? 'fa-bolt' : 'fa-exclamation-triangle'} mr-2`}></i> {geminiApiKey ? 'Ganti API Key' : (getInjectedApiKey() ? 'API Key Canvas Terdeteksi' : 'Isi API Key (Cepat)')}</span>
               <i className="fas fa-key"></i>
             </button>
@@ -3910,24 +4135,47 @@ ${pertemuanWordRows}
           <div className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden animate-in zoom-in-95 duration-200">
             <div className="bg-gradient-to-r from-blue-600 to-indigo-700 p-4 sm:p-5 text-white flex justify-between items-center">
               <h3 className="font-bold text-lg"><i className="fas fa-key mr-2 text-yellow-300"></i> Konfigurasi API Gemini</h3>
-              <button onClick={() => setShowApiModal(false)} className="text-blue-100 hover:text-white"><i className="fas fa-times text-xl"></i></button>
+              <button onClick={() => { setApiKeyFeedback(null); setShowApiModal(false); }} className="text-blue-100 hover:text-white"><i className="fas fa-times text-xl"></i></button>
             </div>
             <div className="p-5 sm:p-6 text-sm text-slate-700">
               <div className="bg-blue-50 border border-blue-200 p-3 rounded-lg mb-4 text-xs sm:text-sm leading-relaxed">
                 <p>Silakan masukkan <strong>Gemini API Key</strong> agar tombol generate dapat mengisi kolom-kolom modul ajar dengan benar.</p>
                 <ol className="list-decimal ml-5 mt-2 space-y-1 font-medium">
                   <li>Buka <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noreferrer" className="text-blue-600 underline hover:text-blue-800">Google AI Studio</a>.</li>
-                  <li>Klik tombol <strong>"Create API key"</strong> lalu salin dan tempel di bawah.</li>
+                  <li>Terima persyaratan penggunaan bila diminta, lalu klik <strong>"Create API key"</strong>.</li>
+                  <li>Salin <strong>nilai API key</strong>, tempel di bawah, kemudian klik <strong>Uji Koneksi</strong>.</li>
                 </ol>
               </div>
               <label className="block font-bold text-slate-800 mb-2">Gemini API Key Anda:</label>
-              <input type="password" value={tempApiKey} onChange={(e) => setTempApiKey(e.target.value)} placeholder="AIzaSy..." className="w-full p-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-mono tracking-widest text-slate-800 mb-1"/>
-              <p className="text-[10px] text-slate-500 mb-6"><i className="fas fa-shield-alt mr-1"></i>Key disimpan di <i>localStorage</i> perangkat ini agar tidak hilang saat tab tertutup, dan dikirim melalui header API, bukan query string URL.</p>
-              
-              <div className="flex gap-3">
-                <button onClick={() => setShowApiModal(false)} className="flex-1 py-3 bg-slate-100 font-bold rounded-xl hover:bg-slate-200">Batal</button>
-                <button onClick={saveApiKey} className="flex-1 py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-600/30">Simpan API Key</button>
+              <input type="password" value={tempApiKey} onChange={(e) => { setTempApiKey(e.target.value); setApiKeyFeedback(null); }} placeholder="AIzaSy..." autoComplete="off" spellCheck="false" className="w-full p-3 border-2 border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none font-mono tracking-widest text-slate-800 mb-1"/>
+              <div className="flex flex-wrap items-center justify-between gap-2 text-[10px] text-slate-500 mb-3">
+                <span><i className="fas fa-shield-alt mr-1"></i>Key disimpan di <i>localStorage</i> dan dikirim lewat header API.</span>
+                <span className="font-bold text-indigo-700">Model aktif: {geminiModel || GEMINI_DEFAULT_MODEL}</span>
               </div>
+
+              {apiKeyFeedback ? (
+                <div className={`p-3 rounded-lg border mb-4 text-xs leading-relaxed ${
+                  apiKeyFeedback.type === "success" ? "bg-emerald-50 border-emerald-200 text-emerald-800" :
+                  apiKeyFeedback.type === "error" ? "bg-red-50 border-red-200 text-red-800" :
+                  "bg-blue-50 border-blue-200 text-blue-800"
+                }`}>
+                  <i className={`fas ${
+                    apiKeyFeedback.type === "success" ? "fa-circle-check" :
+                    apiKeyFeedback.type === "error" ? "fa-circle-exclamation" :
+                    "fa-spinner fa-spin"
+                  } mr-2`}></i>
+                  {apiKeyFeedback.message}
+                </div>
+              ) : null}
+               
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                <button onClick={() => { setApiKeyFeedback(null); setShowApiModal(false); }} disabled={isTestingApiKey} className="py-3 bg-slate-100 font-bold rounded-xl hover:bg-slate-200 disabled:opacity-50">Batal</button>
+                <button onClick={testGeminiApiKey} disabled={isTestingApiKey} className="py-3 bg-amber-500 text-slate-950 font-bold rounded-xl hover:bg-amber-400 disabled:opacity-60">
+                  <i className={`fas ${isTestingApiKey ? "fa-spinner fa-spin" : "fa-plug-circle-check"} mr-2`}></i>{isTestingApiKey ? "Menguji..." : "Uji Koneksi"}
+                </button>
+                <button onClick={saveApiKey} disabled={isTestingApiKey} className="py-3 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 shadow-lg shadow-blue-600/30 disabled:opacity-60">Simpan API Key</button>
+              </div>
+              <p className="text-[10px] text-slate-500 mt-3 text-center">Uji koneksi memakai satu permintaan sangat kecil dan tidak menjalankan generate RPP.</p>
             </div>
           </div>
         </div>
